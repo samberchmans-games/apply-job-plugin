@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **5, resume enhancement v2**. Related documents:
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **6, multiple career tracks**. Related documents:
 - [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
@@ -19,8 +19,9 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete |
-| Multiple career tracks | ⬜ next (step 6) |
-| Tests | ✅ 532 automated + 98 manual scenarios · ⬜ CI |
+| Multiple career tracks | ✅ |
+| Tester material | ✅ Tester Guide (7 sessions) + 6 walkthrough videos, updated every step |
+| Tests | ✅ 565 automated + 108 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -30,6 +31,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 - **One step at a time:** Claude builds a step with its tests, pushes to `develop`, and reports. You review before the next step starts.
 - **Status lives in [TRACKER.md](TRACKER.md)**, which is updated at the end of every step.
 - **Definition of done for each step:**
+  - tester material updated: a Tester Guide session and a walkthrough video part
   - code is in place
   - automated tests are added, and all of them pass (`./tests/run-tests.sh` + `./tests/run-browser-tests.sh`)
   - manual scenarios are added to TEST-SCENARIOS.md
@@ -140,31 +142,32 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 532 across 16 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 532) · `./tests/run-tests.sh` (the 295 that need no browser) |
+| Automated tests: 565 across 18 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 565) · `./tests/run-tests.sh` (the 315 that need no browser) |
+| Tester Guide (shareable doc, 7 sessions, 64 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 98 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 108 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
-## 10. Multiple career tracks (new — requested 2026-11-18)
+## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
 
 **Goal:** someone with experience in more than one direction, e.g. **AWS Cloud Architect** *and* **Java Architect**, can set up 2–3 *tracks*. Every job is then evaluated against each track, and they apply with the right resume for the track that fits best.
 
 | Item | Status | Notes |
 |---|---|---|
-| Up to 3 career tracks in Admin. Each track has: name, target job titles, its own key skills, its own resume, salary range, and (optionally) its own areas and work types | ⬜ | Personal details, education, work authorization and EEO answers stay shared |
-| Shared "core skills" that count for every track (e.g. Leadership, Agile) | ⬜ | Each track adds its own skills on top |
-| Migration: the current profile becomes Track 1 automatically, so no data is lost | ⬜ | |
-| On a job page, score the job against **every** track and show them side by side: match %, matching/gap skills and fit for each | ⬜ | e.g. "Cloud Architect 82% · Java Architect 45%" |
-| Automatically pick the best track (match % + how close the job title is to the track's target titles), with a switch to change it | ⬜ | |
-| Tailor resume, Autofill and AI draft answers use the **selected track's** resume and skills | ⬜ | |
-| Applications record which track was used; Applications can be filtered by track | ⬜ | |
-| **Track insights** in Admin: for each track, jobs evaluated, average match %, applications sent, and the **most frequent gaps** across the jobs looked at | ⬜ | Shows which skills to learn next for each direction |
-| Evaluation history: keep the last 300 analyzed jobs (title, company, URL, score per track) so insights can be built and jobs re-opened | ⬜ | Local only, oldest dropped |
-| Compare view: pick 2–3 saved jobs and see their scores across tracks side by side | ⬜ | Helps decide where to apply first |
-| Tests for multi-track scoring, best-track choice, migration and insights | ⬜ | Added to the automated suite |
+| Up to 3 career tracks in Admin. Each track has: name, target job titles, its own key skills, its own resume, salary range, and (optionally) its own areas and work types | ✅ | Personal details, education, work authorization and EEO answers stay shared |
+| Shared "core skills" that count for every track (e.g. Leadership, Agile) | ✅ | Each track adds its own skills on top |
+| Migration: the current profile becomes Track 1 automatically, so no data is lost | ✅ | Implemented as an implicit "General" track: nothing changes until you add tracks |
+| On a job page, score the job against **every** track and show them side by side: match %, matching/gap skills and fit for each | ✅ | e.g. "Cloud Architect 82% · Java Architect 45%" |
+| Automatically pick the best track (match % + how close the job title is to the track's target titles), with a switch to change it | ✅ | |
+| Tailor resume, Autofill and AI draft answers use the **selected track's** resume and skills | ✅ | |
+| Applications record which track was used; Applications can be filtered by track | ✅ | |
+| **Track insights** in Admin: for each track, jobs evaluated, average match %, applications sent, and the **most frequent gaps** across the jobs looked at | ✅ | Shows which skills to learn next for each direction |
+| Evaluation history: keep the last 300 analyzed jobs (title, company, URL, score per track) so insights can be built and jobs re-opened | ✅ | Local only, oldest dropped |
+| Compare view: recent jobs and their scores across tracks side by side | ✅ | Admin → Career tracks, last 15 jobs |
+| Tests for multi-track scoring, best-track choice, migration and insights | ✅ | Added to the automated suite |
 
-Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture-multiple-career-tracks-roadmap-step-6).
+How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 
 ## 11. Application tracker (no email needed) — ✅ done 2026-11-18
 | Item | Status | Notes |
@@ -192,11 +195,11 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 6 | **Multiple career tracks** (section 10) + tester guide session & video | *see change log* |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 6 | **Multiple career tracks**: 2–3 profiles; every job scored against each; best track picked; track insights | 10 | Large |
 | 7 | Read PDF resumes automatically (no more pasting) | 2 | Small |
 | 8 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
 | 9 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
@@ -209,7 +212,7 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 98 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 108 scenarios |
 | Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
@@ -252,5 +255,7 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2026-11-18 | `5d78eb1` | Consolidated roadmap |
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
+| 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
+| 2026-11-18 | *this commit* | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
 | 2026-11-18 | `3022695` | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
 

@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js');
 }
 
 (function () {
@@ -21,7 +21,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   const MAX_LOGS = 3000;
   const CONTENT_FILES = [
     'src/lib/core.js', 'src/lib/logger.js', 'src/lib/errors.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
-    'src/lib/matcher.js', 'src/lib/tracker.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js',
+    'src/lib/matcher.js', 'src/lib/tracker.js', 'src/lib/tracks.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js',
     'src/content/apply-detector.js', 'src/content/panel.js', 'src/content/content.js',
   ];
 
@@ -56,9 +56,12 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     log.info('Injected content scripts', { tabId });
   }
 
-  async function aiContext() {
-    const [profile, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.activeResume()]);
-    return { profile, resumeText: (resume && resume.text) || '', resume };
+  // Profile + resume as seen by one career track (core + track skills, the track's own resume).
+  async function aiContext(trackId) {
+    const [raw, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
+    const track = AJP.tracks.list(raw).find((t) => t.id === trackId) || AJP.tracks.list(raw)[0];
+    const resume = AJP.tracks.resumeFor(track, resumes);
+    return { profile: AJP.tracks.effectiveProfile(raw, track), resumeText: (resume && resume.text) || '', resume, track };
   }
 
   // Detects whether the resume changed between drafting and applying (line ids would shift).
@@ -71,7 +74,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
   // ---- Application tracking helpers --------------------------------------------
   const MAX_TAB_JOBS = 30;
-  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score, jobKey: j.jobKey });
+  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score, jobKey: j.jobKey, trackId: j.trackId, trackName: j.trackName });
 
   async function getTabJob(tabId) {
     if (tabId == null) return null;
@@ -92,8 +95,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
   // Merge, attach snapshot (job description etc.) and the resume used, then save.
   async function saveApplication(app, tabJob) {
-    const resume = await AJP.store.activeResume();
+    const [profileRaw, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
+    const track = app.trackId ? AJP.tracks.list(profileRaw).find((t) => t.id === app.trackId) : null;
+    const resume = AJP.tracks.resumeFor(track, resumes);
     const enriched = { ...app };
+    if (track && !enriched.trackName) enriched.trackName = track.name;
     if (!enriched.snapshot && tabJob && tabJob.snapshot && (!app.url || AJP.tracker.jobKey(app.url) === tabJob.jobKey)) {
       enriched.snapshot = tabJob.snapshot;
     }
@@ -171,9 +177,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Resume enhancement v2 — see src/lib/resume-engine.js for the rules.
-    async 'resume.enhance'({ jd, job }, sender, { tid, log: mlog }) {
+    async 'resume.enhance'({ jd, job, trackId }, sender, { tid, log: mlog }) {
       const E = AJP.resumeEngine;
-      const ctx = await aiContext();
+      const ctx = await aiContext(trackId);
       if (!ctx.resumeText) throw AJP.err('NO_RESUME');
       const doc = E.parse(ctx.resumeText);
       if (!doc.bullets.length) throw AJP.err('RESUME_STRUCTURE', { lines: doc.lines.length });
@@ -218,6 +224,8 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         jd: String(jd || '').slice(0, 12000),
         resumeId: ctx.resume.id,
         resumeName: ctx.resume.name,
+        trackId: ctx.track && !ctx.track.implicit ? ctx.track.id : null,
+        trackName: ctx.track && !ctx.track.implicit ? ctx.track.name : null,
         baseHash: hashText(ctx.resumeText),
         seniority: String(analysis.seniority || '').slice(0, 40),
         roleSummary: String(analysis.summary || '').slice(0, 300),
@@ -246,7 +254,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       if (!base) throw AJP.err('ENHANCEMENT_MISSING', { reason: 'original resume deleted' });
       if (hashText(base.text || '') !== d.baseHash) throw AJP.err('RESUME_CHANGED');
 
-      const profile = await AJP.store.get('profile');
+      const profileRaw = await AJP.store.get('profile');
+      const track = d.trackId ? AJP.tracks.list(profileRaw).find((t) => t.id === d.trackId) : null;
+      const profile = AJP.tracks.effectiveProfile(profileRaw, track);
       const doc = E.parse(base.text);
       const vctx = { doc, resumeText: base.text, jdText: d.jd, allowedSkills: E.allowedSkills(doc, base.text, profile.skills) };
       const chosen = [];
@@ -275,6 +285,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         gaps: d.gaps.map((g) => `- ${g.text} (${g.priority})${g.advice ? ': ' + g.advice : ''}`).join('\n'),
         basedOn: base.id,
         enhancementId: d.id,
+        trackId: d.trackId || null,
         job: d.job,
         coverage: d.coverage,
         createdAt: new Date().toISOString(),
@@ -282,21 +293,32 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       await serialData(() =>
         AJP.store.update('resumes', (r) => {
           r.items.unshift(item);
-          if (makeActive) r.activeId = item.id;
+          if (makeActive && !d.trackId) r.activeId = item.id;
         })
       );
+      // For a career track, "make it active" means: this track's resume from now on.
+      if (makeActive && d.trackId) {
+        await serialData(() => AJP.store.update('profile', (pr) => void (pr.tracks || []).forEach((t) => t.id === d.trackId && (t.resumeId = item.id))));
+      }
       await serialData(() => AJP.store.update('enhancements', (list) => void list.forEach((x) => x.id === id && (x.appliedResumeId = item.id))));
       mlog.info('Tailored resume created', { edits: chosen.length, skipped: skipped.length, makeActive: !!makeActive });
       return { resume: item, applied: chosen.length, skipped };
     },
 
-    async 'ai.draftAnswer'({ question, jd, job, maxWords }, sender, { tid }) {
-      const ctx = await aiContext();
+    async 'ai.draftAnswer'({ question, jd, job, maxWords, trackId }, sender, { tid }) {
+      const ctx = await aiContext(trackId);
       return { text: await AJP.ai.tasks.draftAnswer({ question, jd, job, maxWords, tid, ...ctx }) };
     },
 
     async 'ai.test'(msg, sender, { tid }) {
       return { text: await AJP.ai.tasks.test({ tid }) };
+    },
+
+    // One analyzed job with its score per career track (feeds track insights / compare).
+    async recordEvaluation({ ev }) {
+      if (!ev || !ev.jobKey) return {};
+      await serialData(() => AJP.store.update('evaluations', (list) => AJP.tracks.addEvaluation(list, { ...ev, at: new Date().toISOString() })));
+      return {};
     },
 
     async learnAnswer({ label, value, host, kind }) {
@@ -385,11 +407,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Fill every frame of the tab (Greenhouse/Lever forms are often in iframes).
-    async autofillTab({ tabId }, sender, { tid }) {
+    async autofillTab({ tabId, trackId }, sender, { tid }) {
       const id = tabId || (sender.tab && sender.tab.id);
       if (!id) throw AJP.err('NO_TAB');
       await ensureInjected(id);
-      await api.tabs.sendMessage(id, { type: 'doAutofill', tid }); // all frames, same trace id
+      await api.tabs.sendMessage(id, { type: 'doAutofill', tid, trackId }); // all frames, same trace id + career track
       return {};
     },
 

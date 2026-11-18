@@ -6,19 +6,20 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 5, resume enhancement v2
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 6, multiple career tracks
 
 ## Summary
 
 | | |
 |---|---|
-| Components built | **26 / 31** |
-| Components not started | **5**: career tracks, PDF reader, Workday adapter, resume export, CI |
-| Automated tests | **532 / 532 passing** (295 also run without a browser) |
+| Components built | **28 / 32** |
+| Components not started | **4**: PDF reader, Workday adapter, resume export, CI |
+| Automated tests | **565 / 565 passing** (315 also run without a browser) |
+| Tester material | Tester Guide (7 sessions, 64 checks) + 6 walkthrough videos (~6 min) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (10 found and fixed so far, each with a test) |
-| Next step | **Step 6: multiple career tracks** |
+| Open bugs | **0 known** (11 found and fixed so far, each with a test) |
+| Next step | **Step 7: read PDF resumes** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -46,6 +47,8 @@ Columns:
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
 | C11 | PDF resume reader | — | ⬜ | — | — | **Step 7.** Users paste the text for now. |
 | C12 | Application tracker logic | `src/lib/tracker.js` | ✅ | 77 | ⏳ | Job identity across 8 sites, merge rules, reminders, stats, CSV |
+| C24 | **Career tracks logic** (score every job per track, best track, insights, history) | `src/lib/tracks.js` | ✅ | 20 | ⏳ | Implicit "General" track = no migration needed |
+| C32 | **Career tracks UI** (panel tabs, Admin tracks + insights + compare, per-track tailoring/autofill/tracking) | `content.js`, `panel.js`, `src/admin/tracks-view.js` | ✅ | 13 | ⏳ | |
 | C29 | **Resume enhancement rules engine** | `src/lib/resume-engine.js` | ✅ | 54 | ⏳ | Parsing, strict prompts, validator (no job numbers, no invented numbers/skills/names, no copied job text, evidence required), result-oriented checks, assembly + integrity check |
 
 ### On the job page
@@ -76,13 +79,12 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
-| C24 | Multiple career tracks | **6 (next)** | ⬜ | Design in ARCHITECTURE.md §15; reuses resume enhancement per track |
 | C25 | Workday adapter (dropdowns, dates, "My Experience") | 8 | ⬜ | |
 | C26 | Tailored resume as a PDF/DOCX file | 9 | ⬜ | |
 | C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 11 | ⬜ | |
 | C28 | CI on GitHub (run tests on every push) | 14 | ⬜ | |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) = **532**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) = **565**
 
 ---
 
@@ -92,8 +94,9 @@ Columns:
 |---|---|---|---|---|---|
 | W16 | **Resume enhancement v2**: job-requirement analysis, verified evidence, targeted result-oriented edits, hard safety rules (never copy job numbers), review screen | 5 | Claude | ✅ Done | — |
 | W17 | Try resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs and your real resume; judge quality | — | **You** | ⏳ Waiting on you | A free API key |
-| W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | **⬜ Next**, waiting for your go | W16 ✅ |
-| W02 | Read PDF resumes automatically | 7 | Claude | ⬜ To do | — |
+| W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | ✅ Done | W16 ✅ |
+| W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (7 sessions, 6 videos) | — |
+| W02 | Read PDF resumes automatically | 7 | Claude | **⬜ Next**, waiting for your go | — |
 | W03 | Workday custom dropdowns, date pickers, multi-step experience | 8 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
 | W04 | Attach the tailored resume as PDF/DOCX | 9 | Claude | ⬜ To do | — |
 | W05 | Years-of-experience & seniority check; skill synonyms | 10 | Claude | ⬜ To do | — |
@@ -118,6 +121,8 @@ Columns:
 | 4 | Support logging: error codes, trace ids, Report an issue | `ab79d58` | 449 |
 | — | Architecture & plan documentation; this tracker | `bb34324`, `ab0c213` | 449 |
 | 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | `3022695` | 532 |
+| — | Tester Guide (shareable doc) + 5 walkthrough videos | `53f4881` | 532 |
+| 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | *this commit* | 565 |
 
 ## 4. Bugs found & fixed
 
@@ -133,6 +138,7 @@ Columns:
 | B8 | Old tailoring let the AI rewrite the whole resume, trusting it not to invent facts | Your review | Step 5 | Replaced by the evidence-checked edit pipeline (86 tests) |
 | B9 | Resume reader treated `### Role — Company` lines as new sections, losing the role | Automated tests | Step 5 | resume engine › finds the bullets… with their role |
 | B10 | Review screen didn't open when the Admin tab was already open | Automated tests | Step 5 | admin › resume tailoring review |
+| B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 
 ## 5. How to update this file
 

@@ -32,6 +32,9 @@
   .chip.no { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
   .chip.no.pref { background: #fffbeb; border-color: #fde68a; color: #92400e; }
   .fit { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
+  .tracks { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px 0 10px; }
+  .tk { border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+  .tk.on { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
   .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   button.b { border: 1px solid #d1d5db; background: #f9fafb; color: #111827; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
   button.b.p { background: #2563eb; border-color: #2563eb; color: #fff; }
@@ -51,6 +54,7 @@
     .ring span { background: #111827; }
     button.b { background: #1f2937; color: #f3f4f6; border-color: #4b5563; }
     .msg { background: #1f2937; } .q { border-color: #374151; }
+    .tk { background: #1f2937; color: #e5e7eb; border-color: #4b5563; } .tk.on { background: #2563eb; border-color: #2563eb; }
     .msg.warn { background: #3a2a0a; color: #fcd34d; } .msg.ask { background: #172554; }
   }`;
 
@@ -107,8 +111,12 @@
     } else if (a) {
       const f = a.fit;
       const sal = f.salary.job ? `$${Math.round(f.salary.job.min / 1000)}k–$${Math.round(f.salary.job.max / 1000)}k${f.salary.job.hourly ? ' (from hourly)' : ''}` : 'not listed';
+      const tr = state.tracks && state.tracks.results.length > 1 ? state.tracks : null;
+      const tabs = tr
+        ? `<div class="tracks" role="tablist" aria-label="Career tracks">${tr.results.map((x) => `<button class="tk ${x.track.id === state.trackId ? 'on' : ''}" role="tab" aria-selected="${x.track.id === state.trackId}" data-act="track" data-arg="${esc(x.track.id)}" title="${x.track.id === tr.bestId ? 'Best fit for this job' : 'Switch to this track'}">${x.track.id === tr.bestId ? '★ ' : ''}${esc(x.track.name)} <b>${x.analysis.score == null ? '–' : x.analysis.score + '%'}</b></button>`).join('')}</div>`
+        : '';
       body = `
-        <div class="job"><b>${esc(job.title || 'Job')}</b>${job.company ? ' · ' + esc(job.company) : ''}</div>
+        <div class="job"><b>${esc(job.title || 'Job')}</b>${job.company ? ' · ' + esc(job.company) : ''}</div>${tabs}
         <div class="score">
           <div class="ring" style="background:conic-gradient(${color(s)} ${(s || 0) * 3.6}deg,#e5e7eb 0)"><span>${s == null ? '?' : s + '%'}</span></div>
           <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match<br>

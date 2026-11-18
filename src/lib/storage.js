@@ -28,7 +28,8 @@
         linkedin: '', github: '', website: '',
         currentTitle: '', currentCompany: '', yearsExperience: '',
       },
-      skills: [], // [{name, level: 'expert'|'advanced'|'intermediate'|'beginner', years}]
+      skills: [], // CORE skills shared by every track: [{name, level, years}]
+      tracks: [], // career tracks (max 3): [{id, name, targetTitles[], skills[], resumeId, salary?, workTypes?}] — see tracks.js
       targetRoles: [], // ["Senior Software Engineer", ...]
       salary: { min: '', max: '', currency: 'USD', period: 'year' },
       areas: [], // ["Austin, TX", "Remote - US"]
@@ -61,6 +62,7 @@
     answers: {},
     applications: [],
     enhancements: [], // resume enhancement drafts awaiting review (max 20)
+    evaluations: [], // last 300 analyzed jobs with a score per track (track insights)
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };

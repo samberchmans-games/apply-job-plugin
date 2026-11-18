@@ -51,6 +51,7 @@ src/
     tracker.js                application tracker logic (job identity, merge rules, reminders, stats, CSV)
     diagnostics.js            "Report an issue" bundle; captureErrors for extension pages
     resume-engine.js          resume enhancement v2: parse, strict prompts, edit validator, assembly, integrity check
+    tracks.js                 career tracks: per-track profile/resume, score every job per track, best track, insights
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
   content/                    runs inside job pages (every frame)
@@ -63,6 +64,7 @@ src/
     admin.html / .css / .js   profile, skills, preferences, resumes, auto-apply, AI, answers, logs, backup
     tracker-view.js           Applications: stats, board, table, detail dialog, CSV export
     enhance-view.js           Resumes → tailoring drafts: review requirements, evidence and edits; create the resume
+    tracks-view.js            Career tracks: set up to 3 tracks, insights per track, compare recent jobs
     resume-view.html / .js    printable resume ("Save as PDF")
   popup/                      toolbar popup (analyze, autofill, open Admin, report a problem)
 tests/                        automated tests (see §12)
@@ -95,9 +97,9 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 | Context | Where it runs | Loaded files (in order) |
 |---|---|---|
-| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, background |
-| Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, jd-extractor, form-filler, apply-detector, panel, content |
-| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, resume-engine, diagnostics, tracker-view, enhance-view, admin |
+| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, tracks, background |
+| Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, tracks, jd-extractor, form-filler, apply-detector, panel, content |
+| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, resume-engine, tracks, diagnostics, tracker-view, enhance-view, tracks-view, admin |
 | Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
 **Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
@@ -106,12 +108,13 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 | Key | Shape | Written by | Notes |
 |---|---|---|---|
-| `profile` | `{ personal{…}, skills[{name,level,years}], targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
+| `profile` | `{ personal{…}, skills[{name,level,years}] (core skills), tracks[≤3]{id,name,targetTitles,skills,resumeId,salary?,workTypes?}, targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
 | `settings` | `{ ai{provider,model,keys{gemini,groq,openrouter},ollamaUrl}, logLevel, autoAnalyze, learnAnswers, tracker{autoDetect,followUpDays} }` | Admin | Keys are never exported by default |
 | `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,enhancementId?,coverage?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
 | `enhancements` | `[{ id, createdAt, job, jd≤12k, resumeId, resumeName, baseHash, requirements[{id,text,jdQuote,type,priority,keywords,evidence[{quote,where}],match}], atsKeywords, edits[{id,target,kind,role,before,after,reason,requirementIds,evidence,ok,violations,warnings,needsMetric,accepted}], gaps[{requirementId,text,priority,advice}], coverage{evidence,atsBefore,atsAfter,atsMissingAfter}, stats, appliedResumeId? }]` | Background (create, apply); Admin (delete) | Resume tailoring drafts awaiting review; max 20 |
 | `answers` | `{ [normKey]: {label,value,kind,count,lastUsed,hosts[≤10]} }` | Background | Values ≤ 5,000 chars |
 | `applications` | `[{ id, jobKey, url, title, company, location, score, status, date, appliedAt, updatedAt, statusHistory[≤30], snapshot{jd≤20k,salary,workTypes,location,source,savedAt}, resumeId, resumeName, notes, recruiter, interviewAt, nextStep, lastFollowUpAt, detectedBy, host }]` | Background (saves); Admin (edits) | Max 2,000; newest first |
+| `evaluations` | `[{ jobKey, url, title, company, at, bestTrackId, scores{trackId:n}, gaps{trackId:[skill]} }]` | Background | Last 300 analyzed jobs (one per job) — track insights & compare |
 | `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
 | `tabJobs` | `{ [tabId]: { url, title, company, location, score, jobKey, snapshot, submittedAt?, appliedAt?, at } }` | Background only | **Internal**, never exported; at most 30 tabs |
 
@@ -119,7 +122,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 **Cache correctness.** `storage.js` versions every key. A read that started before a write never caches the stale value. This was a real race, found by the test suite.
 
-**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications` and `enhancements`. `logs` and `tabJobs` are internal and are never imported.
+**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications`, `enhancements` and `evaluations`. `logs` and `tabJobs` are internal and are never imported.
 
 ## 6. Messages
 
@@ -131,7 +134,7 @@ All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, …
 | `log` | Persist a batch of log entries (max 200 per message) |
 | `ping` | Health check: version, session id, uptime, log level |
 | `analyzeTab` | Inject content scripts if needed, then open the panel (popup, context menu) |
-| `autofillTab` | Inject, then send `doAutofill` to all frames, carrying the trace id |
+| `autofillTab` | Inject, then send `doAutofill` to all frames, carrying the trace id and the career track |
 | `autofillReport` | A frame finished filling → forward to the top frame |
 | `fillQuestion` | Put an AI-drafted answer into a specific field (any frame) |
 | `ai.extractSkills` / `ai.draftAnswer` / `ai.test` | AI tasks (§8.5) |
@@ -139,6 +142,7 @@ All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, …
 | `resume.applyEnhancement` | Build the tailored resume from a reviewed draft: re-validate, assemble, integrity check |
 | `openAdmin` (`#resumes?enh=<id>`) | Open the review screen for a draft |
 | `learnAnswer` | Remember a question → answer pair |
+| `recordEvaluation` | Store a job's score per career track (insights, compare) |
 | `setTabJob` | "This tab is looking at job X" (used for apply detection and snapshots) |
 | `recordApplication` | Insert or update an application (merge rules in §8.4) |
 | `undoStatus` | Revert the last status change, or remove a just-added entry |
@@ -411,15 +415,17 @@ tests/
                           (routes to background vs content listeners like real browsers), scripting,
                           tabs.onCreated/onRemoved, alarms, action badge, contextMenus
   mocks/url-polyfill.js   URL for the macOS JavaScriptCore CLI runner only
-  unit/*.test.js          63 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
+  unit/*.test.js          70 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
                           panel, background, tracker, tracker-flow, admin, errors-logging,
-                          resume-engine, enhance-flow
+                          resume-engine, enhance-flow, tracks, tracks-flow
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 295 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 532 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 315 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 565 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
+video/                    tester walkthrough videos: parts.py (scenes per part), stage.js (captions,
+                          highlights, scripted actions in the real pages), build.py (Chrome + say + ffmpeg)
 ```
 
 - **End-to-end tests** run the real `background.js` and `content.js` together. Messages flow content → background → content through the mock.
@@ -450,18 +456,29 @@ tests/
 | Add a message type | `background.js` `handlers` | Handlers receive `(msg, sender, {tid, log})`; list it in §6 |
 | Add a stored key | `storage.js` `DEFAULTS` | Add a default; mark it `INTERNAL` if it must not be exported |
 
-## 15. Planned architecture: multiple career tracks (roadmap step 6)
+## 15. Career tracks
 
-The design is agreed in [PLAN.md §10](PLAN.md); it isn't built yet.
+**Model** (`tracks.js`):
+- `profile.tracks` holds up to 3 tracks: `{ id, name, targetTitles[], skills[], resumeId, salary?, workTypes? }`.
+- `profile.skills` holds the **core** skills that every track shares.
+- **No migration needed:** with no tracks configured, `tracks.list()` returns one implicit "General" track built from the profile as it is, so behavior is unchanged until the user adds tracks.
 
+**How a job is scored per track:**
+- `effectiveProfile(profile, track)` = core + track skills (deduplicated), with the track's salary / work types / areas overriding the profile's only when set, and its titles as the target roles.
+- `resumeFor(track)` = the track's own resume, else the active resume.
+- `analyzeAll()` runs the matcher once per track.
+- The **best track** = the highest `score + 15 × titleFit`. `titleFit` (0–1) measures how much of a target title appears in the job title, treating "Sr" as "Senior". The bonus only chooses between tracks; it never changes the % shown.
+
+**Flow:**
 ```
-profile.tracks: [ { id, name, targetTitles[], skills[], resumeId, salary?, areas?, workTypes? } ]  (max 3)
-profile.coreSkills: [...]                               shared by every track
-migration: existing skills/targetRoles/salary/resume → tracks[0]  (one-time, on first read)
-matcher.analyzeAll(jd, profile) → [{ trackId, score, matched, missing, fit }]
-best track = max(score + titleSimilarity(jobTitle, track.targetTitles) bonus); user can switch
-application.trackId; evaluations: ring buffer of 300 {jobKey, title, company, url, scores{trackId:score}, gaps}
-insights per track: evaluated, avg score, applied, top recurring gaps
+content.analyze → tracks.analyzeAll → panel tabs (★ best, selected unless the user picked one FOR THIS JOB;
+a different job resets the pick) → recordEvaluation {scores, gaps, bestTrackId} → evaluations (last 300)
+selected track → setTabJob / recordApplication {trackId, trackName}
+               → resume.enhance {trackId}: aiContext(trackId) = effective profile + track resume
+                 apply "make active" on a track draft = that track's resumeId (global active unchanged)
+               → autofillTab {trackId} → doAutofill: the track's effective profile + resume file
+Admin → Career tracks: edit (normalize), insights(trackId) from evaluations + applications, compare table
+Admin → Applications: filter by track; CSV "Track" column
 ```
 
 ## 16. Decision log
@@ -476,6 +493,7 @@ insights per track: evaluated, avg score, applied, top recurring gaps
 | 2026-11-18 | Track applications without email access | Keeps the "all local" promise; email sync stays optional and later |
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
+| 2026-11-18 | Career tracks via an implicit "General" track, not a data migration | No risk to existing data; users without tracks see no change |
 | 2026-11-18 | Resume tailoring = evidence-checked targeted edits assembled by code, not an AI rewrite | Prompts alone can't guarantee truth; the code validator can. Never copy the job's numbers; keep results first. |
 
 ## 17. Known limitations
@@ -484,6 +502,7 @@ insights per track: evaluated, avg score, applied, top recurring gaps
 - **Workday:** custom dropdowns, date pickers and the multi-step experience pages aren't automated yet (step 8).
 - **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 9).
 - **Resume tailoring with a real AI:** not yet tried with live free models; quality depends on the model (the safety rules hold regardless).
+- **Career tracks:** at most 3; the compare view shows the last 15 jobs.
 - **Resume structure:** tailoring works line by line, so achievements must be one per line, starting with `-` or `•` (otherwise `AJP-RES-STRUCT`).
 - **Real-browser testing:** not done yet (on the user's side). Site selectors for LinkedIn, Indeed and Glassdoor may need updates.
 - **Firefox:** job-site permissions must be granted manually after install.

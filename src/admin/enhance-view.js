@@ -72,7 +72,7 @@
     const n = Object.values(state).filter((s) => s.accepted && !s.blocked).length;
     const cov = d.coverage;
     dlg.innerHTML = `
-      <h2 style="margin-top:0">Tailor resume: ${esc((d.job && d.job.title) || 'Job')}${d.job && d.job.company ? ' · ' + esc(d.job.company) : ''}</h2>
+      <h2 style="margin-top:0">Tailor resume: ${esc((d.job && d.job.title) || 'Job')}${d.job && d.job.company ? ' · ' + esc(d.job.company) : ''}${d.trackName ? ` <span class="pill">🧭 ${esc(d.trackName)}</span>` : ''}</h2>
       <p class="hint">Based on “${esc(d.resumeName)}” · ${new Date(d.createdAt).toLocaleString()}. Nothing changes until you click <b>Create tailored resume</b>; your original stays as it is.</p>
       <div class="stats">
         <div class="tile"><b>${d.stats.requirements}</b><span>Job requirements</span></div>
@@ -95,7 +95,7 @@
       ${d.gaps.length ? `<ul class="gaps-list">${d.gaps.map((g) => `<li><b>${esc(g.text)}</b> (${PRI[g.priority] || g.priority})${g.advice ? ' — ' + esc(g.advice) : ''}</li>`).join('')}</ul>` : '<p class="hint">None 🎉</p>'}
 
       <div class="row" style="justify-content:flex-end">
-        <label class="check"><input type="checkbox" id="enhActive"> Make it my active resume</label>
+        <label class="check"><input type="checkbox" id="enhActive"> ${d.trackName ? `Use it as the “${esc(d.trackName)}” track's resume` : 'Make it my active resume'}</label>
         <button id="enhDiscard" class="danger">Discard draft</button>
         <button id="enhClose">Close</button>
         <button id="enhCreate" class="primary" ${n ? '' : 'disabled'}>Create tailored resume (${n} change${n === 1 ? '' : 's'})</button>

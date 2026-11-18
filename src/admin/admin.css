@@ -126,3 +126,8 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 .gaps-list li { margin: 4px 0; }
 .res.enh { cursor: default; }
 @media (prefers-color-scheme: dark) { .metric { background: #172554; color: #bfdbfe; } .viol { color: #fca5a5; } }
+
+/* ---- Career tracks ---- */
+.track .insights { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.stats.small .tile b { font-size: 17px; }
+#trackCompare td.best { font-weight: 700; color: var(--ok); }

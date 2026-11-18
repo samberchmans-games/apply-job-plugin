@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (532). Run them before every merge into `develop`.
+1. **Automated tests** (565). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **295** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **532** tests in headless Chrome. This is the full suite: the 295 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **315** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **565** tests in headless Chrome. This is the full suite: the 315 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -35,6 +35,8 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Support logging | `unit/errors-logging.test.js` | Every error code unique with a message and hint; HTTP status → code; value redaction (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, bearer tokens, `?key=`, phone numbers, SSNs) without mangling dates, salaries or URLs; session ids; traces (start/done/slow/fail); flight recorder; **one trace id shared page → background → AI**; host-only sender logging; storage failure → `AJP-STORE`; error code and hint shown in the panel; issue report contents, **no personal data in the report**, log cap, summary text, dead-background detection |
 | Resume rules engine | `unit/resume-engine.test.js` | Reading resumes (Markdown and plain text, roles, protected lines); **job numbers never copied** (10TB, 20+ APIs, <5%) while your own numbers are kept (2TB, 30%); invented numbers (including spelled out), skills, client names, copied job sentences, fake or missing evidence, protected targets all blocked; result-oriented warnings and the "add your real number" prompt; skills list rules; evidence and keyword coverage; final assembly + integrity check; strict prompts (rules, examples, data fencing, injection) |
 | Resume tailoring end-to-end | `unit/enhance-flow.test.js` | Pipeline with a **fake AI that cheats** (copies job numbers, invents Kubernetes and Netflix, fakes evidence, edits the header, duplicates an edit): every attempt blocked, honest edits kept; JSON retry; error codes; creating the resume (original untouched, protected lines intact, user's real numbers accepted, blocked edits can't be forced, make active, resume-changed and missing-draft errors); panel summary and review link |
+| Career tracks logic | `unit/tracks.test.js` | Implicit "General" track (no setup = existing profile), max 3, normalize; core + track skills; salary / work type / area overrides; the track's own resume; **every job scored against every track**; best track by score, job title breaks ties; title bonus never inflates the shown %; insights (evaluated, average, best-for, applied, interviews, top gaps); history (one entry per job, max 300); Track column in CSV |
+| Career tracks end-to-end | `unit/tracks-flow.test.js` | Panel tabs with a % per track and ★ best; switching; job recorded per track; no tabs without tracks; **a new job resets a manual pick**; Mark applied / Autofill (resume file) / Tailor resume (resume + skills sent to AI) use the chosen track; "make active" sets the track's resume; Admin: insights, compare table, add/edit/max 3/delete, Applications filter by track |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -184,6 +186,20 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | I15 | Turn off "Detect submitted applications automatically" | No automatic detection; Mark applied still works |
 | I16 | Stats tiles after 5+ applications with a few status changes | The numbers match the board (response rate = replies ÷ applied) |
 | I17 | Click Autofill on a job that's already Applied | It stays Applied (this was a bug before) |
+
+### K. Career tracks
+| ID | Steps | Expected |
+|---|---|---|
+| K1 | Admin → Career tracks → add "AWS Cloud Architect" and "Java Architect" with titles and skills; reload | Kept |
+| K2 | Add a third track, try a fourth; delete one | Button shows "Maximum 3 tracks"; delete works |
+| K3 | Open a cloud job post | A tab per track with a %; the cloud track is ★ and selected |
+| K4 | Open a Java job post (same tab, e.g. the next LinkedIn job) | The Java track is ★ and selected; an earlier manual pick doesn't carry over |
+| K5 | Switch tracks in the panel | Score, chips and fit change |
+| K6 | Tailor resume on a track | Draft shows the track; tailoring uses that track's resume and skills; "Use it as the … track's resume" sets the track's resume |
+| K7 | Autofill on a track with its own resume file | That file is attached |
+| K8 | Mark applied | The application shows the track; Applications filter by track works; CSV has a Track column |
+| K9 | After 3+ jobs: Career tracks | Insights per track (evaluated, average, best-for, applied, interviews, top gaps); compare table with ★ |
+| K10 | Delete all tracks | Panel shows a single score; everything works as before |
 
 ### H. Performance
 | ID | Steps | Expected |

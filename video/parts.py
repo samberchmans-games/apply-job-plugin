@@ -163,3 +163,35 @@ PARTS = [
              items=['Set each check: Pass · Fail · Blocked', 'For every Fail: check number + report file (R-…) + screenshot', 'Send to the person who invited you']),
     ]},
 ]
+
+# ---- Part 6: career tracks ------------------------------------------------------------------------
+TRACKS = [
+    {'id': 'cloud', 'name': 'AWS Cloud Architect', 'targetTitles': ['Cloud Architect', 'Solutions Architect'], 'skills': [{'name': n} for n in ['AWS', 'Terraform', 'Kubernetes', 'Docker']], 'resumeId': None},
+    {'id': 'java', 'name': 'Java Architect', 'targetTitles': ['Java Architect', 'Backend Architect'], 'skills': [{'name': n} for n in ['Java', 'Spring', 'Microservices', 'Kafka', 'REST APIs']], 'resumeId': 'r1'},
+]
+PROFILE_T = {**PROFILE, 'tracks': TRACKS}
+EVALS = [
+    {'jobKey': 'k1', 'url': 'https://x.com/1', 'title': 'Senior Cloud Architect', 'company': 'Initech', 'at': '2026-11-17T10:00:00Z', 'bestTrackId': 'cloud', 'scores': {'cloud': 84, 'java': 46}, 'gaps': {'cloud': ['Kubernetes', 'Terraform'], 'java': ['AWS']}},
+    {'jobKey': 'k2', 'url': 'https://x.com/2', 'title': 'Java Architect', 'company': 'Globex', 'at': '2026-11-16T10:00:00Z', 'bestTrackId': 'java', 'scores': {'cloud': 38, 'java': 88}, 'gaps': {'cloud': ['Kubernetes', 'Spring'], 'java': ['Kafka']}},
+    {'jobKey': 'k3', 'url': 'https://x.com/3', 'title': 'Solutions Architect (AWS)', 'company': 'Hooli', 'at': '2026-11-15T10:00:00Z', 'bestTrackId': 'cloud', 'scores': {'cloud': 72, 'java': 51}, 'gaps': {'cloud': ['Kubernetes'], 'java': ['AWS', 'Kafka']}},
+]
+BASE_T = {**BASE, 'profile': PROFILE_T, 'evaluations': EVALS}
+
+PARTS.append({'title': 'Career tracks', 'scenes': [
+    card('Part 6 · Career tracks', 'New in this version', 'Part six, career tracks. If you are looking in more than one direction, like AWS cloud architect and Java architect, set up to three tracks. Every job is scored against each one.',
+         'Tester Guide, Session 7. About 10 minutes.'),
+    {'kind': 'admin', 'hash': 'tracks', 'seed': BASE_T, 'actions': 'await H.sleep(400); document.querySelector(".track").id = "t1";', 'highlight': '#t1 .grid', 'budget': 6000,
+     'say': 'In Admin, Career tracks, click Add track. Give it a name, target job titles, the extra skills for that direction, and optionally its own resume. Your Skills tab holds the core skills shared by all tracks.',
+     'caption': 'Admin → Career tracks: name, target titles, track skills, resume', 'check': '7.1 – 7.2'},
+    {'kind': 'job', 'seed': BASE_T, 'actions': OPEN_PANEL, 'highlight': 'shadow:.tracks', 'budget': 6000,
+     'say': 'On a job page, the panel now shows a score for each track. The best fit is starred and selected automatically.', 'caption': 'Panel: a score per track · ★ = best fit, selected automatically', 'check': '7.3'},
+    {'kind': 'job', 'seed': BASE_T, 'actions': OPEN_PANEL + "\nH.shadow().querySelectorAll('.tk')[1].click(); await H.sleep(300);", 'highlight': 'shadow:.tracks', 'budget': 6000,
+     'say': 'Click another track to switch. Tailor resume, autofill, and mark applied then use that track\'s skills and resume.', 'caption': 'Switch track → tailoring, autofill and tracking use that track', 'check': '7.4 – 7.6'},
+    {'kind': 'admin', 'hash': 'tracks', 'seed': BASE_T, 'actions': 'await H.sleep(500);', 'highlight': '[data-ins="cloud"]', 'budget': 6000,
+     'say': 'Back in Career tracks, each track shows how many jobs you evaluated, your average match, and the gaps that come up most, so you know what to learn next.',
+     'caption': 'Insights per track · most frequent gaps = what to learn next', 'check': '7.7'},
+    {'kind': 'admin', 'hash': 'tracks', 'seed': BASE_T, 'actions': 'await H.sleep(500); document.querySelectorAll(".track .grid, .track .row, #tracks > .hint").forEach((e) => (e.style.display = "none")); window.scrollTo(0, 0);', 'highlight': '#trackCompare', 'budget': 6000,
+     'say': 'At the bottom, the table compares your recent jobs across tracks. The star marks the best track for each job.',
+     'caption': 'Compare recent jobs across your tracks (★ = best track)', 'check': '7.8'},
+    card('Part 6 done', 'Thank you for testing!', 'Mark checks seven point one to seven point nine in the guide. Thank you for testing!'),
+]})

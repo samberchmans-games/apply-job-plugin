@@ -50,6 +50,7 @@
     return {
       profileFilled: Object.fromEntries(['firstName', 'lastName', 'email', 'phone', 'city', 'linkedin', 'currentTitle', 'yearsExperience'].map((k) => [k, filled(p[k])])),
       skills: (profile.skills || []).length,
+      tracks: (profile.tracks || []).length,
       targetRoles: (profile.targetRoles || []).length,
       areas: (profile.areas || []).length,
       workTypes: profile.workTypes,

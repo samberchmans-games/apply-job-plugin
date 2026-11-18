@@ -71,6 +71,7 @@
       <div>${esc(a.title || a.url)}</div>
       <div class="meta">
         ${a.score == null ? '' : `<span class="pill">${a.score}%</span>`}
+        ${a.trackName ? `<span class="pill track-pill">${esc(a.trackName)}</span>` : ''}
         <span>${fmtDate(a.appliedAt || a.date)}</span>
         ${a.detectedBy && a.detectedBy !== 'manual' ? '<span class="pill auto" title="Detected automatically">auto</span>' : ''}
         ${due ? `<span class="pill due">${due.reason === 'interview' ? 'interview soon' : `follow up · ${due.days}d`}</span>` : ''}
@@ -99,14 +100,21 @@
   function filtered() {
     const q = AJP.norm($('#trkSearch').value);
     const st = $('#trkStatus').value;
+    const tk = $('#trkTrack').value;
     const dueOnly = $('#trkDue').checked;
-    return last.apps.filter((a) => matches(a, q) && (!st || a.status === st) && (!dueOnly || last.dueIds.has(a.id)));
+    return last.apps.filter((a) => matches(a, q) && (!st || a.status === st) && (!tk || a.trackName === tk) && (!dueOnly || last.dueIds.has(a.id)));
   }
 
   async function render() {
     const [apps, settings] = await Promise.all([AJP.store.get('applications'), AJP.store.get('settings')]);
     const due = T.dueFollowUps(apps, Date.now(), Number(settings.tracker.followUpDays) || 7);
     last = { apps, dueIds: new Map(due.map((d) => [d.app.id, d])) };
+    // Track filter options from the applications themselves (tracks may have been renamed/deleted).
+    const names = [...new Set(apps.map((a) => a.trackName).filter(Boolean))].sort();
+    const sel = $('#trkTrack');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All tracks</option>' + names.map((n) => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('');
+    sel.hidden = !names.length;
     $('#trkStats').innerHTML = statsHtml(T.stats(apps), due.length);
     const list = filtered();
     $('#trkView').innerHTML = !apps.length
@@ -126,7 +134,7 @@
     const sal = snap.salary ? `$${Math.round(snap.salary.min / 1000)}k–$${Math.round(snap.salary.max / 1000)}k` : '';
     d.innerHTML = `
       <h2 style="margin-top:0">${esc(a.title || 'Job')}</h2>
-      <p class="hint">${esc(a.company || '')}${a.location ? ' · ' + esc(a.location) : ''}${sal ? ' · ' + sal : ''}${a.score == null ? '' : ' · match ' + a.score + '%'}
+      <p class="hint">${a.trackName ? '🧭 ' + esc(a.trackName) + ' · ' : ''}${esc(a.company || '')}${a.location ? ' · ' + esc(a.location) : ''}${sal ? ' · ' + sal : ''}${a.score == null ? '' : ' · match ' + a.score + '%'}
         ${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">Open job ↗</a>` : ''}</p>
       <div class="grid">
         <label>Status<select data-f="status">${T.STATUSES.map((s) => `<option value="${s}" ${s === a.status ? 'selected' : ''}>${LABEL[s]}</option>`).join('')}</select></label>
@@ -194,7 +202,7 @@
   function init(opts) {
     ui = { ...ui, ...opts };
     $('#trkStatus').insertAdjacentHTML('beforeend', T.STATUSES.map((s) => `<option value="${s}">${LABEL[s]}</option>`).join(''));
-    for (const id of ['#trkSearch', '#trkStatus', '#trkDue']) $(id).addEventListener(id === '#trkSearch' ? 'input' : 'change', render);
+    for (const id of ['#trkSearch', '#trkStatus', '#trkTrack', '#trkDue']) $(id).addEventListener(id === '#trkSearch' ? 'input' : 'change', render);
     if (/[?&]due=1/.test(location.hash)) $('#trkDue').checked = true;
     document.querySelector('.seg').addEventListener('click', (e) => {
       if (!e.target.dataset.view) return;

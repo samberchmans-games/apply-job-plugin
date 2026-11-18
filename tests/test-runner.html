@@ -33,7 +33,7 @@
   <h1>Apply Job Assistant — automated tests</h1>
   <div class="bar">
     <a href="?">Run all</a><a href="?grep=autofill">Autofill</a><a href="?grep=job%20page">Job page</a>
-    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a><a href="?grep=tracker">Tracker</a><a href="?grep=admin">Admin</a><a href="?grep=logging">Logging</a><a href="?grep=resume">Resume</a>
+    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a><a href="?grep=tracker">Tracker</a><a href="?grep=admin">Admin</a><a href="?grep=logging">Logging</a><a href="?grep=resume">Resume</a><a href="?grep=track">Tracks</a>
   </div>
   <div id="summary">Running…</div>
   <div id="results"></div>
@@ -53,6 +53,7 @@
   <script src="../src/lib/docx.js"></script>
   <script src="../src/lib/tracker.js"></script>
   <script src="../src/lib/resume-engine.js"></script>
+  <script src="../src/lib/tracks.js"></script>
   <script src="../src/lib/diagnostics.js"></script>
   <script src="../src/background/background.js"></script>
   <script src="../src/content/jd-extractor.js"></script>
@@ -77,6 +78,8 @@
   <script src="unit/errors-logging.test.js"></script>
   <script src="unit/resume-engine.test.js"></script>
   <script src="unit/enhance-flow.test.js"></script>
+  <script src="unit/tracks.test.js"></script>
+  <script src="unit/tracks-flow.test.js"></script>
   <script>
   (async () => {
     const params = new URLSearchParams(location.search);

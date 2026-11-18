@@ -220,6 +220,7 @@
       const s = a.snapshot && a.snapshot.salary;
       return s ? `${s.min}-${s.max}` : '';
     }],
+    ['Track', (a) => a.trackName],
     ['Resume used', (a) => a.resumeName],
     ['Recruiter', (a) => a.recruiter],
     ['Interview', (a) => a.interviewAt],

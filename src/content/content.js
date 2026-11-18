@@ -13,7 +13,7 @@
   AJP.logContext = isTop ? 'content' : 'frame';
   const log = AJP.logger('content');
 
-  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '', duplicate: null, ask: null, lastApp: null };
+  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '', duplicate: null, ask: null, lastApp: null, tracks: null, trackId: null, trackPicked: null };
   let jdText = '';
   let lastUrl = location.href;
 
@@ -56,18 +56,40 @@
       state.aiSkills = null;
       state.aiUsed = false;
     }
+    // A different job (e.g. clicking the next job on LinkedIn) gets its own best track, not the last pick.
+    if (jdText !== job.text) state.trackPicked = null;
     jdText = job.text;
     state.job = job;
-    const [profile, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.activeResume()]);
-    state.analysis = AJP.matcher.analyze({ jdText, profile, resumeText: resume ? resume.text : '', aiSkills: state.aiSkills, jobLocation: job.location });
-    log.info('Analyzed job', { source: job.source, score: state.analysis.score, matched: state.analysis.matched.length, missing: state.analysis.missing.length, ms: Math.round(performance.now() - t0) });
+    const [profile, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
+    // Score the job against every career track; keep the user's pick for this page, else the best track.
+    const all = AJP.tracks.analyzeAll({ jdText, jobTitle: job.title, jobLocation: job.location, profile, resumes, aiSkills: state.aiSkills });
+    state.tracks = all;
+    if (!state.trackPicked || !all.results.some((r) => r.track.id === state.trackPicked)) state.trackPicked = null;
+    state.trackId = state.trackPicked || all.bestId;
+    state.analysis = selected().analysis;
+    log.info('Analyzed job', { source: job.source, score: state.analysis.score, tracks: all.results.map((r) => r.analysis.score), best: all.bestId === state.trackId, matched: state.analysis.matched.length, missing: state.analysis.missing.length, ms: Math.round(performance.now() - t0) });
+    if (!all.results[0].track.implicit || all.results.length > 1) {
+      AJP.send('recordEvaluation', { ev: {
+        jobKey: AJP.tracker.jobKey(job.url || location.href), url: job.url || location.href, title: job.title, company: job.company,
+        bestTrackId: all.bestId,
+        scores: Object.fromEntries(all.results.map((r) => [r.track.id, r.analysis.score])),
+        gaps: Object.fromEntries(all.results.map((r) => [r.track.id, r.analysis.missing.slice(0, 10).map((m) => m.skill)])),
+      } });
+    }
     // Remember this job for the tab (apply detection) and warn if already applied.
     const apps = await AJP.store.get('applications');
     state.duplicate = AJP.tracker.findDuplicate(apps, jobMeta());
-    AJP.send('setTabJob', { job: { ...jobMeta(), score: state.analysis.score, snapshot: snapshot() } });
+    AJP.send('setTabJob', { job: { ...jobMeta(), ...trackRef(), score: state.analysis.score, snapshot: snapshot() } });
     render();
     return state.analysis;
   }
+
+  const selected = () => (state.tracks && state.tracks.results.find((r) => r.track.id === state.trackId)) || (state.tracks && state.tracks.results[0]);
+  // The career track to use for tailoring/autofill/tracking (null for the implicit "General" track).
+  const trackRef = () => {
+    const s = selected();
+    return s && !s.track.implicit ? { trackId: s.track.id, trackName: s.track.name } : {};
+  };
 
   function jobMeta() {
     const j = state.job || {};
@@ -87,9 +109,21 @@
     };
   }
 
-  const appPayload = (extra) => ({ app: { ...jobMeta(), score: state.analysis && state.analysis.score, snapshot: jdText ? snapshot() : undefined, ...extra } });
+  const appPayload = (extra) => ({ app: { ...jobMeta(), ...trackRef(), score: state.analysis && state.analysis.score, snapshot: jdText ? snapshot() : undefined, ...extra } });
 
   const callbacks = {
+    // Switch career track for this job (panel tabs).
+    track(id) {
+      if (!state.tracks || !state.tracks.results.some((r) => r.track.id === id)) return;
+      state.trackPicked = id;
+      state.trackId = id;
+      state.analysis = selected().analysis;
+      state.message = '';
+      log.info('Track switched', { best: id === state.tracks.bestId });
+      AJP.send('setTabJob', { job: { ...jobMeta(), ...trackRef(), score: state.analysis.score, snapshot: snapshot() } });
+      render();
+    },
+
     toggle() {
       state.minimized = !state.minimized;
       render();
@@ -124,7 +158,7 @@
       state.busy = 'tailor';
       say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s…');
       const tr = AJP.startTrace('panel.enhanceResume', { mod: 'content', slowMs: 90000 });
-      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta() }, tr);
+      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef() }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
@@ -156,7 +190,7 @@
       state.autofill = { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       say('Filling the form…');
       const tr = AJP.startTrace('panel.autofill', { mod: 'content' });
-      const r = await AJP.send('autofillTab', { tid: tr.id }, tr);
+      const r = await AJP.send('autofillTab', { tid: tr.id, ...trackRef() }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
@@ -173,7 +207,7 @@
       btn.textContent = 'Drafting…';
       const maxWords = q.maxLength ? Math.max(20, Math.floor(q.maxLength / 7)) : null;
       const tr = AJP.startTrace('panel.draftAnswer', { mod: 'content', slowMs: 30000 });
-      const r = await AJP.send('ai.draftAnswer', { question: q.label, jd: jdText, job: jobMeta(), maxWords }, tr);
+      const r = await AJP.send('ai.draftAnswer', { question: q.label, jd: jdText, job: jobMeta(), maxWords, ...trackRef() }, tr);
       if (!r.ok) {
         tr.fail(r);
         btn.disabled = false;
@@ -218,7 +252,7 @@
     },
   };
 
-  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score });
+  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score, trackId: j.trackId, trackName: j.trackName });
 
   // ---- Apply detection (every frame) ----------------------------------------------
   function startDetector() {
@@ -246,7 +280,11 @@
       analyze({ text: msg.jdText });
     } else if (msg.type === 'doAutofill') {
       (async () => {
-        const [profile, answers, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.get('answers'), AJP.store.activeResume()]);
+        // Use the chosen career track's profile and resume (file) for this application.
+        const [rawProfile, answers, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('answers'), AJP.store.get('resumes')]);
+        const track = msg.trackId ? AJP.tracks.list(rawProfile).find((t) => t.id === msg.trackId) : null;
+        const profile = AJP.tracks.effectiveProfile(rawProfile, track);
+        const resume = AJP.tracks.resumeFor(track, resumes);
         const tr = AJP.startTrace('frame.autofill', { mod: 'filler', tid: msg.tid });
         const report = await AJP.filler.fill({ profile, answers, resume });
         tr.end({ filled: report.filled.length, learned: report.learned.length, unknown: report.unknown.length, questions: report.questions.length, host: location.hostname });

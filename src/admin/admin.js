@@ -42,6 +42,7 @@
     if (id === 'answers') renderAnswers();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
+    if (id === 'tracks') AJP.tracksView.render();
   }
   window.addEventListener('hashchange', route);
 
@@ -497,6 +498,7 @@
     initResumes();
     initAnswers();
     AJP.trackerView.init({ toast, download });
+    AJP.tracksView.init({ toast });
     AJP.enhanceView.init({
       toast,
       onCreated: (resume) => {

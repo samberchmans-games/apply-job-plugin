@@ -14,6 +14,7 @@
     <a href="#profile">👤 Profile</a>
     <a href="#skills">🧠 Skills</a>
     <a href="#prefs">🎯 Job preferences</a>
+    <a href="#tracks">🧭 Career tracks</a>
     <a href="#resumes">📄 Resumes</a>
     <a href="#autoapply">⚡ Auto-apply details</a>
     <a href="#ai">✨ AI settings</a>
@@ -86,6 +87,16 @@
         <label class="check"><input type="checkbox" data-path="workTypes.onsite"> On-site</label>
       </div>
       <div class="grid"><label>Willing to relocate?<select data-path="willingToRelocate"><option value=""></option><option>Yes</option><option>No</option></select></label></div>
+    </section>
+
+    <!-- TRACKS -->
+    <section id="tracks">
+      <h1>Career tracks</h1>
+      <p class="hint">Looking in more than one direction (e.g. <b>AWS Cloud Architect</b> and <b>Java Architect</b>)? Add up to 3 tracks. Every job is scored against each track, the best one is picked automatically (you can switch in the panel), and tailoring, autofill and applications use that track's skills and resume. Your <b>Skills</b> tab holds the core skills shared by all tracks.</p>
+      <div id="trackCards" class="cards"></div>
+      <div class="row"><button id="trackAdd" class="primary">+ Add track</button></div>
+      <h3>Recent jobs across your tracks</h3>
+      <div id="trackCompare"></div>
     </section>
 
     <!-- RESUMES -->
@@ -188,6 +199,7 @@
       <div class="row">
         <input id="trkSearch" placeholder="Search company, title, notes…">
         <select id="trkStatus"><option value="">All statuses</option></select>
+        <select id="trkTrack"><option value="">All tracks</option></select>
         <label class="check"><input type="checkbox" id="trkDue"> Follow-ups due only</label>
         <span class="seg" role="group" aria-label="View"><button data-view="board">Board</button><button data-view="table">Table</button></span>
         <button id="trkExport">⬇ Export CSV</button>
@@ -264,9 +276,11 @@
 <script src="../lib/docx.js"></script>
 <script src="../lib/tracker.js"></script>
 <script src="../lib/resume-engine.js"></script>
+<script src="../lib/tracks.js"></script>
 <script src="../lib/diagnostics.js"></script>
 <script src="tracker-view.js"></script>
 <script src="enhance-view.js"></script>
+<script src="tracks-view.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>
