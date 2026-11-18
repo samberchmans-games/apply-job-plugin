@@ -1,6 +1,7 @@
 # Project plan: done vs. pending
 
 Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest feature commit `ab79d58`. Related documents:
+- [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
 - [SUPPORT.md](SUPPORT.md): logs and error codes
@@ -27,6 +28,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 
 - **Branches:** `develop` is the integration branch, and everything currently goes there. Larger features may use `feature/<name>` → PR → `develop`. `main` is kept for releases.
 - **One step at a time:** Claude builds a step with its tests, pushes to `develop`, and reports. You review before the next step starts.
+- **Status lives in [TRACKER.md](TRACKER.md)**, which is updated at the end of every step.
 - **Definition of done for each step:**
   - code is in place
   - automated tests are added, and all of them pass (`./tests/run-tests.sh` + `./tests/run-browser-tests.sh`)
@@ -236,5 +238,6 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2026-11-18 | `15fbc3c` | Application tracker (section 11); fixed the Autofill status downgrade, lost dialog edits, interview-date timezone |
 | 2026-11-18 | `ab79d58` | Support logging: error codes, trace ids, flight recorder, Report an issue, SUPPORT.md |
 | 2026-11-18 | `5d78eb1` | Consolidated roadmap |
-| 2026-11-18 | *this commit* | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
+| 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
+| 2026-11-18 | *this commit* | TRACKER.md: component status tracker; per-suite test counts in the runner |
 

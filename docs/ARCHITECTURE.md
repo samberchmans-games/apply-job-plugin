@@ -3,7 +3,8 @@
 Technical reference for **Apply Job Assistant**, the browser extension in this repo.
 
 Last updated: 2026-11-18 · Version 0.1.0 · Branch `develop`. Related documents:
-- [PLAN.md](PLAN.md): status and roadmap
+- [PLAN.md](PLAN.md): goals and roadmap
+- [TRACKER.md](TRACKER.md): current status
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
 - [SUPPORT.md](SUPPORT.md): logs and error codes
 

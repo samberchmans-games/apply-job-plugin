@@ -3,6 +3,7 @@
 #   ./tests/run-browser-tests.sh [filter]
 # Requires Google Chrome (or set CHROME=/path/to/chrome). Exit code 1 on failure.
 cd "$(dirname "$0")/.." || exit 1
+# BY_SUITE=--by-suite ./tests/run-browser-tests.sh   prints test counts per suite
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 [ -x "$CHROME" ] || CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
 [ -x "$CHROME" ] || { echo "Chrome not found. Open tests/test-runner.html in any browser instead."; exit 2; }
@@ -22,13 +23,15 @@ kill $BROWSER $SERVER 2>/dev/null
 wait $BROWSER $SERVER 2>/dev/null
 
 if [ ! -s "$TMP/results.json" ]; then echo "No results after 180s (runner crashed?)"; rm -rf "$TMP"; exit 1; fi
-python3 - "$TMP/results.json" <<'PY'
+python3 - "$TMP/results.json" $BY_SUITE <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1]))
 for f in r['failed']:
     print('FAIL', f)
 if r.get('loadErrors'):
     for e in r['loadErrors']: print('LOAD ERROR', e)
+if '--by-suite' in sys.argv[2:]:
+    for k, v in r.get('bySuite', {}).items(): print(f'{v:4d}  {k}')
 print(f"\n{r['total'] - len(r['failed'])} passed, {len(r['failed'])} failed ({r['total']} tests, {r['suites']} suites, {r['ms']} ms)")
 sys.exit(1 if r['failed'] or r.get('loadErrors') else 0)
 PY

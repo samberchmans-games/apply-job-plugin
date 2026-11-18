@@ -112,6 +112,7 @@
       ms: Math.round(performance.now() - t0),
       loadErrors: window.__LOAD_ERRORS__,
       failed: failed.map((f) => `${f.suite} › ${f.test}: ${f.error.split('\n')[0]}`),
+      bySuite: results.reduce((m, r) => ((m[r.suite] = (m[r.suite] || 0) + 1), m), {}),
     };
     if (window.__LOAD_ERRORS__.length) {
       s.className = 'fail';

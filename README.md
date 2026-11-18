@@ -95,7 +95,7 @@ src/content/             JD extractor, form filler, on-page panel, controller
 src/admin/               Admin page (local UI) + printable resume view
 src/popup/               toolbar popup
 tests/                   automated tests (harness, browser mock, unit + end-to-end), sample job page
-docs/ARCHITECTURE.md     design notes and roadmap
+docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
 - **Tests:** `./tests/run-browser-tests.sh` runs the full suite (449) in headless Chrome. `./tests/run-tests.sh` runs the 241 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
