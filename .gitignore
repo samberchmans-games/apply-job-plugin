@@ -6,3 +6,5 @@ node_modules/
 # never commit personal data exported from the Admin page
 apply-job-backup-*.json
 apply-job-logs-*.json
+video/build/
+video/out/
