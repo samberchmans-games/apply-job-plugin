@@ -130,7 +130,7 @@ Columns:
 | — | Tester Guide (shareable doc) + 5 walkthrough videos | `53f4881` | 532 |
 | — | Issue reporting option A: spec, GitHub issue form, auto-acknowledgement | `dbf8a47` | 565 |
 | 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | `2ace0d5` | 565 |
-| 7 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports, Simulate a problem; Tester Guide Session 8 + video Part 7 | *this commit* | 615 |
+| 7 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports, Simulate a problem; Tester Guide Session 8 + video Part 7 | `845b501` | 615 |
 
 ## 4. Bugs found & fixed
 
