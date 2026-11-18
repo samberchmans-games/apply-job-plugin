@@ -3,6 +3,7 @@
   const AJP = globalThis.AJP;
   AJP.logContext = 'popup';
   const log = AJP.logger('popup');
+  AJP.captureErrors('popup');
   const $ = (id) => document.getElementById(id);
   $('ver').textContent = 'v' + AJP.VERSION;
 
@@ -11,21 +12,25 @@
     return tab && tab.id;
   }
 
-  function showErr(e) {
+  function showErr(r) {
     $('err').hidden = false;
-    $('err').textContent = e;
+    $('err').textContent = `${r.error}${r.hint ? ' ' + r.hint : ''} (${r.code || 'AJP-INTERNAL'})`;
   }
 
   async function run(type) {
     const tabId = await activeTabId();
     const r = await AJP.send(type, { tabId });
-    if (!r.ok) return showErr(r.error);
+    if (!r.ok) return showErr(r);
     window.close();
   }
 
   $('analyze').onclick = () => run('analyzeTab');
   $('autofill').onclick = () => run('autofillTab');
   $('admin').onclick = () => AJP.send('openAdmin', {}).then(() => window.close());
+  $('report').onclick = (e) => {
+    e.preventDefault();
+    AJP.send('openAdmin', { hash: 'logs?report=1' }).then(() => window.close());
+  };
 
   (async () => {
     const { profile, settings, resumes, applications } = await AJP.store.getMany(['profile', 'settings', 'resumes', 'applications']);

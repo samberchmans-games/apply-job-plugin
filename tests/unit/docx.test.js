@@ -60,12 +60,14 @@
       const zip = await makeZip([{ name: 'word/document.xml', text: '<w:p><w:t>&lt;C#&gt; &quot;x&quot; &#65;</w:t></w:p>' }]);
       eq(await AJP.docx.toText(zip), '<C#> "x" A');
     });
-    it('rejects a non-zip file with a clear message', async () => {
-      await rejects(() => AJP.docx.toText(new TextEncoder().encode('just text, not a docx').buffer), /Not a valid .docx/);
+    it('rejects a non-zip file with a coded error (AJP-RES-PARSE)', async () => {
+      const e = await rejects(() => AJP.docx.toText(new TextEncoder().encode('just text, not a docx').buffer));
+      eq(e.code, 'AJP-RES-PARSE');
+      includes(e.details.reason, 'Not a valid .docx');
     });
     it('rejects a zip without word/document.xml', async () => {
       const zip = await makeZip([{ name: 'other.txt', text: 'hi' }]);
-      await rejects(() => AJP.docx.toText(zip), /not found/);
+      includes((await rejects(() => AJP.docx.toText(zip))).details.reason, 'not found');
     });
   }, { env: 'browser' });
 })();

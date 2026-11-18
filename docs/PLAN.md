@@ -82,21 +82,27 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Chrome built-in on-device AI (no key needed) | ⬜ | |
 | Logging into free ChatGPT/Claude/Gemini chat websites | ❌ | Not planned: breaks their terms of service and is unreliable |
 
-## 8. Logging & support
+## 8. Logging & support — ✅ upgraded 2026-11-18
 | Item | Status | Notes |
 |---|---|---|
 | Structured logs from every part (`[AJP][context][module]`) | ✅ | |
-| Auto-redaction of keys, contact details and EEO data | ✅ | |
-| View / filter / search / download / clear in Admin | ✅ | |
-| Error capture (uncaught errors, failed AI calls) | ✅ | |
+| Session id per page or background run; trace id per user action, shared page → background → AI | ✅ | `AJP.startTrace`, `AJP.send(type, payload, trace)` |
+| Error codes (`AJP-AI-429`, `AJP-JD-NONE`, …) with a message and a hint, shown in the panel, popup and Admin | ✅ | `src/lib/errors.js`, 19 codes |
+| Timing for actions; slow steps logged as warnings | ✅ | |
+| Flight recorder: debug details before an error are kept even at level "info" | ✅ | |
+| Redaction by key **and** by value (emails, API keys, bearer tokens, phone numbers, SSNs) | ✅ | |
+| Uncaught errors captured in Admin, popup and resume view | ✅ | |
+| One-click **Report an issue**: description + environment + settings summary + data counts + health + error summary + logs, then a final scrub | ✅ | Admin → Logs & support; popup link |
+| Logs view: error-code summary, click a trace id or code to filter | ✅ | |
+| Support guide with the error-code table | ✅ | `docs/SUPPORT.md` |
 
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 391 across 13 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 391) · `./tests/run-tests.sh` (the 216 that need no browser) |
+| Automated tests: 449 across 14 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 449) · `./tests/run-tests.sh` (the 241 that need no browser) |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 85 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 89 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks (new — requested 2026-11-18)
@@ -137,7 +143,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 1. ~~Push `develop` to GitHub.~~ ✅
 1. ~~Full automated test suite.~~ ✅
 1. ~~Application tracker (section 11).~~ ✅
-1. Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).
+1. ~~Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).~~ ✅
 1. **Multiple career tracks** (section 10).
 2. Load in Chrome and fix anything found (smoke test against the sample page plus 2–3 real job posts).
 3. `feature/pdf-text`: read PDF resumes automatically.

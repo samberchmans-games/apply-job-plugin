@@ -14,7 +14,6 @@
   'use strict';
   const AJP = globalThis.AJP;
   if (AJP.ai) return;
-  const log = AJP.logger('ai');
 
   const PROVIDERS = {
     none: { label: 'Off (offline keyword matching only)' },
@@ -29,16 +28,21 @@
   async function fetchJson(url, opts) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), CONFIG.timeoutMs);
+    let res;
     try {
-      const res = await fetch(url, { ...opts, signal: ctrl.signal });
-      const text = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
-      return JSON.parse(text);
+      res = await fetch(url, { ...opts, signal: ctrl.signal });
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error(`AI request timed out after ${CONFIG.timeoutMs / 1000}s`);
-      throw e;
+      if (e.name === 'AbortError') throw AJP.err('AI_TIMEOUT', { seconds: CONFIG.timeoutMs / 1000 }, e);
+      throw AJP.err('AI_NETWORK', { original: e.message, host: new URL(url).hostname }, e);
     } finally {
       clearTimeout(timer);
+    }
+    const text = await res.text();
+    if (!res.ok) throw AJP.err(AJP.aiErrorForStatus(res.status), { status: res.status, body: text.slice(0, 300) });
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw AJP.err('AI_BAD_RESPONSE', { reason: 'provider returned non-JSON', body: text.slice(0, 200) }, e);
     }
   }
 
@@ -107,26 +111,30 @@
     const s = String(text || '').replace(/```(?:json)?/gi, '');
     const a = s.indexOf('{');
     const b = s.lastIndexOf('}');
-    if (a < 0 || b < a) throw new Error('AI did not return JSON');
-    return JSON.parse(s.slice(a, b + 1));
+    if (a < 0 || b < a) throw AJP.err('AI_BAD_RESPONSE', { reason: 'no JSON in answer', sample: s.slice(0, 120) });
+    try {
+      return JSON.parse(s.slice(a, b + 1));
+    } catch (e) {
+      throw AJP.err('AI_BAD_RESPONSE', { reason: 'invalid JSON in answer', sample: s.slice(a, a + 120) }, e);
+    }
   }
 
-  async function complete({ system, prompt, json = false, task = 'complete' }) {
+  async function complete({ system, prompt, json = false, task = 'complete', tid }) {
     const settings = await AJP.store.get('settings');
     const cfg = settings.ai;
     const p = PROVIDERS[cfg.provider];
-    if (!p || cfg.provider === 'none') throw new Error('AI is turned off. Pick a free provider in Admin → AI Settings.');
-    if (p.needsKey && !cfg.keys[cfg.provider]) throw new Error(`No API key saved for ${p.label}. Add it in Admin → AI Settings.`);
+    if (!p || cfg.provider === 'none') throw AJP.err('AI_OFF');
+    if (p.needsKey && !cfg.keys[cfg.provider]) throw AJP.err('AI_NO_KEY', { provider: cfg.provider });
     const model = cfg.model || p.defaultModel;
-    const t0 = Date.now();
-    log.info(`${task}: calling ${cfg.provider}/${model}`, { promptChars: prompt.length });
+    const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider: cfg.provider, model, promptChars: prompt.length } });
     try {
       const out = await CALLERS[cfg.provider](cfg, model, system, prompt, json);
-      log.info(`${task}: ok in ${Date.now() - t0}ms`, { outChars: out.length });
-      return json ? parseJsonLoose(out) : out.trim();
+      if (!out || !String(out).trim()) throw AJP.err('AI_BAD_RESPONSE', { reason: 'empty answer' });
+      const result = json ? parseJsonLoose(out) : out.trim();
+      tr.end({ provider: cfg.provider, model, outChars: out.length });
+      return result;
     } catch (e) {
-      log.error(`${task}: failed after ${Date.now() - t0}ms`, { provider: cfg.provider, model, error: e.message });
-      throw e;
+      throw tr.fail(e, { provider: cfg.provider, model });
     }
   }
 
@@ -138,9 +146,10 @@
 
   // ---- Tasks ---------------------------------------------------------------
   const tasks = {
-    extractSkills({ jd }) {
+    extractSkills({ jd, tid }) {
       return complete({
         task: 'extractSkills',
+        tid,
         json: true,
         system: 'You analyze job descriptions for a job seeker. Reply with strict JSON only.',
         prompt:
@@ -152,9 +161,10 @@
       });
     },
 
-    tailorResume({ jd, resumeText, profile, missing, job }) {
+    tailorResume({ jd, resumeText, profile, missing, job, tid }) {
       return complete({
         task: 'tailorResume',
+        tid,
         system:
           'You are an honest, expert resume writer. You NEVER invent employers, job titles, dates, degrees, ' +
           'certifications, metrics or skills the candidate has no evidence for. You may reorder, rephrase, tighten, ' +
@@ -172,10 +182,11 @@
       });
     },
 
-    draftAnswer({ question, jd, resumeText, profile, job, maxWords }) {
+    draftAnswer({ question, jd, resumeText, profile, job, maxWords, tid }) {
       const p = profile.personal || {};
       return complete({
         task: 'draftAnswer',
+        tid,
         system:
           'You help a job seeker answer application questions in first person. Be specific, warm and concise. ' +
           'Use ONLY facts from the resume and profile. If a needed fact is missing, insert a short [bracketed placeholder] ' +
@@ -189,9 +200,8 @@
       });
     },
 
-    async test() {
-      const out = await complete({ task: 'test', system: 'Reply with one word.', prompt: 'Say OK.' });
-      return out;
+    test({ tid } = {}) {
+      return complete({ task: 'test', tid, system: 'Reply with one word.', prompt: 'Say OK.' });
     },
   };
 

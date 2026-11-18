@@ -203,18 +203,37 @@
 
     <!-- LOGS -->
     <section id="logs">
-      <h1>Logs</h1>
-      <p class="hint">When you report a problem, click <b>Download logs</b> and attach the file. Secrets, contact details and EEO answers are redacted automatically.</p>
+      <h1>Logs &amp; support</h1>
+      <p class="hint">Having a problem? Click <b>Report an issue</b>: it creates one file with your description, your setup and the recent logs, ready to send to support. Passwords, API keys, emails, phone numbers and EEO answers are removed automatically.</p>
       <div class="row">
+        <button id="reportOpen" class="primary">🆘 Report an issue</button>
+        <button id="logDownload">⬇ Download logs only</button>
         <label>Log level <select data-settings="logLevel"><option>debug</option><option>info</option><option>warn</option><option>error</option></select></label>
+      </div>
+      <div id="errSummary" class="hint"></div>
+      <div class="row">
         <select id="logFilter"><option value="">All levels</option><option>debug</option><option>info</option><option>warn</option><option>error</option></select>
-        <input id="logSearch" placeholder="Search logs…">
+        <input id="logSearch" placeholder="Search logs, error code (AJP-…) or trace id (t…)">
         <button id="logRefresh">↻ Refresh</button>
-        <button id="logDownload" class="primary">⬇ Download logs</button>
         <button id="logClear" class="danger">Clear</button>
       </div>
       <div id="logCount" class="hint"></div>
       <pre id="logView" class="logs"></pre>
+
+      <dialog id="reportDialog">
+        <h2 style="margin-top:0">Report an issue</h2>
+        <label class="stack">What happened? What did you expect? Which site?
+          <textarea id="reportText" rows="5" placeholder="e.g. On a Workday application, Autofill did not fill the phone field. Expected it to be filled."></textarea></label>
+        <label class="check"><input type="checkbox" id="reportLogs" checked> Include recent logs (recommended)</label>
+        <p class="hint">Tip: if the problem repeats, set the log level to <b>debug</b>, reproduce it once, then report.</p>
+        <div id="reportOut" class="hint"></div>
+        <div class="row" style="justify-content:flex-end">
+          <button id="reportCopy">📋 Copy summary</button>
+          <button id="reportDownload" class="primary">⬇ Download report</button>
+          <button id="reportClose">Close</button>
+        </div>
+        <textarea id="reportSummary" rows="7" readonly hidden></textarea>
+      </dialog>
     </section>
 
     <!-- BACKUP -->
@@ -235,12 +254,14 @@
 
 <script src="../lib/core.js"></script>
 <script src="../lib/logger.js"></script>
+<script src="../lib/errors.js"></script>
 <script src="../lib/storage.js"></script>
 <script src="../lib/skills-dictionary.js"></script>
 <script src="../lib/matcher.js"></script>
 <script src="../lib/ai.js"></script>
 <script src="../lib/docx.js"></script>
 <script src="../lib/tracker.js"></script>
+<script src="../lib/diagnostics.js"></script>
 <script src="tracker-view.js"></script>
 <script src="admin.js"></script>
 </body>

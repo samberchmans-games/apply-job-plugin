@@ -24,7 +24,7 @@
         break;
       }
     }
-    if (eocd < 0) throw new Error('Not a valid .docx (zip) file');
+    if (eocd < 0) throw AJP.err('RESUME_PARSE', { reason: 'Not a valid .docx (zip) file' });
     const entries = dv.getUint16(eocd + 10, true);
     let p = dv.getUint32(eocd + 16, true);
     const dec = new TextDecoder();
@@ -42,11 +42,11 @@
         const data = u8.subarray(start, start + compSize);
         if (method === 0) return dec.decode(data);
         if (method === 8) return dec.decode(await inflateRaw(data));
-        throw new Error('Unsupported zip compression method ' + method);
+        throw AJP.err('RESUME_PARSE', { reason: 'Unsupported zip compression method ' + method });
       }
       p += 46 + nameLen + extraLen + commentLen;
     }
-    throw new Error(wanted + ' not found in file');
+    throw AJP.err('RESUME_PARSE', { reason: wanted + ' not found in file' });
   }
 
   function decodeEntities(s) {

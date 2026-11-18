@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (391). Run them before every merge into `develop`.
+1. **Automated tests** (449). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **216** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **391** tests in headless Chrome. This is the full suite: the 216 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **241** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **449** tests in headless Chrome. This is the full suite: the 241 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -31,7 +31,8 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Panel | `unit/panel.test.js` | Score, skill chips, fit, **HTML from the job page cannot run inside the panel**, page CSS can't break it, buttons, busy state, autofill report |
 | Tracker logic | `unit/tracker.test.js` | Same job across URLs for 8 sites; duplicate detection; saving rules (**automatic updates never move status backwards**, empty values never wipe data, Undo); confirmation and Submit wording incl. look-alikes that must NOT count; follow-up and interview reminders; stats; CSV escaping and formula-injection blocking |
 | Tracker end-to-end | `unit/tracker-flow.test.js` | Submit + "Thank you" → applied with snapshot; normal form submit; confirmation-page URL; ignored on unknown sites; newsletter forms ignored; JD text mentioning submission ignored; "Did you submit?" Yes/No; auto-detect setting; job context passed to new tabs; tab cleanup; duplicate warning; reminder badge |
-| Admin tracker UI | `unit/admin.test.js` | Loads the real Admin page: stats, board columns, drag & drop, search / due filters, table view, detail dialog saving (no lost edits, no timezone shift), "I followed up", HTML escaping, CSV export, empty state |
+| Admin UI | `unit/admin.test.js` | Loads the real Admin page. Tracker: stats, board columns, drag & drop, search / due filters, table view, detail dialog saving (no lost edits, no timezone shift), "I followed up", HTML escaping, CSV export, empty state. Logs: error-code summary, click a trace id or code to filter, **Report an issue** download and copy summary, popup deep link, uncaught errors captured |
+| Support logging | `unit/errors-logging.test.js` | Every error code unique with a message and hint; HTTP status → code; value redaction (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, bearer tokens, `?key=`, phone numbers, SSNs) without mangling dates, salaries or URLs; session ids; traces (start/done/slow/fail); flight recorder; **one trace id shared page → background → AI**; host-only sender logging; storage failure → `AJP-STORE`; error code and hint shown in the panel; issue report contents, **no personal data in the report**, log cap, summary text, dead-background detection |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -131,12 +132,16 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 ### F. Logging & support
 | ID | Steps | Expected |
 |---|---|---|
-| F1 | Do C1, then E1, then open Admin → Logs | Entries from `content`, `bg` and `admin` with timestamps |
-| F2 | Cause an AI error (wrong key), then look at the Logs | An `error` entry naming the provider, model and HTTP status, with **no key shown** |
-| F3 | Download logs | The .json file contains version, browser and setup info plus the logs. Search it for your email, phone and API key: none of them should be found. |
-| F4 | Set the log level to debug, repeat C1 | More detail is logged (timings, messages) |
-| F5 | Filter by level / search / Clear | Works |
-| F6 | Open the browser console on a job page | Entries prefixed `[AJP][content][…]` |
+| F1 | Do C1, then E1, then open Admin → Logs & support | Entries from `content`, `bg` and `admin`, each with a session id; panel actions have trace ids (`t…`) |
+| F2 | Use a wrong AI key, then click AI deep analysis | The panel shows "The AI provider rejected the API key", a hint, and **(AJP-AI-401)**. The logs show the same code under one trace id from the content script, background and AI. No key appears anywhere. |
+| F3 | Click a trace id in the logs | Only the entries for that one action are shown |
+| F4 | Click an error-code chip in "Errors in stored logs" | The view filters to that code |
+| F5 | Report an issue → type a description → Download report | `apply-job-report-R-….json` contains the description, browser, version, settings summary, counts, health and logs. Search it for your email, phone, name, API key and resume text: none should be found. |
+| F6 | Report an issue → Copy summary | A short text with the report id, version, browser and error codes is copied |
+| F7 | Toolbar popup → Report a problem | The Admin page opens with the report dialog already open |
+| F8 | Set the log level to warn, cause an error (e.g. AI off → AI deep analysis) | The error entry is preceded by "(context before error)" detail entries |
+| F9 | Open the browser console on a job page | Entries prefixed `[AJP][content][…]`, with `[AJP-…]` codes on errors |
+| F10 | Filter by level / search / Clear | Works |
 
 ### G. Privacy & safety
 | ID | Steps | Expected |

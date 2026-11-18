@@ -7,7 +7,8 @@
     it('parses plain JSON', () => eq(AJP.ai.parseJsonLoose('{"a":1}'), { a: 1 }));
     it('parses JSON inside ```json fences', () => eq(AJP.ai.parseJsonLoose('```json\n{"a":[1,2]}\n```'), { a: [1, 2] }));
     it('parses JSON surrounded by chatter', () => eq(AJP.ai.parseJsonLoose('Sure! Here it is: {"ok":true} Hope that helps.'), { ok: true }));
-    it('throws a clear error when there is no JSON', () => throws(() => AJP.ai.parseJsonLoose('no json here'), /did not return JSON/));
+    it('throws a coded error when there is no JSON', () => eq(throws(() => AJP.ai.parseJsonLoose('no json here')).code, 'AJP-AI-FMT'));
+    it('throws a coded error for broken JSON', () => eq(throws(() => AJP.ai.parseJsonLoose('{"a": oops}')).code, 'AJP-AI-FMT'));
     it('every provider except "none" has a default model', () => {
       for (const [k, p] of Object.entries(AJP.ai.PROVIDERS)) if (k !== 'none') ok(p.defaultModel, k);
     });
@@ -39,12 +40,14 @@
       AJP.ai.CONFIG.timeoutMs = 90000;
     });
 
-    it('refuses when AI is off, with guidance', async () => {
-      await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /AI is turned off/);
+    it('refuses when AI is off, with guidance (AJP-AI-OFF)', async () => {
+      const e = await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /AI is turned off/);
+      eq(e.code, 'AJP-AI-OFF');
+      includes(e.hint, 'Admin → AI settings');
     });
-    it('refuses when the API key is missing', async () => {
+    it('refuses when the API key is missing (AJP-AI-KEY)', async () => {
       await AJP.store.update('settings', (s) => void (s.ai.provider = 'groq'));
-      await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /No API key saved/);
+      eq((await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /No API key saved/)).code, 'AJP-AI-KEY');
     });
     it('Gemini: correct URL, key in header (not URL), system + user parts', async () => {
       await setProvider('gemini');
@@ -85,21 +88,37 @@
       eq(calls[0].url, 'http://localhost:11434/api/chat');
       eq(calls[0].body.stream, false);
     });
-    it('HTTP errors surface status and body (e.g. rate limit 429)', async () => {
-      await setProvider('groq');
-      globalThis.fetch = respond('{"error":"rate limited"}', 429);
-      await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /HTTP 429.*rate limited/);
-    });
-    it('network failures are reported', async () => {
+    for (const [status, code] of [[401, 'AJP-AI-401'], [403, 'AJP-AI-401'], [429, 'AJP-AI-429'], [404, 'AJP-AI-404'], [500, 'AJP-AI-5XX'], [503, 'AJP-AI-5XX'], [400, 'AJP-AI-HTTP']]) {
+      it(`HTTP ${status} → ${code} with status and provider body kept for support`, async () => {
+        await setProvider('groq');
+        globalThis.fetch = respond('{"error":"provider says no"}', status);
+        const e = await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }));
+        eq([e.code, e.details.status], [code, status]);
+        includes(e.details.body, 'provider says no');
+        ok(e.hint);
+      });
+    }
+    it('network failures → AJP-AI-NET', async () => {
       await setProvider('groq');
       globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
-      await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /Failed to fetch/);
+      const e = await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }));
+      eq([e.code, e.details.original, e.details.host], ['AJP-AI-NET', 'Failed to fetch', 'api.groq.com']);
     });
-    it('slow providers time out with a clear message', async () => {
+    it('slow providers time out → AJP-AI-TIME', async () => {
       await setProvider('groq');
       AJP.ai.CONFIG.timeoutMs = 50;
       globalThis.fetch = (url, opts) => new Promise((_, rej) => opts.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError'))));
-      await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /timed out/);
+      eq((await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /too long/)).code, 'AJP-AI-TIME');
+    });
+    it('an empty answer → AJP-AI-FMT', async () => {
+      await setProvider('groq');
+      globalThis.fetch = respond({ choices: [{ message: { content: '   ' } }] });
+      eq((await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }))).code, 'AJP-AI-FMT');
+    });
+    it('a non-JSON provider response → AJP-AI-FMT', async () => {
+      await setProvider('groq');
+      globalThis.fetch = respond('<html>gateway</html>');
+      eq((await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }))).code, 'AJP-AI-FMT');
     });
     it('failed calls are logged without the API key', async () => {
       await setProvider('groq');
@@ -112,6 +131,8 @@
       AJP.setLogSink(saved);
       const e = got.find((x) => x.lvl === 'error' && x.msg.includes('unitTask'));
       ok(e, 'error entry logged');
+      eq(e.code, 'AJP-AI-5XX');
+      ok(e.tid, 'has a trace id');
       excludes(JSON.stringify(got), 'gsk-key');
     });
   }, { env: 'browser' });

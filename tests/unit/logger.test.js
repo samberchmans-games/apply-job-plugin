@@ -75,7 +75,7 @@
       log.warn('w');
       log.error('e');
       await AJP.flushLogs();
-      eq(got.map((x) => x.lvl), ['warn', 'error']);
+      eq(got.filter((x) => !x.pre).map((x) => x.lvl), ['warn', 'error']);
     });
     it('ignores unknown level names', () => {
       AJP.setLogLevel('info');

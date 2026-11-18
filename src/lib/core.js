@@ -46,13 +46,17 @@
     o[keys[keys.length - 1]] = value;
   };
 
-  // Send a message to the background; never throws (returns {ok:false,error}).
-  AJP.send = async (type, payload = {}) => {
+  // Send a message to the background; never throws (returns {ok:false, error, code, hint}).
+  // Pass a trace (from AJP.startTrace) or trace id so background logs share the same id.
+  AJP.send = async (type, payload = {}, trace) => {
+    const msg = { type, ...payload };
+    if (trace) msg._tid = typeof trace === 'string' ? trace : trace.id;
     try {
-      const res = await AJP.api.runtime.sendMessage({ type, ...payload });
-      return res || { ok: false, error: 'No response' };
+      const res = await AJP.api.runtime.sendMessage(msg);
+      return res || { ok: false, error: 'No response from the extension background.', code: 'AJP-INTERNAL' };
     } catch (e) {
-      return { ok: false, error: String((e && e.message) || e) };
+      // e.g. "Extension context invalidated" after the extension was reloaded/updated.
+      return { ok: false, error: String((e && e.message) || e), code: 'AJP-INTERNAL', hint: 'Reload this page.' };
     }
   };
 

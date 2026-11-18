@@ -2,6 +2,7 @@
   'use strict';
   const AJP = globalThis.AJP;
   AJP.logContext = 'admin';
+  AJP.captureErrors('resume-view');
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\W)\*(.+?)\*(?=\W|$)/g, '$1<i>$2</i>');
 

@@ -6,6 +6,7 @@
   const AJP = globalThis.AJP;
   AJP.logContext = 'admin';
   const log = AJP.logger('admin');
+  AJP.captureErrors('admin');
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -34,7 +35,7 @@
 
   // ---- Routing --------------------------------------------------------------------
   function route() {
-    const id = (location.hash || '#profile').slice(1).split('?')[0];
+    const id = (location.hash || '#profile').slice(1).split('?')[0] || 'profile';
     $$('section').forEach((s) => s.classList.toggle('on', s.id === id));
     $$('nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
     if (id === 'logs') renderLogs();
@@ -243,13 +244,18 @@
     $('#resumeFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) return toast('File too large (max 5 MB)');
+      if (file.size > 5 * 1024 * 1024) {
+        const x = AJP.err('FILE_TOO_LARGE', { size: file.size });
+        log.warn('Resume rejected', { code: x.code, size: file.size }, { code: x.code });
+        return toast(`${x.message} (${x.code})`);
+      }
       let text = '';
       try {
         if (/\.docx$/i.test(file.name)) text = await AJP.docx.toText(await readFile(file, 'readAsArrayBuffer'));
         else if (/\.(txt|md)$/i.test(file.name)) text = await readFile(file, 'readAsText');
       } catch (err) {
-        log.warn('Resume text extraction failed', { name: file.name, error: err.message });
+        const x = AJP.toAppError(err);
+        log.warn('Resume text extraction failed', { code: x.code, type: file.type, details: x.details }, { code: x.code });
       }
       const dataUrl = await readFile(file, 'readAsDataURL');
       const item = { id: AJP.uid('res'), name: file.name.replace(/\.[^.]+$/, ''), text, file: { name: file.name, type: file.type, size: file.size, dataUrl }, createdAt: new Date().toISOString() };
@@ -316,7 +322,7 @@
       await AJP.store.set('settings', settings); // flush pending edits first
       $('#aiTestOut').textContent = 'Testing…';
       const r = await AJP.send('ai.test');
-      $('#aiTestOut').textContent = r.ok ? `✅ Works. Reply: "${r.text.slice(0, 40)}"` : '❌ ' + r.error;
+      $('#aiTestOut').textContent = r.ok ? `✅ Works. Reply: "${r.text.slice(0, 40)}"` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
     });
   }
 
@@ -350,7 +356,7 @@
   // ---- Applications: see tracker-view.js ---------------------------------------------
   const renderApps = () => AJP.trackerView.render();
 
-  // ---- Logs ---------------------------------------------------------------------------------------
+  // ---- Logs & support ------------------------------------------------------------------------
   async function renderLogs() {
     await AJP.flushLogs();
     const logs = await AJP.store.get('logs');
@@ -359,37 +365,78 @@
     const shown = logs.filter((l) => (!lvl || l.lvl === lvl) && (!q || AJP.norm(JSON.stringify(l)).includes(q))).slice(-800).reverse();
     $('#logCount').textContent = `${logs.length} entries stored (showing ${shown.length}, newest first)`;
     $('#logView').innerHTML = shown
-      .map((l) => `<span class="${l.lvl}">${esc(l.t)} ${l.lvl.toUpperCase().padEnd(5)} [${esc(l.ctx)}/${esc(l.mod)}] ${esc(l.msg)}${l.data ? ' ' + esc(JSON.stringify(l.data)) : ''}</span>`)
+      .map((l) =>
+        `<span class="${l.lvl}${l.pre ? ' pre' : ''}">${esc(l.t)} ${l.lvl.toUpperCase().padEnd(5)} [${esc(l.ctx)}/${esc(l.mod)}]` +
+        (l.code ? ` <span class="code">${esc(l.code)}</span>` : '') +
+        (l.tid ? ` <span class="tid" data-tid="${esc(l.tid)}" title="Show this whole action">${esc(l.tid)}</span>` : '') +
+        ` ${esc(l.msg)}${l.data ? ' ' + esc(JSON.stringify(l.data)) : ''}${l.pre ? ' (context before error)' : ''}</span>`
+      )
       .join('\n');
+    const sum = AJP.diagnostics.errorSummary(logs);
+    $('#errSummary').innerHTML = sum.total
+      ? `Errors in stored logs: ${Object.entries(sum.byCode).map(([c, n]) => `<span class="errchip" data-code="${esc(c)}">${esc(c)} ×${n}</span>`).join('')}`
+      : 'No errors in the stored logs. 👍';
   }
+
+  async function buildReport(description, includeLogs) {
+    const bundle = await AJP.diagnostics.collect({ description, includeLogs });
+    log.info('Issue report created', { reportId: bundle.reportId, errors: bundle.errors.total, logs: bundle.logs.length });
+    return bundle;
+  }
+
   function initLogs() {
     $('#logRefresh').addEventListener('click', renderLogs);
     $('#logFilter').addEventListener('change', renderLogs);
     $('#logSearch').addEventListener('input', AJP.debounce(renderLogs, 200));
+    // Click a trace id or error code to filter the view to it.
+    const filterTo = (v) => {
+      $('#logSearch').value = v;
+      $('#logFilter').value = '';
+      renderLogs();
+    };
+    $('#logView').addEventListener('click', (e) => e.target.dataset.tid && filterTo(e.target.dataset.tid));
+    $('#errSummary').addEventListener('click', (e) => e.target.dataset.code && filterTo(e.target.dataset.code));
     $('#logClear').addEventListener('click', async () => {
       if (!confirm('Clear all logs?')) return;
       await AJP.store.set('logs', []);
       renderLogs();
     });
     $('#logDownload').addEventListener('click', async () => {
-      await AJP.flushLogs();
-      const logs = await AJP.store.get('logs');
-      const report = {
-        app: 'apply-job-plugin',
-        version: AJP.VERSION,
-        exportedAt: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        environment: {
-          aiProvider: settings.ai.provider,
-          aiModel: settings.ai.model || 'default',
-          logLevel: settings.logLevel,
-          skills: profile.skills.length,
-          hasResume: !!(await AJP.store.activeResume()),
-        },
-        logs,
-      };
-      download(`apply-job-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.json`, JSON.stringify(report, null, 2), 'application/json');
+      const b = await buildReport('', true);
+      download(`apply-job-logs-${b.reportId}.json`, JSON.stringify(b, null, 2), 'application/json');
     });
+
+    const dlg = $('#reportDialog');
+    let last = null;
+    $('#reportOpen').addEventListener('click', () => {
+      last = null;
+      $('#reportOut').textContent = '';
+      $('#reportSummary').hidden = true;
+      dlg.showModal();
+      $('#reportText').focus();
+    });
+    $('#reportClose').addEventListener('click', () => dlg.close());
+    const ensureReport = async () => (last = last && last.description === $('#reportText').value.trim() ? last : await buildReport($('#reportText').value.trim(), $('#reportLogs').checked));
+    $('#reportDownload').addEventListener('click', async () => {
+      const b = await ensureReport();
+      download(`apply-job-report-${b.reportId}.json`, JSON.stringify(b, null, 2), 'application/json');
+      $('#reportOut').innerHTML = `✅ Saved <b>apply-job-report-${esc(b.reportId)}.json</b>. Send this file to support and mention report id <b>${esc(b.reportId)}</b>.`;
+    });
+    $('#reportCopy').addEventListener('click', async () => {
+      const b = await ensureReport();
+      const text = AJP.diagnostics.summaryText(b);
+      const box = $('#reportSummary');
+      box.value = text;
+      box.hidden = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        $('#reportOut').textContent = 'Summary copied. Paste it into your message and attach the downloaded report.';
+      } catch (_) {
+        box.select();
+        $('#reportOut').textContent = 'Select the text below and copy it (Ctrl/Cmd+C).';
+      }
+    });
+    if (/[?&]report=1/.test(location.hash)) setTimeout(() => $('#reportOpen').click(), 0);
   }
 
   // ---- Backup -------------------------------------------------------------------------------------
@@ -415,7 +462,9 @@
         alert('Imported: ' + keys.join(', '));
         location.reload();
       } catch (err) {
-        alert('Import failed: ' + err.message);
+        const x = AJP.toAppError(err);
+        log.warn('Backup import failed', { code: x.code, error: x.message }, { code: x.code });
+        alert(`Import failed: ${x.message} (${x.code})`);
       }
     });
     $('#bkWipe').addEventListener('click', async () => {

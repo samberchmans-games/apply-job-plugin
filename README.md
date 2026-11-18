@@ -59,14 +59,21 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 
 The extension does **not** log into the free ChatGPT, Claude or Gemini chat websites. Automating those consumer apps violates their terms, and it breaks whenever their UI changes. Free API keys are the supported route. API keys are stored locally and are used only from the background script, never inside web pages.
 
-## Logs (for support requests)
+## Getting help (logs & issue reports)
 
-Go to **Admin → Logs → Download logs** and attach the `.json` file to your issue.
+To report a problem, go to **Admin → Logs & support → 🆘 Report an issue**, or click **Report a problem** in the toolbar popup.
+1. Describe what happened.
+2. Click **Download report**.
+3. Send the file. You can also use **Copy summary** to paste a short version into a message.
 
-- The logs record what happened (page extraction, match timings, autofill counts, AI errors), with context and timestamps.
-- API keys, email, phone and EEO answers are **redacted automatically**.
-- Set the log level to **debug** before you reproduce a problem to get more detail.
-- In the browser console, every entry is prefixed with `[AJP][context][module]`.
+What's in the logs and reports:
+- **Every error has a code**, for example `AJP-AI-429` (free AI limit reached). The panel shows the code along with a hint on how to fix it.
+- **Each action has a trace id**, so one problem can be followed from the job page through the background to the AI and back.
+- **Slow steps are flagged** with their duration.
+- **The details just before an error are kept**, even at the normal log level.
+- **Nothing personal is included.** API keys, passwords, emails, phone numbers, SSNs, EEO answers and resume content are removed automatically.
+
+If you handle support, see [docs/SUPPORT.md](docs/SUPPORT.md) for how to read a report, plus the full list of error codes.
 
 ## Development
 
@@ -74,7 +81,9 @@ Go to **Admin → Logs → Download logs** and attach the `.json` file to your i
 manifest.json            MV3, cross-browser (service_worker for Chrome/Edge, scripts for Firefox/Safari)
 src/lib/                 shared, framework-free modules (namespace: globalThis.AJP)
   core.js                helpers, browser API shim
-  logger.js              structured + redacted logging
+  logger.js              structured, redacted logging: sessions, trace ids, timings, flight recorder
+  errors.js              error codes (AJP-…) with user messages and hints
+  diagnostics.js         "Report an issue" bundle (environment, counts, health, error summary, logs)
   storage.js             local "database" (storage.local + in-memory cache)
   skills-dictionary.js   canonical skills + aliases
   matcher.js             offline match % / gaps / fit
@@ -89,7 +98,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/ARCHITECTURE.md     design notes and roadmap
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (391) in headless Chrome. `./tests/run-tests.sh` runs the 216 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (449) in headless Chrome. `./tests/run-tests.sh` runs the 241 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.
 

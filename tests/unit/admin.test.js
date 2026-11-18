@@ -140,6 +140,80 @@
     });
   }, { env: 'browser' });
 
+  describe('admin › logs & report an issue', () => {
+    const LOGS = [
+      { t: '2026-11-18T10:00:00Z', lvl: 'info', ctx: 'content', sid: 's1', mod: 'content', msg: 'panel.autofill start', tid: 'tAAA1111' },
+      { t: '2026-11-18T10:00:01Z', lvl: 'error', ctx: 'bg', sid: 's2', mod: 'ai', msg: 'ai.draftAnswer failed', tid: 'tAAA1111', code: 'AJP-AI-429', data: { code: 'AJP-AI-429' } },
+      { t: '2026-11-18T10:05:00Z', lvl: 'info', ctx: 'admin', sid: 's3', mod: 'admin', msg: 'Admin opened' },
+    ];
+    beforeEach(async () => {
+      await loadAdmin({ logs: LOGS });
+      w.location.hash = 'logs';
+      await waitFor(() => $('#logs').classList.contains('on') && $('#logView').textContent, { msg: 'logs tab' });
+    });
+    afterEach(() => frame && frame.remove());
+
+    it('shows error codes and an error summary', async () => {
+      await waitFor(() => $('#errSummary .errchip'), { msg: 'summary' });
+      includes($('#errSummary').textContent, 'AJP-AI-429 ×1');
+      ok($('#logView .code'));
+    });
+    it('clicking a trace id shows that whole action only', async () => {
+      $('#logView .tid').click();
+      await waitFor(() => $('#logSearch').value === 'tAAA1111' && !/Admin opened/.test($('#logView').textContent), { msg: 'filtered' });
+      includes($('#logView').textContent, 'panel.autofill start');
+      includes($('#logView').textContent, 'ai.draftAnswer failed');
+    });
+    it('clicking an error code filters to it', async () => {
+      await waitFor(() => $('#errSummary .errchip'));
+      $('#errSummary .errchip').click();
+      await waitFor(() => $('#logSearch').value === 'AJP-AI-429', { msg: 'code filter' });
+    });
+    it('Report an issue → Download report creates a bundle with the description', async () => {
+      let href = null;
+      let name = null;
+      w.HTMLAnchorElement.prototype.click = function () {
+        href = this.href;
+        name = this.download;
+      };
+      $('#reportOpen').click();
+      ok($('#reportDialog').open);
+      $('#reportText').value = 'Draft answer failed on Lever';
+      $('#reportDownload').click();
+      await waitFor(() => href, { msg: 'download' });
+      const b = JSON.parse(await (await fetch(href)).text());
+      ok(/^apply-job-report-R-\d{8}-[A-Z0-9]{5}\.json$/.test(name), name);
+      eq(b.description, 'Draft answer failed on Lever');
+      eq(b.errors.byCode['AJP-AI-429'], 1);
+      ok(b.logs.length >= 3);
+      includes($('#reportOut').textContent, b.reportId);
+    });
+    it('Copy summary shows a short text with the report id', async () => {
+      $('#reportOpen').click();
+      $('#reportText').value = 'Panel missing';
+      $('#reportCopy').click();
+      await waitFor(() => !$('#reportSummary').hidden && $('#reportSummary').value, { msg: 'summary text' });
+      includes($('#reportSummary').value, 'Apply Job issue report R-');
+      includes($('#reportSummary').value, 'Panel missing');
+    });
+    it('popup link opens the report dialog directly (#logs?report=1)', async () => {
+      frame.remove();
+      await loadAdmin({ logs: LOGS });
+      w.location.hash = 'logs?report=1';
+      w.location.reload();
+      await new Promise((r) => (frame.onload = r));
+      w = frame.contentWindow;
+      await waitFor(() => w.document.querySelector('#reportDialog') && w.document.querySelector('#reportDialog').open, { msg: 'dialog auto-open' });
+    });
+    it('uncaught errors on the Admin page are logged with AJP-INTERNAL', async () => {
+      // (no background in this frame, so capture what the Admin page would send to it)
+      const got = [];
+      w.AJP.setLogSink(async (e) => got.push(...e));
+      w.eval("setTimeout(function () { throw new Error('admin boom'); }, 0)"); // thrown inside the Admin page itself
+      await waitFor(() => got.some((l) => l.msg === 'Uncaught error' && l.code === 'AJP-INTERNAL' && l.ctx === 'admin'), { msg: 'captured' });
+    });
+  }, { env: 'browser' });
+
   describe('admin › empty tracker', () => {
     beforeEach(() => loadAdmin(null));
     afterEach(() => frame && frame.remove());

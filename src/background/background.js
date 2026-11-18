@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js');
 }
 
 (function () {
@@ -20,7 +20,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
   const MAX_LOGS = 3000;
   const CONTENT_FILES = [
-    'src/lib/core.js', 'src/lib/logger.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
+    'src/lib/core.js', 'src/lib/logger.js', 'src/lib/errors.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
     'src/lib/matcher.js', 'src/lib/tracker.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js',
     'src/content/apply-detector.js', 'src/content/panel.js', 'src/content/content.js',
   ];
@@ -50,7 +50,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const [probe] = await api.scripting.executeScript({ target: { tabId }, func: () => !!window.__AJP_CONTENT__ });
       if (probe && probe.result) return;
     } catch (e) {
-      throw new Error('This page cannot be accessed by extensions (browser pages, stores, PDFs). ' + e.message);
+      throw AJP.err('PAGE_NO_ACCESS', { original: e.message }, e);
     }
     await api.scripting.executeScript({ target: { tabId, allFrames: true }, files: CONTENT_FILES });
     log.info('Injected content scripts', { tabId });
@@ -158,14 +158,14 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return {};
     },
 
-    async 'ai.extractSkills'({ jd }) {
-      return { result: await AJP.ai.tasks.extractSkills({ jd }) };
+    async 'ai.extractSkills'({ jd }, sender, { tid }) {
+      return { result: await AJP.ai.tasks.extractSkills({ jd, tid }) };
     },
 
-    async 'ai.tailorResume'({ jd, missing, job }) {
+    async 'ai.tailorResume'({ jd, missing, job }, sender, { tid }) {
       const ctx = await aiContext();
-      if (!ctx.resumeText) throw new Error('No resume text found. Add your resume in Admin → Resumes first.');
-      const out = await AJP.ai.tasks.tailorResume({ jd, missing, job, ...ctx });
+      if (!ctx.resumeText) throw AJP.err('NO_RESUME');
+      const out = await AJP.ai.tasks.tailorResume({ jd, missing, job, tid, ...ctx });
       const [resumeMd, gaps = ''] = out.split(/^-{3}GAPS-{3}\s*$/m);
       const item = {
         id: AJP.uid('res'),
@@ -181,13 +181,13 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return { resume: item };
     },
 
-    async 'ai.draftAnswer'({ question, jd, job, maxWords }) {
+    async 'ai.draftAnswer'({ question, jd, job, maxWords }, sender, { tid }) {
       const ctx = await aiContext();
-      return { text: await AJP.ai.tasks.draftAnswer({ question, jd, job, maxWords, ...ctx }) };
+      return { text: await AJP.ai.tasks.draftAnswer({ question, jd, job, maxWords, tid, ...ctx }) };
     },
 
-    async 'ai.test'() {
-      return { text: await AJP.ai.tasks.test() };
+    async 'ai.test'(msg, sender, { tid }) {
+      return { text: await AJP.ai.tasks.test({ tid }) };
     },
 
     async learnAnswer({ label, value, host, kind }) {
@@ -276,11 +276,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Fill every frame of the tab (Greenhouse/Lever forms are often in iframes).
-    async autofillTab({ tabId }, sender) {
+    async autofillTab({ tabId }, sender, { tid }) {
       const id = tabId || (sender.tab && sender.tab.id);
-      if (!id) throw new Error('No tab');
+      if (!id) throw AJP.err('NO_TAB');
       await ensureInjected(id);
-      await api.tabs.sendMessage(id, { type: 'doAutofill' }); // all frames
+      await api.tabs.sendMessage(id, { type: 'doAutofill', tid }); // all frames, same trace id
       return {};
     },
 
@@ -297,6 +297,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return {};
     },
 
+    // Health check used by issue reports.
+    async ping() {
+      return { version: AJP.VERSION, sessionId: AJP.sessionId, uptimeSec: Math.round((Date.now() - bootAt) / 1000), logLevel: AJP.getLogLevel() };
+    },
+
     async openAdmin({ hash }) {
       const url = api.runtime.getURL('src/admin/admin.html') + (hash ? '#' + hash : '');
       await api.tabs.create({ url });
@@ -304,19 +309,37 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
   };
 
+  const bootAt = Date.now();
+  const hostOf = (url) => {
+    try {
+      return new URL(url).hostname;
+    } catch (_) {
+      return '';
+    }
+  };
+
   api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const h = msg && handlers[msg.type];
     if (!h) return false;
     const t0 = Date.now();
+    // One trace id per user action: reuse the caller's, or start one here.
+    const tid = msg._tid || 't' + AJP.newId(7);
+    const mlog = AJP.logger('background', { tid });
+    const from = { from: sender.tab ? 'page' : 'extension', host: hostOf(sender.url || (sender.tab && sender.tab.url)), frame: sender.frameId };
     Promise.resolve()
-      .then(() => h(msg, sender))
+      .then(() => h(msg, sender, { tid, log: mlog }))
       .then((r) => {
-        if (msg.type !== 'log') log.debug(`msg ${msg.type} ok (${Date.now() - t0}ms)`);
-        sendResponse({ ok: true, ...(r || {}) });
+        const ms = Date.now() - t0;
+        if (msg.type !== 'log') {
+          if (ms > 5000) mlog.warn(`msg ${msg.type} slow`, { ms, ...from });
+          else mlog.debug(`msg ${msg.type} ok`, { ms, ...from });
+        }
+        sendResponse({ ok: true, tid, ...(r || {}) });
       })
       .catch((e) => {
-        log.error(`msg ${msg.type} failed`, { error: e.message });
-        sendResponse({ ok: false, error: e.message });
+        const x = AJP.toAppError(e);
+        mlog.error(`msg ${msg.type} failed`, { ms: Date.now() - t0, code: x.code, error: x.message, details: x.details, ...from }, { code: x.code });
+        sendResponse({ ok: false, tid, error: x.message, hint: x.hint, code: x.code });
       });
     return true; // async response
   });

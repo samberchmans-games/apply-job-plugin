@@ -30,6 +30,7 @@
     "scripts": [
       "src/lib/core.js",
       "src/lib/logger.js",
+      "src/lib/errors.js",
       "src/lib/storage.js",
       "src/lib/skills-dictionary.js",
       "src/lib/matcher.js",
@@ -57,6 +58,7 @@
       "js": [
         "src/lib/core.js",
         "src/lib/logger.js",
+        "src/lib/errors.js",
         "src/lib/storage.js",
         "src/lib/skills-dictionary.js",
         "src/lib/matcher.js",

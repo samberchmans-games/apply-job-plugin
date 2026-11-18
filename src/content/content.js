@@ -26,13 +26,27 @@
     render();
   };
 
+  // Show a failed background reply as: message, hint, and the code users can quote to support.
+  const fail = (r) => {
+    const esc = AJP.panel.esc;
+    say(`${esc(r.error || 'Something went wrong.')}${r.hint ? `<br><span class="muted">${esc(r.hint)}</span>` : ''} <span class="muted code">(${esc(r.code || 'AJP-INTERNAL')})</span>`, true);
+  };
+
   async function analyze({ text = null, keepAi = false } = {}) {
     const t0 = performance.now();
     let job;
-    if (text) job = { title: document.title, company: '', location: '', text, url: location.href, source: 'selection' };
-    else job = AJP.jd.extract();
+    try {
+      if (text) job = { title: document.title, company: '', location: '', text, url: location.href, source: 'selection' };
+      else job = AJP.jd.extract();
+    } catch (e) {
+      const x = AJP.toAppError(e);
+      log.error('Job page reading crashed', { code: x.code, error: x.message, host: location.hostname }, { code: x.code });
+      job = null;
+    }
     if (!job) {
-      state.error = 'Could not find a job description on this page.';
+      const x = AJP.err('JD_NOT_FOUND');
+      log.warn('No job description found', { host: location.hostname, path: location.pathname.slice(0, 80) }, { code: x.code });
+      state.error = `${x.message} (${x.code})`;
       state.analysis = null;
       render();
       return null;
@@ -90,9 +104,14 @@
     async ai() {
       state.busy = 'ai';
       say('Asking AI to read the job description…');
-      const r = await AJP.send('ai.extractSkills', { jd: jdText });
+      const tr = AJP.startTrace('panel.aiAnalysis', { mod: 'content' });
+      const r = await AJP.send('ai.extractSkills', { jd: jdText }, tr);
       state.busy = '';
-      if (!r.ok) return say(r.error, true);
+      if (!r.ok) {
+        tr.fail(r);
+        return fail(r);
+      }
+      tr.end();
       const x = r.result || {};
       state.aiSkills = { required: x.required_skills || [], preferred: x.preferred_skills || [] };
       state.aiUsed = true;
@@ -105,9 +124,14 @@
       state.busy = 'tailor';
       say('Tailoring your resume to this job (only truthful changes)… this can take ~30s.');
       const missing = (state.analysis ? state.analysis.missing : []).map((m) => m.skill);
-      const r = await AJP.send('ai.tailorResume', { jd: jdText, missing, job: jobMeta() });
+      const tr = AJP.startTrace('panel.tailorResume', { mod: 'content', slowMs: 60000 });
+      const r = await AJP.send('ai.tailorResume', { jd: jdText, missing, job: jobMeta() }, tr);
       state.busy = '';
-      if (!r.ok) return say(AJP.panel.esc(r.error), true);
+      if (!r.ok) {
+        tr.fail(r);
+        return fail(r);
+      }
+      tr.end({ resumeChars: r.resume.text.length });
       say(`Saved “${AJP.panel.esc(r.resume.name)}”. <a data-act="openResumes">Open in Admin → Resumes</a> to review, edit, export to PDF and make it active.`);
     },
 
@@ -119,10 +143,15 @@
       state.busy = 'autofill';
       state.autofill = { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       say('Filling the form…');
-      const r = await AJP.send('autofillTab', {});
+      const tr = AJP.startTrace('panel.autofill', { mod: 'content' });
+      const r = await AJP.send('autofillTab', { tid: tr.id }, tr);
       state.busy = '';
-      if (!r.ok) return say(AJP.panel.esc(r.error), true);
-      AJP.send('recordApplication', appPayload({ status: 'in progress', auto: true }));
+      if (!r.ok) {
+        tr.fail(r);
+        return fail(r);
+      }
+      tr.end();
+      AJP.send('recordApplication', appPayload({ status: 'in progress', auto: true }), tr);
     },
 
     async draft(ajpId, btn) {
@@ -131,16 +160,24 @@
       btn.disabled = true;
       btn.textContent = 'Drafting…';
       const maxWords = q.maxLength ? Math.max(20, Math.floor(q.maxLength / 7)) : null;
-      const r = await AJP.send('ai.draftAnswer', { question: q.label, jd: jdText, job: jobMeta(), maxWords });
-      if (!r.ok) return say(AJP.panel.esc(r.error), true);
-      await AJP.send('fillQuestion', { ajpId, text: r.text });
+      const tr = AJP.startTrace('panel.draftAnswer', { mod: 'content', slowMs: 30000 });
+      const r = await AJP.send('ai.draftAnswer', { question: q.label, jd: jdText, job: jobMeta(), maxWords }, tr);
+      if (!r.ok) {
+        tr.fail(r);
+        btn.disabled = false;
+        btn.textContent = '✨ Draft answer with AI';
+        return fail(r);
+      }
+      await AJP.send('fillQuestion', { ajpId, text: r.text }, tr);
+      tr.end({ chars: r.text.length });
       btn.textContent = '✓ Drafted — review & edit it in the form';
     },
 
     async applied() {
       const r = await AJP.send('recordApplication', appPayload({ status: 'applied', detectedBy: 'manual' }));
       if (r.ok) state.lastApp = r.app;
-      say(r.ok ? 'Marked as applied. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>' : AJP.panel.esc(r.error), !r.ok);
+      if (!r.ok) return fail(r);
+      say('Marked as applied. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>');
     },
 
     async undoApplied() {
@@ -159,7 +196,8 @@
       state.ask = null;
       const r = await AJP.send('recordApplication', { app: { ...pickJob(job), status: 'applied', detectedBy: 'confirmed by you' } });
       if (r.ok) state.lastApp = r.app;
-      say(r.ok ? 'Saved as applied. <a data-act="undoApplied">Undo</a>' : AJP.panel.esc(r.error), !r.ok);
+      if (!r.ok) return fail(r);
+      say('Saved as applied. <a data-act="undoApplied">Undo</a>');
     },
 
     askNo() {
@@ -197,11 +235,16 @@
     } else if (msg.type === 'doAutofill') {
       (async () => {
         const [profile, answers, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.get('answers'), AJP.store.activeResume()]);
+        const tr = AJP.startTrace('frame.autofill', { mod: 'filler', tid: msg.tid });
         const report = await AJP.filler.fill({ profile, answers, resume });
+        tr.end({ filled: report.filled.length, learned: report.learned.length, unknown: report.unknown.length, questions: report.questions.length, host: location.hostname });
         AJP.filler.startLearning();
         const total = report.filled.length + report.learned.length + report.questions.length + report.unknown.length;
         if (total || isTop) AJP.send('autofillReport', { report });
-      })().catch((e) => log.error('Autofill crashed', { error: e.message, stack: e.stack }));
+      })().catch((e) => {
+        const x = AJP.toAppError(e);
+        log.error('Autofill crashed', { code: x.code, error: x.message, stack: String(e && e.stack).split('\n').slice(0, 5).join('\n'), host: location.hostname }, { code: x.code, tid: msg.tid });
+      });
     } else if (msg.type === 'autofillReport' && isTop) {
       const r = msg.report;
       const cur = state.autofill || { filled: [], learned: [], unknown: [], questions: [], skipped: [] };

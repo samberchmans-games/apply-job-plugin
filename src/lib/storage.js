@@ -109,7 +109,13 @@
     async set(key, value) {
       cache.delete(key);
       bump(key);
-      await area().set({ [key]: value });
+      try {
+        await area().set({ [key]: value });
+      } catch (e) {
+        // Usually quota exceeded or storage blocked. Log (except for logs themselves) and surface a coded error.
+        if (key !== 'logs' && AJP.logger) AJP.logger('storage').error('Write failed', { key, error: e.message }, { code: 'AJP-STORE' });
+        throw AJP.err ? AJP.err('STORAGE', { key, original: e.message }, e) : e;
+      }
     },
 
     // Read-modify-write. fn may mutate and/or return the new value.
@@ -133,7 +139,7 @@
     },
 
     async importAll(backup) {
-      if (!backup || backup.app !== 'apply-job-plugin' || !backup.data) throw new Error('Not an Apply Job backup file');
+      if (!backup || backup.app !== 'apply-job-plugin' || !backup.data) throw AJP.err('BACKUP_INVALID');
       const toSet = {};
       for (const k of this.KEYS) if (k in backup.data && !INTERNAL.has(k)) toSet[k] = backup.data[k];
       cache.clear();

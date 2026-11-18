@@ -42,6 +42,7 @@
   .msg.ask { background: #eff6ff; }
   .q { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-top: 6px; }
   .muted { color: #6b7280; font-size: 12px; }
+  .code { font-family: ui-monospace, Menlo, monospace; }
   a { color: #2563eb; cursor: pointer; }
   @media (prefers-color-scheme: dark) {
     .wrap { background: #111827; color: #f3f4f6; border-color: #374151; }
