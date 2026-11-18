@@ -11,7 +11,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | No build step, fast, framework-free | ✅ | `src/lib/*` |
 | Local-only storage, no DB, in-memory cache | ✅ | `src/lib/storage.js` |
 | Backup / restore / delete-all | ✅ | Admin → Backup |
-| Loaded and verified in a real browser | ⬜ | **Next step**: Chrome first, then Firefox, Edge, Safari |
+| Loaded and verified in a real browser | ⬜ | Your side, when ready: Chrome first, then Firefox, Edge, Safari |
 | Safari packaging (Xcode converter) | ⬜ | Steps documented in README; not yet run |
 | Store packaging (Chrome Web Store, AMO, Edge, Safari) | ⬜ | |
 
@@ -139,15 +139,44 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Fix: Autofill no longer resets an "applied" job to "in progress" | ✅ | Automatic updates only move forward |
 | Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⬜ later | Ideas discussed; not planned yet |
 
-## Suggested order for next work
-1. ~~Push `develop` to GitHub.~~ ✅
-1. ~~Full automated test suite.~~ ✅
-1. ~~Application tracker (section 11).~~ ✅
-1. ~~Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).~~ ✅
-1. **Multiple career tracks** (section 10).
-2. Load in Chrome and fix anything found (smoke test against the sample page plus 2–3 real job posts).
-3. `feature/pdf-text`: read PDF resumes automatically.
-4. `feature/workday-widgets`: Workday dropdowns and the experience step.
-5. `feature/resume-export`: attach the tailored resume as a PDF.
-6. Firefox / Edge / Safari verification.
-7. CI + more tests.
+## Roadmap (updated 2026-11-18)
+
+### ✅ Done
+| # | Step | Commit |
+|---|---|---|
+| 1 | v0.1 foundation: extension, Admin page, match %, autofill, AI, logs | `cb1ac98` |
+| 2 | Full automated test suite + manual test scenarios | `3609410` |
+| 3 | Application tracker (section 11) | `15fbc3c` |
+| 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
+
+### ⬜ Next (built by Claude, one step at a time, reviewed by you)
+| # | Step | Section | Size |
+|---|---|---|---|
+| 5 | **Multiple career tracks**: 2–3 profiles; every job scored against each; best track picked; track insights | 10 | Large |
+| 6 | Read PDF resumes automatically (no more pasting) | 2 | Small |
+| 7 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
+| 8 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
+| 9 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
+| 10 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
+| 11 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
+| 12 | Suggest profile updates from learned answers | 6 | Small |
+| 13 | CI on GitHub: run the tests on every push/PR | 9 | Small |
+
+### 🧪 Your side (manual, when you're ready)
+| Item | Notes |
+|---|---|
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 89 scenarios |
+| Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
+| Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
+
+### 💤 Later / not decided
+| Item | Notes |
+|---|---|
+| Publish to browser stores (Chrome, Firefox, Edge, Safari) | After real-browser testing |
+| Optional email status sync (Gmail/Outlook, read-only, opt-in) | Ideas discussed |
+
+### ❌ Decided not to do
+| Item | Why |
+|---|---|
+| Logging into free ChatGPT / Claude / Gemini chat websites | Breaks their terms, unreliable; free API keys instead |
+| Storing job-site passwords | The browser's password manager handles this more safely |
