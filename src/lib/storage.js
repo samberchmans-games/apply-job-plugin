@@ -1,0 +1,137 @@
+/*
+ * storage.js — the "database". Everything lives in the browser's local
+ * extension storage (storage.local) on this machine only. No server, no sync.
+ *
+ * Keys:
+ *   profile       who the user is + preferences + auto-apply details
+ *   settings      AI provider, log level, behaviour toggles
+ *   resumes       { activeId, items: [{id,name,text,file?,createdAt,job?}] }
+ *   answers       learned answers: { [normKey]: {label,value,count,lastUsed,hosts[]} }
+ *   applications  [{id,url,title,company,score,status,date,resumeId}]
+ *   logs          ring buffer of log entries (owned by background)
+ *
+ * Reads go through an in-memory cache that is invalidated by storage.onChanged,
+ * so repeated reads are effectively free.
+ */
+(function () {
+  'use strict';
+  const AJP = globalThis.AJP;
+  if (AJP.store) return;
+
+  const DEFAULTS = {
+    profile: {
+      personal: {
+        firstName: '', lastName: '', email: '', phone: '',
+        address: '', city: '', state: '', zip: '', country: '',
+        linkedin: '', github: '', website: '',
+        currentTitle: '', currentCompany: '', yearsExperience: '',
+      },
+      skills: [], // [{name, level: 'expert'|'advanced'|'intermediate'|'beginner', years}]
+      targetRoles: [], // ["Senior Software Engineer", ...]
+      salary: { min: '', max: '', currency: 'USD', period: 'year' },
+      areas: [], // ["Austin, TX", "Remote - US"]
+      workTypes: { remote: true, hybrid: true, onsite: false },
+      willingToRelocate: '',
+      autoApply: {
+        education: [], // [{school, degree, field, startYear, endYear, gpa}]
+        experience: [], // [{company, title, location, start, end, current, description}]
+        workAuthorized: '', // 'Yes' | 'No'
+        requireSponsorship: '',
+        noticePeriod: '',
+        earliestStart: '',
+        coverLetterTemplate: '',
+        eeo: { gender: '', race: '', hispanic: '', veteran: '', disability: '', pronouns: '' },
+      },
+    },
+    settings: {
+      ai: {
+        provider: 'none', // none | gemini | groq | openrouter | ollama
+        model: '',
+        keys: { gemini: '', groq: '', openrouter: '' },
+        ollamaUrl: 'http://localhost:11434',
+      },
+      logLevel: 'info',
+      autoAnalyze: true, // show match badge automatically on known job sites
+      learnAnswers: true,
+    },
+    resumes: { activeId: null, items: [] },
+    answers: {},
+    applications: [],
+    logs: [],
+  };
+
+  const area = () => AJP.api.storage.local;
+  const cache = new Map();
+
+  function withDefaults(key, value) {
+    const def = DEFAULTS[key];
+    if (value === undefined) return AJP.clone(def);
+    if (AJP.isPlainObject(def) && AJP.isPlainObject(value)) return AJP.deepMerge(def, value);
+    return value;
+  }
+
+  try {
+    AJP.api.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local') return;
+      for (const k of Object.keys(changes)) cache.delete(k);
+    });
+  } catch (_) {}
+
+  AJP.store = {
+    DEFAULTS,
+    KEYS: Object.keys(DEFAULTS),
+
+    async get(key) {
+      if (cache.has(key)) return AJP.clone(cache.get(key));
+      const r = await area().get(key);
+      const v = withDefaults(key, r[key]);
+      if (key !== 'logs') cache.set(key, v);
+      return AJP.clone(v);
+    },
+
+    async getMany(keys) {
+      const out = {};
+      await Promise.all(keys.map(async (k) => (out[k] = await this.get(k))));
+      return out;
+    },
+
+    async set(key, value) {
+      cache.delete(key);
+      await area().set({ [key]: value });
+    },
+
+    // Read-modify-write. fn may mutate and/or return the new value.
+    async update(key, fn) {
+      const cur = await this.get(key);
+      const ret = await fn(cur);
+      const next = ret === undefined ? cur : ret;
+      await this.set(key, next);
+      return next;
+    },
+
+    async activeResume() {
+      const r = await this.get('resumes');
+      return r.items.find((x) => x.id === r.activeId) || r.items[0] || null;
+    },
+
+    async exportAll({ includeKeys = false, includeLogs = false } = {}) {
+      const data = await this.getMany(this.KEYS.filter((k) => includeLogs || k !== 'logs'));
+      if (!includeKeys && data.settings) data.settings.ai.keys = { gemini: '', groq: '', openrouter: '' };
+      return { app: 'apply-job-plugin', version: AJP.VERSION, exportedAt: new Date().toISOString(), data };
+    },
+
+    async importAll(backup) {
+      if (!backup || backup.app !== 'apply-job-plugin' || !backup.data) throw new Error('Not an Apply Job backup file');
+      const toSet = {};
+      for (const k of this.KEYS) if (k in backup.data && k !== 'logs') toSet[k] = backup.data[k];
+      cache.clear();
+      await area().set(toSet);
+      return Object.keys(toSet);
+    },
+
+    async wipe() {
+      cache.clear();
+      await area().clear();
+    },
+  };
+})();

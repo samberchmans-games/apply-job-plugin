@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Apply Job Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><img src="../../icons/icon-48.png" alt=""><b>Apply Job Assistant</b></header>
+  <div id="status" class="status"></div>
+  <button id="analyze" class="primary">🔍 Analyze this job page</button>
+  <button id="autofill">⚡ Autofill application form</button>
+  <button id="admin">⚙ Open Admin (profile, resumes, logs)</button>
+  <div id="err" class="err" hidden></div>
+  <footer>All data stays on this computer. <span id="ver"></span></footer>
+  <script src="../lib/core.js"></script>
+  <script src="../lib/logger.js"></script>
+  <script src="../lib/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

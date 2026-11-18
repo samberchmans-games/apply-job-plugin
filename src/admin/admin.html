@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apply Job Admin</title>
+  <link rel="icon" href="../../icons/icon-32.png">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="layout">
+  <nav>
+    <div class="brand"><img src="../../icons/icon-48.png" alt=""><div><b>Apply Job</b><small>Admin · local only</small></div></div>
+    <a href="#profile">👤 Profile</a>
+    <a href="#skills">🧠 Skills</a>
+    <a href="#prefs">🎯 Job preferences</a>
+    <a href="#resumes">📄 Resumes</a>
+    <a href="#autoapply">⚡ Auto-apply details</a>
+    <a href="#ai">✨ AI settings</a>
+    <a href="#answers">🧩 Learned answers</a>
+    <a href="#applications">📋 Applications</a>
+    <a href="#logs">🪵 Logs</a>
+    <a href="#backup">💾 Backup &amp; privacy</a>
+    <div class="ver" id="ver"></div>
+  </nav>
+
+  <main>
+    <div class="privacy">🔒 Everything on this page is saved only in this browser on this computer (extension local storage). Nothing is uploaded, except text you choose to send to the AI provider you configure. Changes save automatically.</div>
+
+    <!-- PROFILE -->
+    <section id="profile">
+      <h1>Profile</h1>
+      <p class="hint">Used to autofill application forms.</p>
+      <div class="grid">
+        <label>First name<input data-path="personal.firstName" autocomplete="given-name"></label>
+        <label>Last name<input data-path="personal.lastName" autocomplete="family-name"></label>
+        <label>Email<input type="email" data-path="personal.email" autocomplete="email"></label>
+        <label>Phone<input type="tel" data-path="personal.phone" autocomplete="tel"></label>
+        <label class="wide">Street address<input data-path="personal.address"></label>
+        <label>City<input data-path="personal.city"></label>
+        <label>State / province<input data-path="personal.state"></label>
+        <label>ZIP / postal code<input data-path="personal.zip"></label>
+        <label>Country<input data-path="personal.country"></label>
+        <label>LinkedIn URL<input type="url" data-path="personal.linkedin"></label>
+        <label>GitHub URL<input type="url" data-path="personal.github"></label>
+        <label>Website / portfolio<input type="url" data-path="personal.website"></label>
+        <label>Current title<input data-path="personal.currentTitle"></label>
+        <label>Current company<input data-path="personal.currentCompany"></label>
+        <label>Total years of experience<input type="number" min="0" data-path="personal.yearsExperience"></label>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section id="skills">
+      <h1>Key skills</h1>
+      <p class="hint">Your skills drive the match %. Names are normalized (e.g. “k8s” → Kubernetes). Custom skills are matched too.</p>
+      <form id="skillForm" class="row">
+        <input id="skillName" placeholder="Add a skill, e.g. Python" list="skillSuggest" required>
+        <datalist id="skillSuggest"></datalist>
+        <select id="skillLevel"><option value="">Level</option><option>expert</option><option>advanced</option><option>intermediate</option><option>beginner</option></select>
+        <input id="skillYears" type="number" min="0" step="0.5" placeholder="Years" class="narrow">
+        <button class="primary">Add skill</button>
+      </form>
+      <div class="row"><button id="detectSkills">🔎 Detect skills from my active resume</button><span id="detectOut" class="hint"></span></div>
+      <table class="tbl"><thead><tr><th>Skill</th><th>Level</th><th>Years</th><th></th></tr></thead><tbody id="skillRows"></tbody></table>
+    </section>
+
+    <!-- PREFERENCES -->
+    <section id="prefs">
+      <h1>Job preferences</h1>
+      <h3>Positions you're looking for</h3>
+      <div class="chipbox" data-list="targetRoles" data-placeholder="e.g. Senior Software Engineer — press Enter"></div>
+      <h3>Salary range</h3>
+      <div class="grid">
+        <label>Minimum<input type="number" min="0" data-path="salary.min" placeholder="120000"></label>
+        <label>Maximum<input type="number" min="0" data-path="salary.max" placeholder="160000"></label>
+        <label>Currency<input data-path="salary.currency"></label>
+        <label>Period<select data-path="salary.period"><option value="year">per year</option><option value="hour">per hour</option></select></label>
+      </div>
+      <h3>Suitable areas / locations</h3>
+      <div class="chipbox" data-list="areas" data-placeholder="e.g. Austin, TX — press Enter"></div>
+      <h3>Work type</h3>
+      <div class="row">
+        <label class="check"><input type="checkbox" data-path="workTypes.remote"> Remote</label>
+        <label class="check"><input type="checkbox" data-path="workTypes.hybrid"> Hybrid</label>
+        <label class="check"><input type="checkbox" data-path="workTypes.onsite"> On-site</label>
+      </div>
+      <div class="grid"><label>Willing to relocate?<select data-path="willingToRelocate"><option value=""></option><option>Yes</option><option>No</option></select></label></div>
+    </section>
+
+    <!-- RESUMES -->
+    <section id="resumes">
+      <h1>Resumes</h1>
+      <p class="hint">Upload your resume. The file is attached to applications; its text is used for matching and AI tailoring.
+        .docx and .txt/.md text is extracted automatically. For PDF, also paste the text below (PDF text extraction is on the roadmap).</p>
+      <div class="row">
+        <input type="file" id="resumeFile" accept=".pdf,.docx,.txt,.md">
+        <button id="newResume">+ New empty resume</button>
+      </div>
+      <div id="resumeList"></div>
+      <div id="resumeEditor" hidden>
+        <h3>Edit: <input id="resumeName" class="inline"></h3>
+        <textarea id="resumeText" rows="18" placeholder="Paste your resume text here (Markdown is fine)."></textarea>
+        <div id="resumeGaps" class="gaps" hidden></div>
+        <div class="row">
+          <button id="resumeSetActive" class="primary">Use as active resume</button>
+          <button id="resumePrint">🖨 View / save as PDF</button>
+          <button id="resumeDownload">⬇ Download .md</button>
+          <button id="resumeDelete" class="danger">Delete</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTO APPLY -->
+    <section id="autoapply">
+      <h1>Auto-apply details</h1>
+      <p class="hint">Answers for common application questions. The extension fills forms but <b>never submits</b> — you always review and click submit.</p>
+      <div class="grid">
+        <label>Legally authorized to work?<select data-path="autoApply.workAuthorized"><option value=""></option><option>Yes</option><option>No</option></select></label>
+        <label>Require visa sponsorship?<select data-path="autoApply.requireSponsorship"><option value=""></option><option>Yes</option><option>No</option></select></label>
+        <label>Notice period<input data-path="autoApply.noticePeriod" placeholder="2 weeks"></label>
+        <label>Earliest start date<input data-path="autoApply.earliestStart" placeholder="Immediately / 2026-12-01"></label>
+      </div>
+
+      <h3>Education <button class="small" data-add="education">+ Add</button></h3>
+      <div id="educationList" class="cards"></div>
+
+      <h3>Experience <button class="small" data-add="experience">+ Add</button></h3>
+      <div id="experienceList" class="cards"></div>
+
+      <h3>Voluntary self-identification (EEO)</h3>
+      <p class="hint">Optional. Used only to fill these specific questions; never sent to AI and redacted from logs. Leave blank or choose “Decline to self-identify”.</p>
+      <div class="grid">
+        <label>Gender<select data-path="autoApply.eeo.gender"><option value=""></option><option>Male</option><option>Female</option><option>Non-binary</option><option>Decline to self-identify</option></select></label>
+        <label>Hispanic / Latino?<select data-path="autoApply.eeo.hispanic"><option value=""></option><option>Yes</option><option>No</option><option>Decline to self-identify</option></select></label>
+        <label>Race / ethnicity<select data-path="autoApply.eeo.race"><option value=""></option><option>American Indian or Alaska Native</option><option>Asian</option><option>Black or African American</option><option>Native Hawaiian or Other Pacific Islander</option><option>White</option><option>Two or More Races</option><option>Decline to self-identify</option></select></label>
+        <label>Veteran status<select data-path="autoApply.eeo.veteran"><option value=""></option><option>I am not a protected veteran</option><option>I identify as one or more of the classifications of protected veteran</option><option>Decline to self-identify</option></select></label>
+        <label>Disability<select data-path="autoApply.eeo.disability"><option value=""></option><option>No, I do not have a disability</option><option>Yes, I have a disability (or previously had a disability)</option><option>Decline to self-identify</option></select></label>
+        <label>Pronouns<input data-path="autoApply.eeo.pronouns"></label>
+      </div>
+
+      <h3>Cover letter template</h3>
+      <textarea data-path="autoApply.coverLetterTemplate" rows="6" placeholder="Used when a form has a cover-letter text box."></textarea>
+    </section>
+
+    <!-- AI -->
+    <section id="ai">
+      <h1>AI settings</h1>
+      <p class="hint">Matching works offline without AI. AI adds deeper JD analysis, honest resume tailoring and drafted answers. Pick a <b>free</b> option:</p>
+      <ul class="hint">
+        <li><b>Google Gemini</b> — free API key at aistudio.google.com/apikey (sign in with a Google account).</li>
+        <li><b>Groq</b> — free API key at console.groq.com/keys. Very fast.</li>
+        <li><b>OpenRouter</b> — free key at openrouter.ai/keys; use models ending in <code>:free</code>.</li>
+        <li><b>Ollama</b> — runs models on this computer; fully private. Start it with <code>OLLAMA_ORIGINS="*" ollama serve</code>.</li>
+      </ul>
+      <p class="hint">Why not log into free ChatGPT / Claude / Gemini chat websites? Automating those consumer chat apps breaks their terms and stops working whenever their UI changes. Free API keys are the supported, reliable way.</p>
+      <div class="grid">
+        <label>Provider<select data-settings="ai.provider" id="aiProvider"></select></label>
+        <label>Model (blank = default)<input data-settings="ai.model" id="aiModel"></label>
+        <label>Gemini API key<input type="password" data-settings="ai.keys.gemini" autocomplete="off"></label>
+        <label>Groq API key<input type="password" data-settings="ai.keys.groq" autocomplete="off"></label>
+        <label>OpenRouter API key<input type="password" data-settings="ai.keys.openrouter" autocomplete="off"></label>
+        <label>Ollama URL<input data-settings="ai.ollamaUrl"></label>
+      </div>
+      <div class="row"><button id="aiTest" class="primary">Test connection</button><span id="aiTestOut" class="hint"></span></div>
+      <h3>Behaviour</h3>
+      <div class="row">
+        <label class="check"><input type="checkbox" data-settings="autoAnalyze"> Show the match badge automatically on job sites</label>
+        <label class="check"><input type="checkbox" data-settings="learnAnswers"> Learn from answers I type into application forms</label>
+      </div>
+    </section>
+
+    <!-- ANSWERS -->
+    <section id="answers">
+      <h1>Learned answers</h1>
+      <p class="hint">Answers remembered from forms you filled. Reused automatically when the same question appears again. Edit or delete any of them.</p>
+      <input id="answerSearch" placeholder="Search questions…">
+      <table class="tbl"><thead><tr><th>Question</th><th>Answer</th><th>Used</th><th>Sites</th><th></th></tr></thead><tbody id="answerRows"></tbody></table>
+    </section>
+
+    <!-- APPLICATIONS -->
+    <section id="applications">
+      <h1>Applications</h1>
+      <table class="tbl"><thead><tr><th>Date</th><th>Company</th><th>Role</th><th>Match</th><th>Status</th><th></th></tr></thead><tbody id="appRows"></tbody></table>
+    </section>
+
+    <!-- LOGS -->
+    <section id="logs">
+      <h1>Logs</h1>
+      <p class="hint">When you report a problem, click <b>Download logs</b> and attach the file. Secrets, contact details and EEO answers are redacted automatically.</p>
+      <div class="row">
+        <label>Log level <select data-settings="logLevel"><option>debug</option><option>info</option><option>warn</option><option>error</option></select></label>
+        <select id="logFilter"><option value="">All levels</option><option>debug</option><option>info</option><option>warn</option><option>error</option></select>
+        <input id="logSearch" placeholder="Search logs…">
+        <button id="logRefresh">↻ Refresh</button>
+        <button id="logDownload" class="primary">⬇ Download logs</button>
+        <button id="logClear" class="danger">Clear</button>
+      </div>
+      <div id="logCount" class="hint"></div>
+      <pre id="logView" class="logs"></pre>
+    </section>
+
+    <!-- BACKUP -->
+    <section id="backup">
+      <h1>Backup &amp; privacy</h1>
+      <p class="hint">There is no server or database — your data lives only in this browser. Export a backup to move to another browser or computer.</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="bkKeys"> Include API keys</label>
+        <button id="bkExport" class="primary">⬇ Export backup (.json)</button>
+        <label class="filebtn">⬆ Import backup<input type="file" id="bkImport" accept=".json" hidden></label>
+        <button id="bkWipe" class="danger">Delete all my data</button>
+      </div>
+      <p class="hint">Job-site passwords: let your browser's password manager save those. This extension deliberately does not store passwords.</p>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script src="../lib/core.js"></script>
+<script src="../lib/logger.js"></script>
+<script src="../lib/storage.js"></script>
+<script src="../lib/skills-dictionary.js"></script>
+<script src="../lib/matcher.js"></script>
+<script src="../lib/ai.js"></script>
+<script src="../lib/docx.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
