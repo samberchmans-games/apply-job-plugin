@@ -83,7 +83,9 @@
     const fn = console[level] || console.log;
     try {
       fn.call(console, `[AJP][${entry.ctx}][${mod}]${entry.code ? '[' + entry.code + ']' : ''} ${entry.msg}`, data === undefined ? '' : entry.data);
-    } catch (_) {}
+    } catch (_) {
+      /* no usable console (some test runners): the entry is still stored below */
+    }
     if (level === 'error' && recorder.length) {
       // Flight recorder: keep the details that led up to the error.
       buffer.push(...recorder.map((e) => ({ ...e, pre: true })));

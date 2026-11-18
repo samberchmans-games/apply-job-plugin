@@ -291,6 +291,18 @@
   }
   AJP.store.get('settings').then((s) => s.tracker.autoDetect && startDetector());
 
+  // THE STANDARD: every panel action runs through AJP.guard — an unexpected failure is traced, logged
+  // with its code (feeding the crash prompt) and shown in the panel instead of failing silently.
+  for (const [name, fn] of Object.entries(callbacks)) {
+    callbacks[name] = AJP.guard(`panel.${name}`, fn, {
+      mod: 'content',
+      onError: (d) => {
+        state.busy = '';
+        fail({ error: d.message, hint: d.hint, code: d.code });
+      },
+    });
+  }
+
   // ---- Messages from background ------------------------------------------------
   api.runtime.onMessage.addListener((msg) => {
     if (!msg || !msg.type) return;

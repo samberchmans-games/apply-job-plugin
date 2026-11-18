@@ -386,11 +386,25 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Trace (`tid`) | One id per user action. `AJP.startTrace(name)` creates it; `AJP.send(type, payload, trace)` carries it as `_tid`; the background router and `ai.complete` reuse it. The result is a single id across page → background → AI → page. |
 | Timing | `trace.end()` logs `ms`. Above `slowMs` it logs a `… slow` warning instead. |
 | Flight recorder | The last 60 entries below the log level are held in memory and written only if an error follows (`pre: true`) |
-| Errors | `errors.js`: 22 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
+| Errors | `errors.js`: 23 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
 | Redaction | By **key** (`apiKey`, `token`, `password`, `email`, `phone`, `eeo`, `race`, `veteran`, `disability`, `gender`, `dataUrl`, …) and by **value pattern** (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, Bearer tokens, `?key=`, phone numbers, SSNs). Applied to messages, data and error stacks. |
 | Transport | Contexts batch entries (700 ms; 50 ms after an error) → `log` message → the background writes the ring buffer (3,000 entries) |
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
 | Report | `diagnostics.collect()`: §7.6; contents described in [SUPPORT.md](SUPPORT.md) |
+
+### 9b. THE STANDARD: errors, failure capture and retries (applies to every change)
+Every part of the plugin handles failure the same way. **Convention tests scan the source** (`tests/unit/standard.test.js`), so a change that breaks a rule fails the build.
+
+| Rule | How | Enforced by |
+|---|---|---|
+| 1. A failure the user can see has a **code, message and hint** | `throw AJP.err('KEY', details)`. Add new keys to `errors.js` **and** to SUPPORT.md's table. | No `throw new Error(` in the source; every `AJP.err` key exists; every code is documented |
+| 2. **Temporary failures retry; permanent ones fail fast** | `AJP.retry(fn)`: up to 3 tries, backoff 0.4 s → 0.8 s (+ jitter), or the server's `Retry-After` (≤ 10 s). Temporary means: `AJP-AI-5XX`, `AJP-AI-NET`, `AJP-NET`, `AJP-HTTP` with a 5xx status, `AJP-STORE`, and a 429 with a short `Retry-After`. Not retried: wrong key, missing data, bad input, timeouts (each already waited). | Unit tests per code |
+| 3. **The network is called only through `AJP.http`** | Timeout, coded errors (`statusKey` / `networkKey` / `timeoutKey`), retries. AI and GitHub both use it. | No raw `fetch(` outside `errors.js` (local `data:` URLs excepted) |
+| 4. **Every user action is guarded** | `AJP.guard(name, fn, { onError })`: trace + timing + log with code + a clear message; never throws. All panel actions are wrapped centrally in `content.js`; the background router does the same for every message. | Panel-crash test |
+| 5. **Nothing fails silently** | Extension pages call `AJP.captureErrors(mod, { notify })`: uncaught errors are logged as `AJP-INTERNAL` and shown ("message (code)"). Empty `catch {}` blocks must explain why in a comment. | Scan for empty catches; captureErrors on every page |
+| 6. **Every failure is captured for support** | Coded errors are logged with their trace id (`tid`); the flight recorder keeps the context before them; `AJP-INTERNAL` / `AJP-STORE` / repeated codes raise the crash prompt → GitHub report. | Logging + issue-report tests |
+| 7. **Logging only through `AJP.logger`** | Redaction, sessions and traces apply everywhere. | No `console.*` outside `logger.js` |
+| 8. **Messaging recovers** | `AJP.send` retries once while the MV3 background is starting ("Receiving end does not exist"); storage writes retry once. | Unit tests |
 
 ### 9a. Problem reports on GitHub (option A)
 Full spec: [ISSUE-REPORTING.md](ISSUE-REPORTING.md).

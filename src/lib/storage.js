@@ -92,7 +92,9 @@
         bump(k);
       }
     });
-  } catch (_) {}
+  } catch (_) {
+    /* no extension storage API (e.g. the command-line test runner): the cache simply isn't invalidated */
+  }
 
   AJP.store = {
     DEFAULTS,
@@ -117,7 +119,8 @@
       cache.delete(key);
       bump(key);
       try {
-        await area().set({ [key]: value });
+        // A write can fail briefly (e.g. the browser is busy); retry once before reporting AJP-STORE.
+        await (AJP.retry ? AJP.retry(() => area().set({ [key]: value }), { tries: 2, baseMs: 150, retryOn: () => true, label: 'storage write' }) : area().set({ [key]: value }));
       } catch (e) {
         // Usually quota exceeded or storage blocked. Log (except for logs themselves) and surface a coded error.
         if (key !== 'logs' && AJP.logger) AJP.logger('storage').error('Write failed', { key, error: e.message }, { code: 'AJP-STORE' });

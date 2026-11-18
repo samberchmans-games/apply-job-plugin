@@ -61,6 +61,8 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-BACKUP` | Import file isn't a backup | Use a file from Admin → Backup → Export |
 | `AJP-STORE` | Browser storage write failed (quota or blocked) | Export a backup; clear old logs; check browser site-data settings |
 | `AJP-TAB` | No tab available | Start from the extension icon on the job page |
+| `AJP-NET` | Couldn't reach a service (e.g. GitHub), even after retrying | Internet or firewall; it retries automatically, so a lasting `AJP-NET` means the connection is down |
+| `AJP-HTTP` | A service returned an error (see `details.status`); 5xx errors were retried | Retry later; report it if it persists |
 | `AJP-INTERNAL` | Unexpected bug | Check `details.original` and the `pre` entries before it, then file a bug with the report attached |
 
 New codes are added in `src/lib/errors.js`. Every code needs a message and a hint, and a test checks this.

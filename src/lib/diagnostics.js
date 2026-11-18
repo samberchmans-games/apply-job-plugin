@@ -166,12 +166,26 @@
   AJP.diagnostics = { collect, summaryText, parseBrowser, reportId, finalScrub, errorSummary, summarizeSettings, summarizeData };
 
   // Catch uncaught errors on extension pages (admin, popup, resume view).
-  AJP.captureErrors = function captureErrors(mod = 'page') {
+  // Last line of defence on extension pages: anything not handled by AJP.guard is still logged with a code
+  // (feeding the crash prompt) and, with `notify`, shown to the user as "message (code)".
+  AJP.captureErrors = function captureErrors(mod = 'page', { notify } = {}) {
     const log = AJP.logger(mod);
-    globalThis.addEventListener('error', (e) => log.error('Uncaught error', { message: e.message, file: String(e.filename || '').split('/').pop(), line: e.lineno }, { code: 'AJP-INTERNAL' }));
+    const tell = (x) => {
+      if (!notify) return;
+      try {
+        notify(AJP.describeError(x));
+      } catch (_) {
+        /* the notification UI failed: the error is logged already */
+      }
+    };
+    globalThis.addEventListener('error', (e) => {
+      log.error('Uncaught error', { message: e.message, file: String(e.filename || '').split('/').pop(), line: e.lineno }, { code: 'AJP-INTERNAL' });
+      tell(AJP.err('INTERNAL', { original: e.message }));
+    });
     globalThis.addEventListener('unhandledrejection', (e) => {
       const x = AJP.toAppError(e.reason);
       log.error('Unhandled promise rejection', { code: x.code, error: x.message, details: x.details }, { code: x.code });
+      tell(x);
     });
   };
 })();

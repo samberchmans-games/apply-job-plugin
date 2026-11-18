@@ -181,7 +181,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     try {
       api.alarms.create('ajp-reports', { periodInMinutes: 24 * 60 });
       api.alarms.onAlarm.addListener((a) => a.name === 'ajp-reports' && handlers['github.status']({}));
-    } catch (_) {}
+    } catch (e) {
+      log.warn('Report status alarm unavailable', { error: e.message });
+    }
   }
   refreshBadge();
 
@@ -489,9 +491,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const url = AJP.issues.similarSearchUrl(codes);
       if (!url) return { items: [] };
       try {
-        const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const data = await AJP.http(url, { headers: { Accept: 'application/vnd.github+json' } }, { timeoutMs: 10000, tries: 2, label: 'github similar', log });
         return { items: (data.items || []).slice(0, 5).map((i) => ({ number: i.number, title: i.title, url: i.html_url, state: i.state })) };
       } catch (e) {
         log.warn('Similar reports lookup failed', { error: e.message });
@@ -518,9 +518,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const updates = {};
       for (const r of due) {
         try {
-          const res = await fetch(AJP.issues.statusSearchUrl(r.reportId), { headers: { Accept: 'application/vnd.github+json' } });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const data = await res.json();
+          const data = await AJP.http(AJP.issues.statusSearchUrl(r.reportId), { headers: { Accept: 'application/vnd.github+json' } }, { timeoutMs: 10000, tries: 2, label: 'github status', log });
           updates[r.reportId] = { ...AJP.issues.statusFromIssue((data.items || [])[0]), checkedAt: new Date().toISOString() };
         } catch (e) {
           updates[r.reportId] = { status: r.status === 'not-submitted' || !r.status ? 'unknown' : r.status, checkedAt: new Date().toISOString(), checkFailed: true };

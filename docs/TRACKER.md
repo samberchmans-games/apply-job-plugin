@@ -14,7 +14,8 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **31 / 35** |
 | Components not started | **4**: PDF reader, Workday adapter, resume export, CI |
-| Automated tests | **615 / 615 passing** (344 also run without a browser) |
+| Automated tests | **658 / 658 passing** (344 also run without a browser), incl. convention checks |
+| Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 72 checks) + 7 walkthrough videos (~7 min) |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
@@ -40,7 +41,7 @@ Columns:
 | C02 | Core helpers & messaging | `src/lib/core.js` | ✅ | 14 | ⏳ | |
 | C03 | Local storage ("database") | `src/lib/storage.js` | ✅ | 17 | ⏳ | Versioned cache (race fix), backup/restore, coded errors |
 | C04 | Logger (sessions, traces, redaction) | `src/lib/logger.js` | ✅ | 33 | ⏳ | Flight recorder; value redaction |
-| C05 | Error codes | `src/lib/errors.js` | ✅ | 7 | ⏳ | 19 codes, listed in SUPPORT.md |
+| C05 | Error codes + **THE STANDARD** (retry, http, guard) | `src/lib/errors.js` | ✅ | 7 + 43 | ⏳ | 23 codes in SUPPORT.md; convention tests scan the source |
 | C06 | Diagnostics / issue report | `src/lib/diagnostics.js` | ✅ | 11 | ⏳ | No personal data (tested) |
 | C07 | Skills dictionary | `src/lib/skills-dictionary.js` | ✅ | (in C08) | ⏳ | 199 skills |
 | C08 | Matcher (match %, gaps, fit) | `src/lib/matcher.js` | ✅ | 49 | ⏳ | ⬜ years/seniority check, synonyms (step 9) |
@@ -88,7 +89,7 @@ Columns:
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) = **615**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) = **658**
 
 ---
 
@@ -131,6 +132,7 @@ Columns:
 | — | Issue reporting option A: spec, GitHub issue form, auto-acknowledgement | `dbf8a47` | 565 |
 | 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | `2ace0d5` | 565 |
 | 7 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports, Simulate a problem; Tester Guide Session 8 + video Part 7 | `845b501` | 615 |
+| — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | *this commit* | 658 |
 
 ## 4. Bugs found & fixed
 

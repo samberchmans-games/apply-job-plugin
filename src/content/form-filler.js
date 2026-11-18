@@ -189,7 +189,7 @@
 
   async function attachFile(el, resume) {
     if (!resume || !resume.file || !resume.file.dataUrl) return false;
-    const blob = await (await fetch(resume.file.dataUrl)).blob();
+    const blob = await (await fetch(resume.file.dataUrl)).blob(); // local data: URL decode, not a network call
     const file = new File([blob], resume.file.name || 'resume.pdf', { type: resume.file.type || blob.type });
     const dt = new DataTransfer();
     dt.items.add(file);

@@ -3,7 +3,7 @@
   const AJP = globalThis.AJP;
   AJP.logContext = 'popup';
   const log = AJP.logger('popup');
-  AJP.captureErrors('popup');
+  AJP.captureErrors('popup', { notify: (d) => showErr({ error: d.message, hint: d.hint, code: d.code }) });
   const $ = (id) => document.getElementById(id);
   $('ver').textContent = 'v' + AJP.VERSION;
 

@@ -52,7 +52,15 @@
     const msg = { type, ...payload };
     if (trace) msg._tid = typeof trace === 'string' ? trace : trace.id;
     try {
-      const res = await AJP.api.runtime.sendMessage(msg);
+      let res;
+      try {
+        res = await AJP.api.runtime.sendMessage(msg);
+      } catch (e) {
+        // MV3: the background may be starting up ("Receiving end does not exist"). Retry once.
+        if (!/receiving end does not exist|could not establish connection/i.test(String(e && e.message))) throw e;
+        await new Promise((r) => setTimeout(r, 300));
+        res = await AJP.api.runtime.sendMessage(msg);
+      }
       return res || { ok: false, error: 'No response from the extension background.', code: 'AJP-INTERNAL' };
     } catch (e) {
       // e.g. "Extension context invalidated" after the extension was reloaded/updated.

@@ -23,7 +23,9 @@
 
   try {
     view = localStorage.getItem('ajp.trk.view') || 'board';
-  } catch (_) {}
+  } catch (_) {
+    /* storage blocked (private window): fall back to the board view */
+  }
 
   const serial = AJP.serial();
   const updateApps = (fn) => serial(() => AJP.store.update('applications', fn));
@@ -209,7 +211,9 @@
       view = e.target.dataset.view;
       try {
         localStorage.setItem('ajp.trk.view', view);
-      } catch (_) {}
+      } catch (_) {
+        /* storage blocked: the view just isn't remembered */
+      }
       render();
     });
     $('#trkExport').addEventListener('click', () => {

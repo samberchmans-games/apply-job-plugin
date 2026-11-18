@@ -34,10 +34,12 @@
       await mock.__reset();
       realFetch = globalThis.fetch;
       calls = [];
+      AJP.ai.CONFIG.tries = 1; // retries are covered in standard.test.js
     });
     afterEach(() => {
       globalThis.fetch = realFetch;
       AJP.ai.CONFIG.timeoutMs = 90000;
+      AJP.ai.CONFIG.tries = 3;
     });
 
     it('refuses when AI is off, with guidance (AJP-AI-OFF)', async () => {

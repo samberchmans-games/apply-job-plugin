@@ -23,27 +23,22 @@
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
   };
 
-  const CONFIG = { timeoutMs: 90000 }; // tests shorten this
+  const CONFIG = { timeoutMs: 90000, tries: 3 }; // tests shorten these
 
-  async function fetchJson(url, opts) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), CONFIG.timeoutMs);
-    let res;
-    try {
-      res = await fetch(url, { ...opts, signal: ctrl.signal });
-    } catch (e) {
-      if (e.name === 'AbortError') throw AJP.err('AI_TIMEOUT', { seconds: CONFIG.timeoutMs / 1000 }, e);
-      throw AJP.err('AI_NETWORK', { original: e.message, host: new URL(url).hostname }, e);
-    } finally {
-      clearTimeout(timer);
-    }
-    const text = await res.text();
-    if (!res.ok) throw AJP.err(AJP.aiErrorForStatus(res.status), { status: res.status, body: text.slice(0, 300) });
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw AJP.err('AI_BAD_RESPONSE', { reason: 'provider returned non-JSON', body: text.slice(0, 200) }, e);
-    }
+  // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
+  // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
+  // (each already waited CONFIG.timeoutMs).
+  function fetchJson(url, opts) {
+    return AJP.http(url, opts, {
+      timeoutMs: CONFIG.timeoutMs,
+      tries: CONFIG.tries,
+      statusKey: AJP.aiErrorForStatus,
+      networkKey: 'AI_NETWORK',
+      timeoutKey: 'AI_TIMEOUT',
+      badJsonKey: 'AI_BAD_RESPONSE',
+      label: 'ai request',
+      log: AJP.logger('ai'),
+    });
   }
 
   async function callOpenAICompatible(url, key, model, system, prompt, json, extraHeaders = {}) {

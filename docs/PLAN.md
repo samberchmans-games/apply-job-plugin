@@ -19,11 +19,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
 | Application tracker | ✅ complete |
-| Logging & support | ✅ complete |
+| Logging & support | ✅ complete · one standard for errors, retries and failure capture across the plugin (enforced by tests) |
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 615 automated + 116 manual scenarios · ⬜ CI |
+| Tests | ✅ 658 automated + 116 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -32,8 +32,10 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 - **Branches:** `develop` is the integration branch, and everything currently goes there. Larger features may use `feature/<name>` → PR → `develop`. `main` is kept for releases.
 - **One step at a time:** Claude builds a step with its tests, pushes to `develop`, and reports. You review before the next step starts.
 - **Status lives in [TRACKER.md](TRACKER.md)**, which is updated at the end of every step.
+- **Errors, failure capture and retries follow THE STANDARD** ([ARCHITECTURE §9b](ARCHITECTURE.md#9b-the-standard-errors-failure-capture-and-retries-applies-to-every-change)): coded errors, `AJP.retry`, `AJP.http`, `AJP.guard`, no silent failures. Convention tests enforce it.
 - **Definition of done for each step:**
   - tester material updated: a Tester Guide session and a walkthrough video part
+  - new code follows THE STANDARD (the convention tests pass; new error codes are in SUPPORT.md)
   - code is in place
   - automated tests are added, and all of them pass (`./tests/run-tests.sh` + `./tests/run-browser-tests.sh`)
   - manual scenarios are added to TEST-SCENARIOS.md
@@ -132,7 +134,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 |---|---|---|
 | Structured logs from every part (`[AJP][context][module]`) | ✅ | |
 | Session id per page or background run; trace id per user action, shared page → background → AI | ✅ | `AJP.startTrace`, `AJP.send(type, payload, trace)` |
-| Error codes (`AJP-AI-429`, `AJP-JD-NONE`, …) with a message and a hint, shown in the panel, popup and Admin | ✅ | `src/lib/errors.js`, 22 codes |
+| Error codes (`AJP-AI-429`, `AJP-JD-NONE`, …) with a message and a hint, shown in the panel, popup and Admin | ✅ | `src/lib/errors.js`, 23 codes |
 | Timing for actions; slow steps logged as warnings | ✅ | |
 | Flight recorder: debug details before an error are kept even at level "info" | ✅ | |
 | Redaction by key **and** by value (emails, API keys, bearer tokens, phone numbers, SSNs) | ✅ | |
@@ -144,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 615 across 20 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 615) · `./tests/run-tests.sh` (the 344 that need no browser) |
+| Automated tests: 658 across 21 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 658) · `./tests/run-tests.sh` (the 344 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -275,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | *this commit* | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
 | 2026-11-18 | `845b501` | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
 | 2026-11-18 | `2ace0d5` | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |

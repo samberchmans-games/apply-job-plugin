@@ -6,7 +6,7 @@
   const AJP = globalThis.AJP;
   AJP.logContext = 'admin';
   const log = AJP.logger('admin');
-  AJP.captureErrors('admin');
+  AJP.captureErrors('admin', { notify: (d) => toast(`⚠ ${d.message} (${d.code})`) });
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
