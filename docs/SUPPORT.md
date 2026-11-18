@@ -2,6 +2,9 @@
 
 How to help a user who reports a problem.
 
+## 0. Where reports arrive
+Problem reports arrive as **GitHub issues** (form: *Problem report*), with an automatic acknowledgement and labels. The triage and fix workflow is in [ISSUE-REPORTING.md §7](ISSUE-REPORTING.md#7-maintainer-workflow-how-we-take-it-and-fix-it). Users without GitHub email the report file; file an issue for them with the same form.
+
 ## 1. What to ask the user for
 Ask them to go to **Admin → Logs & support → 🆘 Report an issue** (or **Report a problem** in the toolbar popup). There they:
 1. describe what happened, which site, and what they expected

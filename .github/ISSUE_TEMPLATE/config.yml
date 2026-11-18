@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to report (Support guide)
+    url: https://github.com/samberchmans-games/apply-job-plugin/blob/develop/docs/ISSUE-REPORTING.md
+    about: What to include, privacy, and how issues are handled.

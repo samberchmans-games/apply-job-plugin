@@ -80,6 +80,8 @@ What's in the logs and reports:
 - **The details just before an error are kept**, even at the normal log level.
 - **Nothing personal is included.** API keys, passwords, emails, phone numbers, SSNs, EEO answers and resume content are removed automatically.
 
+**Report it on GitHub:** [open a problem report](https://github.com/samberchmans-games/apply-job-plugin/issues/new?template=bug_report.yml). The form asks for the report id and error code, and you'll get an automatic acknowledgement. Fixes are tracked on the issue; see [docs/ISSUE-REPORTING.md](docs/ISSUE-REPORTING.md). No GitHub account? Email the report file to the person who invited you.
+
 If you handle support, see [docs/SUPPORT.md](docs/SUPPORT.md) for how to read a report, plus the full list of error codes.
 
 ## Development

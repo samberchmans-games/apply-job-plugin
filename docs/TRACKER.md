@@ -16,10 +16,11 @@ This is the single page for **where every component stands right now**. The othe
 | Components not started | **4**: PDF reader, Workday adapter, resume export, CI |
 | Automated tests | **565 / 565 passing** (315 also run without a browser) |
 | Tester material | Tester Guide (7 sessions, 64 checks) + 6 walkthrough videos (~6 min) |
+| Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (11 found and fixed so far, each with a test) |
-| Next step | **Step 7: read PDF resumes** |
+| Next step | **Step 7: issue reporting, extension side** (GitHub issue form + auto-acknowledgement are already live) |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -45,7 +46,7 @@ Columns:
 | C08 | Matcher (match %, gaps, fit) | `src/lib/matcher.js` | ✅ | 49 | ⏳ | ⬜ years/seniority check, synonyms (step 9) |
 | C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 | ⏳ | Gemini, Groq, OpenRouter, Ollama; one automatic retry on invalid JSON. ⬜ Chrome built-in AI (step 12) |
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
-| C11 | PDF resume reader | — | ⬜ | — | — | **Step 7.** Users paste the text for now. |
+| C11 | PDF resume reader | — | ⬜ | — | — | **Step 8.** Users paste the text for now. |
 | C12 | Application tracker logic | `src/lib/tracker.js` | ✅ | 77 | ⏳ | Job identity across 8 sites, merge rules, reminders, stats, CSV |
 | C24 | **Career tracks logic** (score every job per track, best track, insights, history) | `src/lib/tracks.js` | ✅ | 20 | ⏳ | Implicit "General" track = no migration needed |
 | C32 | **Career tracks UI** (panel tabs, Admin tracks + insights + compare, per-track tailoring/autofill/tracking) | `content.js`, `panel.js`, `src/admin/tracks-view.js` | ✅ | 13 | ⏳ | |
@@ -79,10 +80,12 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
-| C25 | Workday adapter (dropdowns, dates, "My Experience") | 8 | ⬜ | |
-| C26 | Tailored resume as a PDF/DOCX file | 9 | ⬜ | |
-| C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 11 | ⬜ | |
-| C28 | CI on GitHub (run tests on every push) | 14 | ⬜ | |
+| C25 | Workday adapter (dropdowns, dates, "My Experience") | 9 | ⬜ | |
+| C26 | Tailored resume as a PDF/DOCX file | 10 | ⬜ | |
+| C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | ⬜ | |
+| C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
+| C33 | Issue reporting, extension side (Report on GitHub, similar reports, crash prompt, My reports) | **7 (next)** | ⬜ | Spec: ISSUE-REPORTING.md |
+| C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
 **Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) = **565**
 
@@ -96,14 +99,16 @@ Columns:
 | W17 | Try resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs and your real resume; judge quality | — | **You** | ⏳ Waiting on you | A free API key |
 | W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | ✅ Done | W16 ✅ |
 | W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (7 sessions, 6 videos) | — |
-| W02 | Read PDF resumes automatically | 7 | Claude | **⬜ Next**, waiting for your go | — |
-| W03 | Workday custom dropdowns, date pickers, multi-step experience | 8 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
-| W04 | Attach the tailored resume as PDF/DOCX | 9 | Claude | ⬜ To do | — |
-| W05 | Years-of-experience & seniority check; skill synonyms | 10 | Claude | ⬜ To do | — |
-| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 11 | Claude | ⬜ To do | W10 findings |
-| W07 | Chrome built-in AI provider (no key) | 12 | Claude | ⬜ To do | — |
-| W08 | Suggest profile updates from learned answers | 13 | Claude | ⬜ To do | — |
-| W09 | CI on GitHub | 14 | Claude | ⬜ To do | — |
+| W19 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports | 7 | Claude | **⬜ Next**, waiting for your go | — |
+| W20 | Create the triage labels once in GitHub (`needs-info`, `confirmed`, `in-progress`, `duplicate`, `wont-fix`, `fixed-in:…`) | — | **You** | ⏳ Waiting on you | — |
+| W02 | Read PDF resumes automatically | 8 | Claude | ⬜ To do | — |
+| W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
+| W04 | Attach the tailored resume as PDF/DOCX | 10 | Claude | ⬜ To do | — |
+| W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ⬜ To do | — |
+| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ⬜ To do | W10 findings |
+| W07 | Chrome built-in AI provider (no key) | 13 | Claude | ⬜ To do | — |
+| W08 | Suggest profile updates from learned answers | 14 | Claude | ⬜ To do | — |
+| W09 | CI on GitHub | 15 | Claude | ⬜ To do | — |
 | W10 | Load in Chrome and run the manual scenarios | — | **You** | ⏳ Waiting on you | — |
 | W11 | Verify in Firefox, Edge and Safari | — | **You** | ⏳ Waiting on you | W10 |
 | W12 | Check job-page reading on live LinkedIn, Indeed and Glassdoor | — | **You** | ⏳ Waiting on you | W10 |
@@ -122,6 +127,7 @@ Columns:
 | — | Architecture & plan documentation; this tracker | `bb34324`, `ab0c213` | 449 |
 | 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | `3022695` | 532 |
 | — | Tester Guide (shareable doc) + 5 walkthrough videos | `53f4881` | 532 |
+| — | Issue reporting option A: spec, GitHub issue form, auto-acknowledgement | *this commit* | 565 |
 | 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | `2ace0d5` | 565 |
 
 ## 4. Bugs found & fixed

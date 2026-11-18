@@ -1,0 +1,55 @@
+name: Problem report
+description: Something in Apply Job Assistant didn't work. Use Admin → Logs & support → 🆘 Report an issue to fill most of this in.
+title: "[AJP-…] short summary (R-…)"
+labels: ["bug", "from-extension"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **This issue is public.** Don't paste your resume, email, phone number, API keys or job links.
+        The extension's report already removes those. You'll get an acknowledgement here within about a minute.
+  - type: input
+    id: report_id
+    attributes:
+      label: Report id
+      description: From Admin → Logs & support → Report an issue (looks like R-20261118-7KQ2D). Leave empty if you don't have one.
+      placeholder: R-20261118-7KQ2D
+  - type: input
+    id: codes
+    attributes:
+      label: Error code(s)
+      description: Shown in the panel or Admin, e.g. AJP-AI-429. Several? Separate with commas.
+      placeholder: AJP-AI-429
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Which site or page, which button, what you saw. A check number from the Tester Guide (e.g. 3.5) helps.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Bottom of the toolbar popup, or Admin (e.g. v0.1.0)
+      placeholder: v0.1.0
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options: [Chrome, Edge, Firefox, Safari, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (filled by the extension)
+      description: Browser version, OS, AI provider (never the key), log level, number of tracks.
+      render: text
+  - type: checkboxes
+    id: attach
+    attributes:
+      label: Report file
+      description: The .json report has no personal data, but it shows which sites you used. Attach it below only if you're comfortable; it helps us fix things faster.
+      options:
+        - label: I attached the report file (optional)

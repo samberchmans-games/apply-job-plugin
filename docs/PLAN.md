@@ -5,6 +5,7 @@ Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Lat
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
 - [SUPPORT.md](SUPPORT.md): logs and error codes
+- [ISSUE-REPORTING.md](ISSUE-REPORTING.md): how users report problems as GitHub issues, and how we fix them
 
 Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 
@@ -19,6 +20,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete |
+| Issue reporting to GitHub (option A) | ✅ issue form + auto-acknowledgement live · ⬜ extension button, crash prompt, My reports (step 7) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (7 sessions) + 6 walkthrough videos, updated every step |
 | Tests | ✅ 565 automated + 108 manual scenarios · ⬜ CI |
@@ -185,6 +187,21 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | Fix: Autofill no longer resets an "applied" job to "in progress" | ✅ | Automatic updates only move forward |
 | Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⬜ later | Ideas discussed; not planned yet |
 
+## 12. Issue reporting to GitHub (option A) — decided 2026-11-18
+Users report problems as GitHub issues. The extension pre-fills the form, and the user reviews and submits it from their own GitHub account. A GitHub Action acknowledges and labels each report. No server, and no token in the extension. Full spec: [ISSUE-REPORTING.md](ISSUE-REPORTING.md).
+
+| Item | Status | Notes |
+|---|---|---|
+| Issue form (report id, codes, description, version, browser, environment, optional report file) | ✅ | `.github/ISSUE_TEMPLATE/bug_report.yml`, usable now from GitHub |
+| Automatic acknowledgement comment + labels (`needs-triage`, `code:AJP-…`, `browser:…`) | ✅ | `.github/workflows/issue-ack.yml` |
+| Maintainer workflow: triage within 3 business days, labels, failing test → fix → `Fixes #N` → `fixed-in:vX` | ✅ | ISSUE-REPORTING.md §7 |
+| Extension: **Report on GitHub** button (pre-filled, summary only, no logs) | ⬜ | Step 7 |
+| Extension: "Similar reports" duplicate check before submitting | ⬜ | Step 7 |
+| Extension: crash prompt for unnoticed failures (ask, never auto-send) | ⬜ | Step 7 |
+| Extension: **My reports**, showing received #N, being fixed, or fixed in vX | ⬜ | Step 7, via public GitHub search by report id |
+| Reporters without GitHub: email the report to the organizer, who files it | ✅ | Process documented |
+| Option B (relay service, no GitHub account needed) | 💤 | Later, only if needed |
+
 ## Roadmap (updated 2026-11-18)
 
 ### ✅ Done
@@ -200,14 +217,15 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 7 | Read PDF resumes automatically (no more pasting) | 2 | Small |
-| 8 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
-| 9 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
-| 10 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
-| 11 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
-| 12 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
-| 13 | Suggest profile updates from learned answers | 6 | Small |
-| 14 | CI on GitHub: run the tests on every push/PR | 9 | Small |
+| 7 | **Issue reporting, extension side**: Report on GitHub button, similar reports, crash prompt, My reports status | 12 | Medium |
+| 8 | Read PDF resumes automatically (no more pasting) | 2 | Small |
+| 9 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
+| 10 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
+| 11 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
+| 12 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
+| 13 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
+| 14 | Suggest profile updates from learned answers | 6 | Small |
+| 15 | CI on GitHub: run the tests on every push/PR | 9 | Small |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
@@ -255,6 +273,7 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | 2026-11-18 | `5d78eb1` | Consolidated roadmap |
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
+| 2026-11-18 | *this commit* | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
 | 2026-11-18 | `2ace0d5` | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
 | 2026-11-18 | `3022695` | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
