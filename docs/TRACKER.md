@@ -117,7 +117,7 @@ Columns:
 | 3 | Application tracker | `15fbc3c` | 391 |
 | 4 | Support logging: error codes, trace ids, Report an issue | `ab79d58` | 449 |
 | — | Architecture & plan documentation; this tracker | `bb34324`, `ab0c213` | 449 |
-| 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | *this commit* | 532 |
+| 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | `3022695` | 532 |
 
 ## 4. Bugs found & fixed
 

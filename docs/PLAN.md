@@ -191,7 +191,7 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2 | Full automated test suite + manual test scenarios | `3609410` |
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
-| 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | *see change log* |
+| 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
@@ -252,5 +252,5 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2026-11-18 | `5d78eb1` | Consolidated roadmap |
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
-| 2026-11-18 | *this commit* | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
+| 2026-11-18 | `3022695` | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
 
