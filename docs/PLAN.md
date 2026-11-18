@@ -99,10 +99,29 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 68 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
+## 10. Multiple career tracks (new — requested 2026-11-18)
+
+**Goal:** someone with experience in more than one direction, e.g. **AWS Cloud Architect** *and* **Java Architect**, can set up 2–3 *tracks*. Every job is then evaluated against each track, and they apply with the right resume for the track that fits best.
+
+| Item | Status | Notes |
+|---|---|---|
+| Up to 3 career tracks in Admin. Each track has: name, target job titles, its own key skills, its own resume, salary range, and (optionally) its own areas and work types | ⬜ | Personal details, education, work authorization and EEO answers stay shared |
+| Shared "core skills" that count for every track (e.g. Leadership, Agile) | ⬜ | Each track adds its own skills on top |
+| Migration: the current profile becomes Track 1 automatically, so no data is lost | ⬜ | |
+| On a job page, score the job against **every** track and show them side by side: match %, matching/gap skills and fit for each | ⬜ | e.g. "Cloud Architect 82% · Java Architect 45%" |
+| Automatically pick the best track (match % + how close the job title is to the track's target titles), with a switch to change it | ⬜ | |
+| Tailor resume, Autofill and AI draft answers use the **selected track's** resume and skills | ⬜ | |
+| Applications record which track was used; Applications can be filtered by track | ⬜ | |
+| **Track insights** in Admin: for each track, jobs evaluated, average match %, applications sent, and the **most frequent gaps** across the jobs looked at | ⬜ | Shows which skills to learn next for each direction |
+| Evaluation history: keep the last 300 analyzed jobs (title, company, URL, score per track) so insights can be built and jobs re-opened | ⬜ | Local only, oldest dropped |
+| Compare view: pick 2–3 saved jobs and see their scores across tracks side by side | ⬜ | Helps decide where to apply first |
+| Tests for multi-track scoring, best-track choice, migration and insights | ⬜ | Added to the automated suite |
+
 ## Suggested order for next work
 1. ~~Push `develop` to GitHub.~~ ✅
 1. ~~Full automated test suite.~~ ✅
 1. Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).
+1. **Multiple career tracks** (section 10).
 2. Load in Chrome and fix anything found (smoke test against the sample page plus 2–3 real job posts).
 3. `feature/pdf-text`: read PDF resumes automatically.
 4. `feature/workday-widgets`: Workday dropdowns and the experience step.
