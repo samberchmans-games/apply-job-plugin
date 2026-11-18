@@ -40,6 +40,7 @@
       "src/lib/resume-engine.js",
       "src/lib/tracks.js",
       "src/lib/issue-report.js",
+      "src/lib/pdf-writer.js",
       "src/background/background.js"
     ]
   },
@@ -68,6 +69,7 @@
         "src/lib/matcher.js",
         "src/lib/tracker.js",
         "src/lib/tracks.js",
+        "src/lib/pdf-writer.js",
         "src/content/jd-extractor.js",
         "src/content/form-filler.js",
         "src/content/workday.js",

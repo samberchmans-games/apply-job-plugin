@@ -55,6 +55,7 @@ src/
     issue-report.js           problem reports on GitHub: pre-filled issue URL (public-safe), status mapping, crash-prompt rules
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
     pdf.js                    PDF → text via Mozilla pdf.js (loaded on demand): lines, bullets → "- ", paragraphs
+    pdf-writer.js             resume text → ATS-readable PDF (Helvetica, WinAnsi, Letter); the one file format we upload
   vendor/pdfjs/               pdf.js 4.10.38 legacy build (Apache-2.0), integrity-verified; see its README
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
   content/                    runs inside job pages (every frame)
@@ -69,7 +70,6 @@ src/
     tracker-view.js           Applications: stats, board, table, detail dialog, CSV export
     enhance-view.js           Resumes → tailoring drafts: review requirements, evidence and edits; create the resume
     tracks-view.js            Career tracks: set up to 3 tracks, insights per track, compare recent jobs
-    resume-view.html / .js    printable resume ("Save as PDF")
   popup/                      toolbar popup (analyze, autofill, open Admin, report a problem)
 tests/                        automated tests (see §12)
 docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
@@ -84,7 +84,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
  │ content.js  controller                                   │     │ Admin page  (admin.js,          │
  │  ├ jd-extractor  → matcher  → panel (top frame only)     │     │              tracker-view.js)   │
  │  ├ form-filler   (fill + learn)                          │     │ Popup       (popup.js)          │
- │  └ apply-detector (submit + confirmation)                │     │ Resume view (resume-view.js)    │
+ │  └ apply-detector (submit + confirmation)                │     │                                 │
  └───────────────┬─────────────────────────────▲────────────┘     └──────┬───────────────▲──────────┘
      runtime.sendMessage                 tabs.sendMessage          runtime.sendMessage   │ storage.local
                  │                             │                         │               │ (direct reads,
@@ -482,8 +482,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 378 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 720 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 393 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 749 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -558,6 +558,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-18 | **One resume format: PDF.** A small built-in writer (no library) makes a text-based PDF for every resume that has no uploaded PDF; tailored resumes get one on creation; Autofill uploads the resume tailored for the current job, else the track's / active one | PDF is what every ATS accepts and keeps the layout; one format is simpler for users and for us; uncompressed standard-font text is read back exactly by ATS parsers (tested with pdf.js) |
 | 2026-11-18 | PDF text via vendored, integrity-verified pdf.js loaded on demand (not a hand-written parser) | Resume PDFs use embedded fonts/CMaps a small parser gets wrong; on-demand loading keeps Admin fast |
 | 2026-11-18 | Problem reports via pre-filled GitHub issues the user submits (option A); acknowledgement by a GitHub Action | No server or token in the extension; the user sees what is posted |
 | 2026-11-18 | Career tracks via an implicit "General" track, not a data migration | No risk to existing data; users without tracks see no change |
@@ -567,7 +568,7 @@ Admin → Applications: filter by track; CSV "Track" column
 
 - **Scanned PDF resumes** (images) have no text: the user pastes it or uploads the .docx (`AJP-PDF-NOTEXT`).
 - **Workday:** supported (step 9) but built against an emulation; real tenants may differ: report misses.
-- **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 9).
+- **Resume PDFs we make** use the standard Helvetica font: characters outside Western European (e.g. Chinese names, emoji) show as "?" (Admin says how many). Upload your own PDF to keep a custom design; it is never replaced.
 - **Resume tailoring with a real AI:** not yet tried with live free models; quality depends on the model (the safety rules hold regardless).
 - **Career tracks:** at most 3; the compare view shows the last 15 jobs.
 - **Resume structure:** tailoring works line by line, so achievements must be one per line, starting with `-` or `•` (otherwise `AJP-RES-STRUCT`).

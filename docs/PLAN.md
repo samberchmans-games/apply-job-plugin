@@ -14,7 +14,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Area | Status |
 |---|---|
 | Platform (Chrome / Edge / Firefox / Safari, local-only storage) | ✅ built · ⬜ real-browser verification (your side) |
-| Admin page | ✅ (incl. PDF resumes) |
+| Admin page | ✅ (incl. PDF resumes, one PDF per resume) |
 | Job reading & match % | ✅ · ⬜ seniority/years check, synonyms |
 | Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
 | Autofill & learning | ✅ incl. Workday (verify on real Workday) · ⬜ per-site adapters |
@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 720 automated + 122 manual scenarios · ⬜ CI |
+| Tests | ✅ 749 automated + 122 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -95,8 +95,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Coverage: % of requirements backed by the resume; job keywords before → after | ✅ | |
 | Prompt hygiene: job and resume fenced as data; injected instructions ignored; one automatic retry on invalid JSON | ✅ | |
 | Quality check with a real free AI on real jobs | ⏳ | Your side: needs a Groq or Gemini key (scenarios D1–D10) |
-| View / print / save as PDF, download .md | ✅ | |
-| Generate a real PDF/DOCX file and attach the **tailored** resume | ⬜ | Step 9 |
+| One format: every resume has a PDF (uploaded PDF kept as is; Word/text/typed → PDF made from the text, kept in sync) · Download / View PDF | ✅ | Step 10; `src/lib/pdf-writer.js` (ATS-readable text, standard fonts) |
+| Tailored resume gets its own PDF, named "<Name> - Resume - <Company>.pdf"; Autofill uploads the one tailored for *this* job | ✅ | Step 10 |
 
 ## 5. Apply / autofill
 | Item | Status | Notes |
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 720 across 23 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 720) · `./tests/run-tests.sh` (the 378 that need no browser) |
+| Automated tests: 749 across 24 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 749) · `./tests/run-tests.sh` (the 393 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 10 | **One resume format (PDF)** (section 4) + tester checks & video scenes | _pending_ |
 | 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | `fd1b226` |
 | 8 | **PDF resumes** (section 2) + tester checks & video scene | `eacd1a3` |
 | 7 | **Issue reporting, extension side** (section 12) + tester guide session & video | `845b501` |
@@ -223,7 +224,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 10 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
 | 11 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
 | 12 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
 | 13 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 10: one resume format (PDF)**: PDF writer, tailored PDFs, Autofill uploads the job's tailored PDF, Download / View PDF; 749 tests |
 | 2026-11-18 | `fd1b226` | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |
 | 2026-11-18 | `eacd1a3` | **Step 8: PDF resumes** (pdf.js, Read text from PDF, AJP-PDF-* codes) + tester checks + videos re-rendered; 684 tests |
 | 2026-11-18 | `3fb5ee3` | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |

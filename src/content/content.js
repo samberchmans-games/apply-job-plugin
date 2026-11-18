@@ -209,7 +209,11 @@
       state.autofill = { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       say('Filling the form…');
       const tr = AJP.startTrace('panel.autofill', { mod: 'content' });
-      const r = await AJP.send('autofillTab', { tid: tr.id, ...trackRef() }, tr);
+      // Prefer the resume tailored for THIS job (its PDF is what gets uploaded).
+      const resumes = await AJP.store.get('resumes');
+      const key = AJP.tracker.jobKey(jobMeta().url);
+      const tailored = resumes.items.find((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === key);
+      const r = await AJP.send('autofillTab', { tid: tr.id, ...trackRef(), resumeId: tailored ? tailored.id : undefined }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
@@ -317,7 +321,7 @@
         const [rawProfile, answers, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('answers'), AJP.store.get('resumes')]);
         const track = msg.trackId ? AJP.tracks.list(rawProfile).find((t) => t.id === msg.trackId) : null;
         const profile = AJP.tracks.effectiveProfile(rawProfile, track);
-        const resume = AJP.tracks.resumeFor(track, resumes);
+        const resume = (msg.resumeId && resumes.items.find((x) => x.id === msg.resumeId)) || AJP.tracks.resumeFor(track, resumes);
         const tr = AJP.startTrace('frame.autofill', { mod: 'filler', tid: msg.tid });
         const report = await AJP.filler.fill({ profile, answers, resume });
         tr.end({ filled: report.filled.length, learned: report.learned.length, unknown: report.unknown.length, questions: report.questions.length, host: location.hostname });
@@ -332,6 +336,7 @@
       const r = msg.report;
       const cur = state.autofill || { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       for (const k of ['filled', 'learned', 'unknown', 'questions', 'skipped']) cur[k] = cur[k].concat(r[k] || []);
+      if (r.attached) cur.attached = r.attached;
       state.autofill = cur;
       state.message = '';
       render();

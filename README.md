@@ -39,7 +39,7 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 1. **Profile**: name, contact details, links, current role.
 2. **Skills**: add your key skills, with an optional level and years. Aliases are normalized, so `k8s` becomes Kubernetes.
 3. **Job preferences**: target positions, salary range, locations, and remote/hybrid/on-site.
-4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. The text is read automatically; check it in the box (scanned, image-only PDFs need the text pasted). Then click **Detect skills from my active resume**.
+4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. The text is read automatically; check it in the box (scanned, image-only PDFs need the text pasted). Then click **Detect skills from my active resume**. Applications always get a **PDF**: your own PDF as uploaded, or a clean PDF made from the text (⬇ Download PDF / 👁 View PDF). Tailored resumes get their own PDF, and Autofill uploads the one tailored for the job you're on.
 5. **Auto-apply details**: work authorization, sponsorship, education, experience, optional EEO answers, and a cover letter template.
 6. **AI settings** (optional): pick a free provider and click **Test connection**.
 
@@ -102,13 +102,13 @@ src/lib/                 shared, framework-free modules (namespace: globalThis.A
   tracker.js             application tracker logic (job identity, saving rules, reminders, stats, CSV)
 src/background/          message hub, AI calls, log persistence, learning
 src/content/             JD extractor, form filler, on-page panel, controller
-src/admin/               Admin page (local UI) + printable resume view
+src/admin/               Admin page (local UI)
 src/popup/               toolbar popup
 tests/                   automated tests (harness, browser mock, unit + end-to-end), sample job page
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (720) in headless Chrome. `./tests/run-tests.sh` runs the 378 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (749) in headless Chrome. `./tests/run-tests.sh` runs the 393 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.

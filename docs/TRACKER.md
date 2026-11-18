@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 9, Workday support
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 10, one resume format (PDF)
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **720 / 720 passing** (378 also run without a browser), incl. convention checks |
+| Automated tests | **749 / 749 passing** (393 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 78 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
+| Tester material | Tester Guide (8 sessions, 83 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (13 found and fixed so far, each with a test) |
-| Next step | **Step 10: attach the tailored resume as a PDF/DOCX file** |
+| Next step | **Step 11: smarter matching (years of experience, seniority, synonyms)** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -78,7 +78,7 @@ Columns:
 | C20 | Admin: Applications (board, table, details, stats, CSV) | `src/admin/tracker-view.js` | ✅ | 10 | ⏳ | |
 | C21 | Admin: Logs & support (Report an issue) | `src/admin/admin.js` | ✅ | 7 | ⏳ | |
 | C31 | **Admin: resume tailoring review** | `src/admin/enhance-view.js` | ✅ | 6 | ⏳ | Requirements + evidence, before/after, blocked reasons, "add your real number", gaps, create |
-| C22 | Printable resume (Save as PDF) | `src/admin/resume-view.*` | ✅ | 0 | ⏳ | Manual scenario B9 |
+| C22 | **Resume PDF writer** (one format): every resume gets an ATS-readable PDF; tailored ones on creation; kept in sync with typed text; Autofill uploads the one tailored for the job; Download / View PDF | `src/lib/pdf-writer.js` | ✅ | 29 | ⏳ | Replaces the old print view. Check the PDF on a real ATS upload (B9, E18) |
 | C23 | Toolbar popup | `src/popup/*` | ✅ | 0 | ⏳ | 🟡 No automated tests; manual A2, F7, I12 |
 
 ### Not started (roadmap)
@@ -89,7 +89,7 @@ Columns:
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) = **720**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) = **749**
 
 ---
 
@@ -100,7 +100,7 @@ Columns:
 | W16 | **Resume enhancement v2**: job-requirement analysis, verified evidence, targeted result-oriented edits, hard safety rules (never copy job numbers), review screen | 5 | Claude | ✅ Done | — |
 | W17 | Try resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs and your real resume; judge quality | — | **You** | ⏳ Waiting on you | A free API key |
 | W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | ✅ Done | W16 ✅ |
-| W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos, Workday emulation) | — |
+| W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos, Workday emulation, PDF checks) | — |
 | W19 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports | 7 | Claude | ✅ Done | — |
 | W20 | Create the triage labels once in GitHub (`needs-info`, `confirmed`, `in-progress`, `duplicate`, `wont-fix`, `fixed-in:…`) | — | **You** | ⏳ Waiting on you | — |
 | W02 | Read PDF resumes automatically | 8 | Claude | ✅ Done | — |
@@ -136,6 +136,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 10 | **One resume format (PDF)**: built-in PDF writer; every resume gets a PDF (tailored ones named for the company); Autofill uploads the resume tailored for *this* job and the panel names the file; Admin Download / View PDF (print view and .md removed); Tester Guide 1.13–1.15, 4.13–4.14 + video scenes | _pending_ | 749 |
 
 ## 4. Bugs found & fixed
 

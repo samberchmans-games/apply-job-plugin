@@ -191,7 +191,19 @@
   }
 
   async function attachFile(el, resume) {
-    if (!resume || !resume.file || !resume.file.dataUrl) return false;
+    if (!resume) return false;
+    // One format: applications always get a PDF. Older resumes (no file, or a Word/text file) get one made now.
+    const isPdf = (f) => f && f.dataUrl && /pdf/i.test(f.type || f.name || '');
+    if (!isPdf(resume.file) && (resume.text || '').trim() && AJP.pdfWriter) {
+      try {
+        resume = { ...resume, file: AJP.pdfWriter.fileFor(resume).file };
+      } catch (e) {
+        const x = AJP.toAppError(e);
+        log.warn('PDF for upload not created; using the saved file', { code: x.code, details: x.details }, { code: x.code });
+      }
+    }
+    if (!resume.file || !resume.file.dataUrl) return false;
+    attachFile.lastName = resume.file.name;
     const blob = await (await fetch(resume.file.dataUrl)).blob(); // local data: URL decode, not a network call
     const file = new File([blob], resume.file.name || 'resume.pdf', { type: resume.file.type || blob.type });
     const dt = new DataTransfer();
@@ -289,6 +301,7 @@
           if (/resume|cv\b|curriculum/i.test(label + ' ' + (el.name || '') + ' ' + (el.id || '')) && !el.files.length) {
             if (await attachFile(el, resume)) {
               report.filled.push('Resume file');
+              report.attached = attachFile.lastName;
               mark(el, 'profile');
             } else report.skipped.push('Resume file (no file saved in Admin → Resumes)');
           }

@@ -111,6 +111,25 @@
       await waitFor(() => document.getElementById('cv').files.length, { msg: 'file attached' });
       eq(document.getElementById('cv').files[0].name, 'ana-cloud.pdf');
     });
+    it('Autofill attaches the resume tailored for THIS job, and the panel names the file', async () => {
+      await AJP.store.update('resumes', (r) => void r.items.push({ id: 'rt', name: 'Tailored', text: CLOUD_RESUME, enhancementId: 'enh1', job: { url: location.href, company: 'Initech' },
+        file: { name: 'Ana - Resume - Initech.pdf', type: 'application/pdf', dataUrl: 'data:application/pdf;base64,JVBERi0xLjQK', generated: true } }));
+      document.getElementById('sandbox').innerHTML = '<label for="cv">Resume/CV</label><input id="cv" type="file">';
+      const s = await open();
+      s.querySelector('[data-act="autofill"]').click();
+      await waitFor(() => document.getElementById('cv').files.length, { msg: 'file attached' });
+      eq(document.getElementById('cv').files[0].name, 'Ana - Resume - Initech.pdf');
+      await waitFor(() => /Resume attached: Ana - Resume - Initech\.pdf/.test(sh().textContent), { msg: 'panel names the file' });
+    });
+    it('a resume tailored for a DIFFERENT job is not used', async () => {
+      await AJP.store.update('resumes', (r) => void r.items.push({ id: 'rt', name: 'Tailored', text: CLOUD_RESUME, enhancementId: 'enh1', job: { url: 'https://jobs.example.com/other-job' },
+        file: { name: 'other.pdf', type: 'application/pdf', dataUrl: 'data:application/pdf;base64,JVBERi0xLjQK' } }));
+      document.getElementById('sandbox').innerHTML = '<label for="cv">Resume/CV</label><input id="cv" type="file">';
+      const s = await open();
+      s.querySelector('[data-act="autofill"]').click();
+      await waitFor(() => document.getElementById('cv').files.length, { msg: 'file attached' });
+      eq(document.getElementById('cv').files[0].name, 'ana-cloud.pdf');
+    });
     it('Tailor resume uses the track\'s resume and skills, and the draft is labelled with the track', async () => {
       await AJP.store.update('settings', (x) => { x.ai.provider = 'groq'; x.ai.keys.groq = 'k'; });
       const bodies = [];

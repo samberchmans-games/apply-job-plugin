@@ -215,7 +215,7 @@
         .map(
           (x) => `<div class="res ${x.id === selectedResumeId ? 'sel' : ''}" data-id="${x.id}">
           📄 <b>${esc(x.name)}</b> ${x.id === r.activeId ? '<span class="tag">active</span>' : ''}
-          ${x.file ? `<span class="hint">· ${esc(x.file.name)}</span>` : ''}
+          ${x.file ? `<span class="hint">· 📎 ${esc(x.file.name)}${x.file.generated ? ' (made from the text)' : ''}</span>` : ''}
           <small>${new Date(x.createdAt).toLocaleString()}</small></div>`
         )
         .join('') || '<p class="hint">No resumes yet.</p>';
@@ -276,7 +276,18 @@
         log.warn('Resume text extraction failed', { code: x.code, type: file.type, details: x.details }, { code: x.code });
       }
       const dataUrl = await readFile(file, 'readAsDataURL');
-      const item = { id: AJP.uid('res'), name: file.name.replace(/\.[^.]+$/, ''), text, file: { name: file.name, type: file.type, size: file.size, dataUrl }, createdAt: new Date().toISOString() };
+      const original = { name: file.name, type: file.type, size: file.size, dataUrl };
+      const item = { id: AJP.uid('res'), name: file.name.replace(/\.[^.]+$/, ''), text, file: original, createdAt: new Date().toISOString() };
+      // One format for applications: Word/text uploads get a PDF made from their text (the original is kept).
+      if (!/\.pdf$/i.test(file.name) && text) {
+        try {
+          item.original = original;
+          item.file = AJP.pdfWriter.fileFor(item).file;
+        } catch (err) {
+          const x = AJP.toAppError(err);
+          log.warn('PDF from upload not created', { code: x.code, details: x.details }, { code: x.code });
+        }
+      }
       await updateResumes((r) => {
         r.items.unshift(item);
         if (!r.activeId) r.activeId = item.id;
@@ -307,7 +318,21 @@
       });
       toast('Saved');
     }, 500);
-    $('#resumeText').addEventListener('input', (e) => saveField('text', e.target.value));
+    // A PDF made from the text is kept in sync with it (a PDF the user uploaded is never replaced).
+    const regenPdf = AJP.debounce(AJP.guard('admin.regeneratePdf', async () => {
+      const id = selectedResumeId;
+      const all = await AJP.store.get('resumes');
+      const r = all.items.find((x) => x.id === id);
+      if (!r || !(r.text || '').trim() || (r.file && !r.file.generated)) return;
+      const { file, replaced } = AJP.pdfWriter.fileFor(r, { company: r.job && r.job.company });
+      await updateResumes((x) => void x.items.forEach((it) => it.id === id && (it.file = file)));
+      if (replaced) toast(`PDF updated — ${replaced} character(s) can't be shown in the PDF and appear as "?"`);
+      renderResumes();
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }), 1200);
+    $('#resumeText').addEventListener('input', (e) => {
+      saveField('text', e.target.value);
+      regenPdf();
+    });
     $('#resumeName').addEventListener('input', (e) => saveField('name', e.target.value));
 
     $('#resumeSetActive').addEventListener('click', async () => {
@@ -336,8 +361,30 @@
       $('#resumeText').value = text;
       toast('Text read from the PDF — check it below');
     }, { mod: 'admin', onError: (d) => toast(`${d.message} ${d.hint} (${d.code})`, 9000) }));
-    $('#resumeDownload').addEventListener('click', () => download(($('#resumeName').value || 'resume') + '.md', $('#resumeText').value, 'text/markdown'));
-    $('#resumePrint').addEventListener('click', () => window.open('resume-view.html?id=' + encodeURIComponent(selectedResumeId), '_blank'));
+    // The PDF that applications get (uploaded PDF, or one made from the text).
+    async function currentPdf() {
+      const all = await AJP.store.get('resumes');
+      const r = all.items.find((x) => x.id === selectedResumeId);
+      if (!r) throw AJP.err('NO_RESUME');
+      if (r.file && /pdf/i.test(r.file.type || r.file.name)) return r.file;
+      if (!(r.text || '').trim()) throw AJP.err('NO_RESUME');
+      const { file } = AJP.pdfWriter.fileFor(r, { company: r.job && r.job.company });
+      await updateResumes((x) => void x.items.forEach((it) => it.id === r.id && (it.file = file)));
+      return file;
+    }
+    const pdfBlob = async (f) => (await fetch(f.dataUrl)).blob(); // local data: URL decode, not a network call
+    $('#resumeDownload').addEventListener('click', AJP.guard('admin.downloadPdf', async () => {
+      const f = await currentPdf();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(await pdfBlob(f));
+      a.download = f.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} ${d.hint} (${d.code})`) }));
+    $('#resumeView').addEventListener('click', AJP.guard('admin.viewPdf', async () => {
+      const f = await currentPdf();
+      window.open(URL.createObjectURL(await pdfBlob(f)), '_blank', 'noopener');
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} ${d.hint} (${d.code})`) }));
   }
 
   // ---- AI ----------------------------------------------------------------------------------------

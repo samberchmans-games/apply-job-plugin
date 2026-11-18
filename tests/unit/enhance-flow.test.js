@@ -227,6 +227,13 @@
       includes(t, 'Cloud: AWS, Docker');
       for (const bad of ['10TB', '20+', 'Netflix', 'Kubernetes', 'Kubernetes expert']) excludes(t, bad);
     });
+    it('the tailored resume comes with its own PDF, named for the company', async () => {
+      const { resume } = await AJP.send('resume.applyEnhancement', { id: draft.id });
+      ok(resume.file && resume.file.generated, 'PDF made');
+      eq(resume.file.type, 'application/pdf');
+      ok(/^Ana Silva - Resume.*\.pdf$/.test(resume.file.name), resume.file.name);
+      ok(resume.file.dataUrl.startsWith('data:application/pdf;base64,'));
+    });
     it('every protected line (name, contact, roles, dates, education) is unchanged', async () => {
       const { resume } = await AJP.send('resume.applyEnhancement', { id: draft.id });
       ok(AJP.resumeEngine.verifyIntegrity(RESUME, resume.text).ok);

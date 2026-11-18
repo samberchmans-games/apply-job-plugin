@@ -164,6 +164,7 @@
     if (r) {
       body += `<h4>Autofill</h4><div class="muted">Filled ${r.filled.length} from profile, ${r.learned.length} from learned answers.
         ${r.unknown.length ? `<br>Not filled (${r.unknown.length}): ${esc(r.unknown.slice(0, 8).join(' · '))}${r.unknown.length > 8 ? '…' : ''}` : ''}
+        ${r.attached ? `<div class="att" style="margin:4px 0">📎 Resume attached: <b>${esc(r.attached)}</b></div>` : ''}
         <br><b>Review everything, then submit yourself.</b> What you type is remembered for next time.</div>`;
       for (const q of r.questions) {
         body += `<div class="q"><div>${esc(q.label)}</div>

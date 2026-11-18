@@ -202,7 +202,7 @@
       if (files) return files;
       const m = await (await fetch('../manifest.json', { cache: 'no-store' })).json();
       const paths = new Set([...m.background.scripts, ...m.content_scripts[0].js]);
-      for (const page of ['src/admin/admin.html', 'src/popup/popup.html', 'src/admin/resume-view.html']) {
+      for (const page of ['src/admin/admin.html', 'src/popup/popup.html']) {
         const html = await (await fetch('../' + page, { cache: 'no-store' })).text();
         const dir = page.replace(/[^/]+$/, '');
         for (const [, src] of html.matchAll(/<script src="([^"]+)"/g)) {
@@ -249,7 +249,7 @@
     });
     it('every extension page captures uncaught errors', async () => {
       const f = await load();
-      for (const p of ['src/admin/admin.js', 'src/popup/popup.js', 'src/admin/resume-view.js']) ok(/AJP\.captureErrors\(/.test(f[p]), p);
+      for (const p of ['src/admin/admin.js', 'src/popup/popup.js']) ok(/AJP\.captureErrors\(/.test(f[p]), p);
     });
   }, { env: 'browser' });
 })();
