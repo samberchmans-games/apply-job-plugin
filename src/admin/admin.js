@@ -15,12 +15,12 @@
   let settings;
   let selectedResumeId = null;
 
-  function toast(msg) {
+  function toast(msg, ms = 1600) {
     const t = $('#toast');
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => t.classList.remove('show'), 1600);
+    toast.t = setTimeout(() => t.classList.remove('show'), Math.max(ms, Math.min(9000, msg.length * 45)));
   }
 
   const saveProfile = AJP.debounce(async () => {
@@ -227,8 +227,18 @@
       $('#resumeGaps').hidden = !sel.gaps;
       $('#resumeGaps').textContent = sel.gaps ? 'Gaps for this job (not added to the resume):\n' + sel.gaps : '';
       $('#resumeSetActive').disabled = sel.id === r.activeId;
+      $('#resumeExtract').hidden = !(sel.file && /\.pdf$/i.test(sel.file.name));
     }
   }
+
+  // Text from an uploaded resume file (PDF via pdf.js, DOCX, TXT/MD). Throws AJP errors (THE STANDARD).
+  async function extractText(name, buf) {
+    if (/\.pdf$/i.test(name)) return (await AJP.pdf.toText(buf)).text;
+    if (/\.docx$/i.test(name)) return AJP.docx.toText(buf);
+    if (/\.(txt|md)$/i.test(name)) return new TextDecoder().decode(buf);
+    return '';
+  }
+  AJP.extractResumeText = extractText;
 
   function readFile(file, as) {
     return new Promise((res, rej) => {
@@ -256,11 +266,13 @@
         return toast(`${x.message} (${x.code})`);
       }
       let text = '';
+      let extractError = null;
       try {
-        if (/\.docx$/i.test(file.name)) text = await AJP.docx.toText(await readFile(file, 'readAsArrayBuffer'));
-        else if (/\.(txt|md)$/i.test(file.name)) text = await readFile(file, 'readAsText');
+        if (/\.(pdf|docx)$/i.test(file.name)) toast('Reading the text from your resume…');
+        text = await extractText(file.name, await readFile(file, 'readAsArrayBuffer'));
       } catch (err) {
         const x = AJP.toAppError(err);
+        extractError = AJP.describeError(x);
         log.warn('Resume text extraction failed', { code: x.code, type: file.type, details: x.details }, { code: x.code });
       }
       const dataUrl = await readFile(file, 'readAsDataURL');
@@ -272,7 +284,8 @@
       selectedResumeId = item.id;
       e.target.value = '';
       log.info('Resume uploaded', { type: file.type, size: file.size, textChars: text.length });
-      toast(text ? 'Resume saved' : 'Resume saved — paste its text below so it can be matched');
+      if (extractError) toast(`Resume saved, but its text couldn't be read: ${extractError.message} ${extractError.hint} (${extractError.code})`, 9000);
+      else toast(text ? `Resume saved — ${text.split('\n').filter((l) => /^- /.test(l)).length} bullet points read. Check the text below.` : 'Resume saved — paste its text below so it can be matched');
       renderResumes();
     });
 
@@ -311,6 +324,18 @@
       selectedResumeId = null;
       renderResumes();
     });
+    $('#resumeExtract').addEventListener('click', AJP.guard('admin.readPdfText', async () => {
+      const r = await AJP.store.get('resumes');
+      const sel = r.items.find((x) => x.id === selectedResumeId);
+      if (!sel || !sel.file) return;
+      if ((sel.text || '').trim() && !confirm('Replace the current text with the text read from the PDF?')) return;
+      toast('Reading the PDF…');
+      const buf = await (await fetch(sel.file.dataUrl)).arrayBuffer(); // local data: URL decode, not a network call
+      const text = await extractText(sel.file.name, buf);
+      await updateResumes((all) => void all.items.forEach((x) => x.id === sel.id && (x.text = text)));
+      $('#resumeText').value = text;
+      toast('Text read from the PDF — check it below');
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} ${d.hint} (${d.code})`, 9000) }));
     $('#resumeDownload').addEventListener('click', () => download(($('#resumeName').value || 'resume') + '.md', $('#resumeText').value, 'text/markdown'));
     $('#resumePrint').addEventListener('click', () => window.open('resume-view.html?id=' + encodeURIComponent(selectedResumeId), '_blank'));
   }

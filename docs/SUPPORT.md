@@ -54,6 +54,8 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-JD-NONE` | No job description found on the page | User can select the text → right-click → analyze. If it's a common site, add a selector in `jd-extractor.js` (see `data.host`). |
 | `AJP-RES-NONE` | No resume text | Add or paste resume text in Admin → Resumes |
 | `AJP-RES-PARSE` | Couldn't read a .docx | See `details.reason`; the user can paste the text instead |
+| `AJP-PDF-NOTEXT` | The PDF has no selectable text (usually a scan) | Upload the .docx, or paste the text |
+| `AJP-PDF-LOCKED` | The PDF is password-protected | Re-save it without a password (Print → Save as PDF), or upload the .docx |
 | `AJP-RES-STRUCT` | Resume tailoring found no bullet points | Ask the user to put each achievement on its own line starting with `-` or `•` |
 | `AJP-RES-DRAFT` | A tailoring draft (or its original resume) no longer exists | Run Tailor resume again |
 | `AJP-RES-CHANGED` | The resume was edited after the draft was made | Run Tailor resume again so line ids match |

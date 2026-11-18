@@ -92,17 +92,33 @@
         }
         return document.querySelector(sel);
       });
-      for (const t of targets.filter(Boolean)) {
-        t.scrollIntoView({ block: 'center' });
-      }
+      // Scroll only when a target is really off-screen (headless screenshots are taken from the top,
+      // so an unneeded scroll would shift every highlight box).
       for (const t of targets.filter(Boolean)) {
         const r = t.getBoundingClientRect();
+        if (r.top < 0 || r.top > window.innerHeight * 0.8) t.scrollIntoView({ block: 'center' });
+      }
+      // Boxes keep following their element until the screenshot: late layout can't leave them misplaced.
+      const pairs = targets.filter(Boolean).map((t) => {
         const ring = document.createElement('div');
         ring.className = 'ajp-v-ring';
-        const pad = 8;
-        Object.assign(ring.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
         topLayer(ring);
-      }
+        return [t, ring];
+      });
+      const place = () => {
+        for (const [t, ring] of pairs) {
+          const r = t.getBoundingClientRect();
+          const pad = 8;
+          Object.assign(ring.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+        }
+      };
+      place();
+      setInterval(place, 50);
+      const follow = () => {
+        place();
+        requestAnimationFrame(follow);
+      };
+      requestAnimationFrame(follow);
     }
     if (S.caption) {
       const bar = document.createElement('div');
@@ -123,7 +139,7 @@
       console.error('[stage] action failed', e);
       document.title = 'STAGE ERROR: ' + e.message;
     }
-    await sleep(S.settle || 400);
+    await sleep(S.settle || 900); // let late-rendering lists finish before measuring highlight boxes
     drawOverlay();
   }
 

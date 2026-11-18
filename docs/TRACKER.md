@@ -6,22 +6,22 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 7, issue reporting (extension side)
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 8, PDF resumes
 
 ## Summary
 
 | | |
 |---|---|
-| Components built | **31 / 35** |
-| Components not started | **4**: PDF reader, Workday adapter, resume export, CI |
-| Automated tests | **658 / 658 passing** (344 also run without a browser), incl. convention checks |
+| Components built | **32 / 35** |
+| Components not started | **3**: Workday adapter, resume export, CI |
+| Automated tests | **684 / 684 passing** (360 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 72 checks) + 7 walkthrough videos (~7 min) |
+| Tester material | Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos (~8 min) |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (11 found and fixed so far, each with a test) |
-| Next step | **Step 8: read PDF resumes** |
+| Next step | **Step 9: Workday support** (custom dropdowns, date pickers, multi-step "My Experience") |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -47,7 +47,7 @@ Columns:
 | C08 | Matcher (match %, gaps, fit) | `src/lib/matcher.js` | ✅ | 49 | ⏳ | ⬜ years/seniority check, synonyms (step 9) |
 | C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 | ⏳ | Gemini, Groq, OpenRouter, Ollama; one automatic retry on invalid JSON. ⬜ Chrome built-in AI (step 12) |
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
-| C11 | PDF resume reader | — | ⬜ | — | — | **Step 8.** Users paste the text for now. |
+| C11 | **PDF resume reader** (pdf.js 4.10.38, loaded on demand; lines, bullets, paragraphs) | `src/lib/pdf.js`, `src/vendor/pdfjs/` | ✅ | 26 | ⏳ | Scanned PDFs → AJP-PDF-NOTEXT; locked → AJP-PDF-LOCKED |
 | C12 | Application tracker logic | `src/lib/tracker.js` | ✅ | 77 | ⏳ | Job identity across 8 sites, merge rules, reminders, stats, CSV |
 | C24 | **Career tracks logic** (score every job per track, best track, insights, history) | `src/lib/tracks.js` | ✅ | 20 | ⏳ | Implicit "General" track = no migration needed |
 | C32 | **Career tracks UI** (panel tabs, Admin tracks + insights + compare, per-track tailoring/autofill/tracking) | `content.js`, `panel.js`, `src/admin/tracks-view.js` | ✅ | 13 | ⏳ | |
@@ -89,7 +89,7 @@ Columns:
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) = **658**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) = **684**
 
 ---
 
@@ -103,8 +103,8 @@ Columns:
 | W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos) | — |
 | W19 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports | 7 | Claude | ✅ Done | — |
 | W20 | Create the triage labels once in GitHub (`needs-info`, `confirmed`, `in-progress`, `duplicate`, `wont-fix`, `fixed-in:…`) | — | **You** | ⏳ Waiting on you | — |
-| W02 | Read PDF resumes automatically | 8 | Claude | **⬜ Next**, waiting for your go | — |
-| W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
+| W02 | Read PDF resumes automatically | 8 | Claude | ✅ Done | — |
+| W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | **⬜ Next**, waiting for your go | Ideally W10 first (real Workday pages) |
 | W04 | Attach the tailored resume as PDF/DOCX | 10 | Claude | ⬜ To do | — |
 | W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ⬜ To do | — |
 | W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ⬜ To do | W10 findings |
@@ -133,6 +133,7 @@ Columns:
 | 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | `2ace0d5` | 565 |
 | 7 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports, Simulate a problem; Tester Guide Session 8 + video Part 7 | `845b501` | 615 |
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
+| 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | *this commit* | 684 |
 
 ## 4. Bugs found & fixed
 

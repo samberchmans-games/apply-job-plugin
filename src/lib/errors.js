@@ -27,6 +27,8 @@
     PAGE_NO_ACCESS: ['AJP-PAGE-ACCESS', 'This page cannot be read by extensions.', 'Browser pages, extension stores and some PDF viewers are off-limits. Open the job in a normal tab.'],
     JD_NOT_FOUND: ['AJP-JD-NONE', 'Could not find a job description on this page.', 'Select the job text, right-click → “Apply Job: analyze selection”.'],
     NO_RESUME: ['AJP-RES-NONE', 'No resume text found.', 'Add your resume in Admin → Resumes (paste the text for PDFs).'],
+    PDF_NO_TEXT: ['AJP-PDF-NOTEXT', 'This PDF has no selectable text (it may be a scanned image).', 'Upload the .docx version, or paste the resume text in the box.'],
+    PDF_LOCKED: ['AJP-PDF-LOCKED', 'This PDF is password-protected.', 'Save it again without a password (Print → Save as PDF), upload the .docx, or paste the text.'],
     RESUME_STRUCTURE: ['AJP-RES-STRUCT', 'Could not find bullet points in your resume.', 'Put each achievement on its own line starting with "-" or "•" (Admin → Resumes), then try again.'],
     ENHANCEMENT_MISSING: ['AJP-RES-DRAFT', 'This resume draft is no longer available.', 'Run “Tailor resume” again from the job page.'],
     RESUME_CHANGED: ['AJP-RES-CHANGED', 'Your resume was edited after this draft was made.', 'Run “Tailor resume” again so the suggestions match your current resume.'],

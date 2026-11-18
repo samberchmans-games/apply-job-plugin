@@ -104,7 +104,7 @@
     <section id="resumes">
       <h1>Resumes</h1>
       <p class="hint">Upload your resume. The file is attached to applications; its text is used for matching and AI tailoring. Put each achievement on its own line starting with “-” or “•” so it can be tailored line by line.
-        .docx and .txt/.md text is extracted automatically. For PDF, also paste the text below (PDF text extraction is on the roadmap).</p>
+        Text is read automatically from .pdf, .docx, .txt and .md files; check it in the box below. Scanned (image-only) PDFs have no text: paste it instead.</p>
       <div class="row">
         <input type="file" id="resumeFile" accept=".pdf,.docx,.txt,.md">
         <button id="newResume">+ New empty resume</button>
@@ -118,6 +118,7 @@
         <div id="resumeGaps" class="gaps" hidden></div>
         <div class="row">
           <button id="resumeSetActive" class="primary">Use as active resume</button>
+          <button id="resumeExtract" hidden>📄 Read text from PDF</button>
           <button id="resumePrint">🖨 View / save as PDF</button>
           <button id="resumeDownload">⬇ Download .md</button>
           <button id="resumeDelete" class="danger">Delete</button>
@@ -283,6 +284,7 @@
 <script src="../lib/matcher.js"></script>
 <script src="../lib/ai.js"></script>
 <script src="../lib/docx.js"></script>
+<script src="../lib/pdf.js"></script>
 <script src="../lib/tracker.js"></script>
 <script src="../lib/resume-engine.js"></script>
 <script src="../lib/tracks.js"></script>

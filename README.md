@@ -39,7 +39,7 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 1. **Profile**: name, contact details, links, current role.
 2. **Skills**: add your key skills, with an optional level and years. Aliases are normalized, so `k8s` becomes Kubernetes.
 3. **Job preferences**: target positions, salary range, locations, and remote/hybrid/on-site.
-4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. For PDFs, also paste the text in. Then click **Detect skills from my active resume**.
+4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. The text is read automatically; check it in the box (scanned, image-only PDFs need the text pasted). Then click **Detect skills from my active resume**.
 5. **Auto-apply details**: work authorization, sponsorship, education, experience, optional EEO answers, and a cover letter template.
 6. **AI settings** (optional): pick a free provider and click **Test connection**.
 
@@ -108,7 +108,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (615) in headless Chrome. `./tests/run-tests.sh` runs the 344 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (684) in headless Chrome. `./tests/run-tests.sh` runs the 360 that need no browser.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.

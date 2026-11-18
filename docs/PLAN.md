@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **7, issue reporting (extension side)**. Related documents:
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **8, PDF resumes**. Related documents:
 - [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
@@ -14,7 +14,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Area | Status |
 |---|---|
 | Platform (Chrome / Edge / Firefox / Safari, local-only storage) | ✅ built · ⬜ real-browser verification (your side) |
-| Admin page | ✅ · ⬜ PDF text extraction |
+| Admin page | ✅ (incl. PDF resumes) |
 | Job reading & match % | ✅ · ⬜ seniority/years check, synonyms |
 | Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
@@ -22,8 +22,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Logging & support | ✅ complete · one standard for errors, retries and failure capture across the plugin (enforced by tests) |
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
-| Tester material | ✅ Tester Guide (8 sessions) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 658 automated + 116 manual scenarios · ⬜ CI |
+| Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
+| Tests | ✅ 684 automated + 118 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -63,7 +63,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Work type: remote / hybrid / on-site, relocation | ✅ | |
 | Resume upload (.pdf/.docx/.txt/.md), multiple versions, active resume | ✅ | |
 | Text extraction from .docx | ✅ | `src/lib/docx.js` |
-| Text extraction from PDF | ⬜ | User must paste the text for now (needs pdf.js) |
+| Text extraction from PDF | ✅ | pdf.js 4.10.38 (verified, loaded on demand); bullets → "- "; scanned → AJP-PDF-NOTEXT; step 8 |
 | Auto-apply: education, experience, work authorization, sponsorship, notice period, start date | ✅ | |
 | EEO: race, veteran, disability, gender, Hispanic, pronouns | ✅ | Never sent to AI; redacted from logs |
 | Cover letter template | ✅ | |
@@ -146,11 +146,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 658 across 21 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 658) · `./tests/run-tests.sh` (the 344 that need no browser) |
+| Automated tests: 684 across 22 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 684) · `./tests/run-tests.sh` (the 360 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 116 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 118 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -215,13 +215,13 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 8 | **PDF resumes** (section 2) + tester checks & video scene | *see change log* |
 | 7 | **Issue reporting, extension side** (section 12) + tester guide session & video | `845b501` |
 | 6 | **Multiple career tracks** (section 10) + tester guide session & video | `2ace0d5` |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 8 | Read PDF resumes automatically (no more pasting) | 2 | Small |
 | 9 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
 | 10 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
 | 11 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
@@ -233,7 +233,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 116 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 118 scenarios |
 | Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | *this commit* | **Step 8: PDF resumes** (pdf.js, Read text from PDF, AJP-PDF-* codes) + tester checks + videos re-rendered; 684 tests |
 | 2026-11-18 | `3fb5ee3` | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
 | 2026-11-18 | `845b501` | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |

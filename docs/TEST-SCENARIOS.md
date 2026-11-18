@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (615). Run them before every merge into `develop`.
+1. **Automated tests** (684). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **344** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **615** tests in headless Chrome. This is the full suite: the 344 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **360** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **684** tests in headless Chrome. This is the full suite: the 360 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -39,6 +39,8 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Career tracks end-to-end | `unit/tracks-flow.test.js` | Panel tabs with a % per track and ★ best; switching; job recorded per track; no tabs without tracks; **a new job resets a manual pick**; Mark applied / Autofill (resume file) / Tailor resume (resume + skills sent to AI) use the chosen track; "make active" sets the track's resume; Admin: insights, compare table, add/edit/max 3/delete, Applications filter by track |
 | Problem reports (rules) | `unit/issue-report.test.js` | Pre-filled GitHub issue (template, title `[code] … (R-…)`, every field); **public text masks emails, phone numbers, keys and links; never logs**; crash code first; URL ≤ 7,500 chars with the report id kept; search URLs; status mapping (received / needs-info / fixing / fixed vX / duplicate / won't fix / closed / not submitted); crash-prompt rules (always for AJP-INTERNAL/STORE, 3× in 10 min, once a day, "don't ask again", setting off, **never for user-fixable codes**) |
 | Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
+| PDF resumes | `unit/pdf.test.js` | Rebuilding lines from positioned text (order, spacing, paragraphs, 7 bullet glyphs → "- ", negative numbers kept, columns, uneven baselines); error mapping (locked → AJP-PDF-LOCKED, broken → AJP-RES-PARSE); **real pdf.js on generated PDFs** (resume, ready for tailoring, multi-page, scanned → AJP-PDF-NOTEXT, not-a-PDF, reader fails to load then recovers); Admin upload (text + file saved, bullet count message, scanned PDF message, "Read text from PDF" for older uploads) |
+| The standard (errors / retries / conventions) | `unit/standard.test.js` | Temporary vs permanent codes; retry with backoff and Retry-After; `AJP.http` (JSON, 5xx retried, 4xx not, network, timeout, bad JSON, Retry-After); AI uses it (503 retried, 401 not); `AJP.guard` (coded log + trace, message shown, never throws); panel actions guarded; send/storage recover; **source scan**: no `throw new Error`, no raw fetch, error keys exist and are documented, no silent catch, no console, captureErrors on pages |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -79,7 +81,9 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | B4 | Add positions and areas (type, then press Enter), remove one | The chips update and are kept |
 | B5 | Tick and untick the work types, set a salary range | Kept |
 | B6 | Upload a .docx resume | The text appears in the editor and it becomes the active resume |
-| B7 | Upload a PDF resume | Saved with a hint to paste the text; paste it, reload, and the text is kept |
+| B7 | Upload a PDF resume | The text is read automatically ("N bullet points read"), bullets start with "- "; the file is saved too |
+| B19 | Upload a scanned (image-only) PDF | Saved, with a message: no selectable text (AJP-PDF-NOTEXT) and what to do |
+| B20 | Select a PDF resume saved without text → 📄 Read text from PDF | The text is filled in |
 | B8 | Click "Detect skills from my active resume" | The skills found in the resume are added to the skills list |
 | B9 | Resume: rename it, make it active, View / save as PDF, download .md, delete it | Each action works. The PDF page prints cleanly. |
 | B10 | Add two education entries and two experience entries, then remove one of each | Kept |
