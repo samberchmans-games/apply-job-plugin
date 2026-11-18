@@ -38,7 +38,11 @@
     const id = (location.hash || '#profile').slice(1).split('?')[0] || 'profile';
     $$('section').forEach((s) => s.classList.toggle('on', s.id === id));
     $$('nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
-    if (id === 'logs') renderLogs();
+    if (id === 'logs') {
+      renderLogs();
+      renderReports();
+      AJP.send('github.status', {}).then(renderReports); // throttled to every 10 min per report
+    }
     if (id === 'answers') renderAnswers();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
@@ -380,6 +384,47 @@
       : 'No errors in the stored logs. 👍';
   }
 
+  // ---- My reports (status from GitHub, by report id) ------------------------------------------
+  async function renderReports() {
+    const reports = await AJP.store.get('reports');
+    const T = AJP.issues.STATUS_TEXT;
+    $('#myReports').innerHTML = reports.length
+      ? `<table class="tbl"><thead><tr><th>Report</th><th>Opened</th><th>Status</th></tr></thead><tbody>${reports
+          .map((r) => `<tr><td>${esc(r.title || r.reportId)}</td><td>${new Date(r.createdAt).toLocaleDateString()}</td><td class="st-${esc(r.status || '')}">${
+            T[r.status] || T['not-submitted']}${r.number ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">#${r.number}</a>` : ''}${r.version ? ' in ' + esc(r.version) : ''}${r.checkFailed ? ' · couldn\'t check' : ''}</td></tr>`)
+          .join('')}</tbody></table>`
+      : '<p class="hint">No reports yet. Use 🆘 Report an issue → 🐙 Report on GitHub.</p>';
+    if (reports.some((r) => r.status === 'fixed' && r.seen === false)) AJP.send('reports.seen');
+  }
+  AJP.renderReports = renderReports;
+
+  // ---- Crash banner (a problem happened in the background) -----------------------------------------
+  async function renderCrashBanner() {
+    const st = await AJP.store.get('promptState');
+    const b = $('#crashBanner');
+    if (!st.pending) {
+      b.hidden = true;
+      return;
+    }
+    b.hidden = false;
+    b.innerHTML = `Something went wrong in the background <b>(${esc(st.pending.code)})</b>. Report it so we can fix it? Nothing is sent until you review it on GitHub.
+      <div class="row"><button class="small primary" data-crash="report">Report</button><button class="small" data-crash="later">Not now</button><button class="small" data-crash="never">Don't ask again for this error</button></div>`;
+    b.dataset.code = st.pending.code;
+  }
+  function initCrashBanner() {
+    $('#crashBanner').addEventListener('click', async (e) => {
+      const action = e.target.dataset.crash;
+      if (!action) return;
+      const code = $('#crashBanner').dataset.code;
+      $('#crashBanner').hidden = true;
+      if (action === 'report') {
+        await AJP.send('crashPromptAction', { code, action: 'later' });
+        location.hash = 'logs?report=1&code=' + encodeURIComponent(code);
+      } else await AJP.send('crashPromptAction', { code, action });
+    });
+    renderCrashBanner();
+  }
+
   async function buildReport(description, includeLogs) {
     const bundle = await AJP.diagnostics.collect({ description, includeLogs });
     log.info('Issue report created', { reportId: bundle.reportId, errors: bundle.errors.total, logs: bundle.logs.length });
@@ -412,6 +457,8 @@
     let last = null;
     $('#reportOpen').addEventListener('click', () => {
       last = null;
+      similarShown = false;
+      $('#ghSimilar').hidden = true;
       $('#reportOut').textContent = '';
       $('#reportSummary').hidden = true;
       dlg.showModal();
@@ -419,6 +466,30 @@
     });
     $('#reportClose').addEventListener('click', () => dlg.close());
     const ensureReport = async () => (last = last && last.description === $('#reportText').value.trim() ? last : await buildReport($('#reportText').value.trim(), $('#reportLogs').checked));
+    let reportCode = null; // error code that triggered the report (crash prompt / banner)
+    let similarShown = false;
+    $('#reportGitHub').addEventListener('click', async () => {
+      const b = await ensureReport();
+      const { url, fields } = AJP.issues.buildIssueUrl(b, { code: reportCode });
+      const codes = fields.codes ? fields.codes.split(', ') : [];
+      // Same problem already reported? Offer that issue first (once).
+      if (!similarShown && codes.length) {
+        similarShown = true;
+        const sim = await AJP.send('github.similar', { codes });
+        if (sim.ok && sim.items && sim.items.length) {
+          $('#ghSimilar').hidden = false;
+          $('#ghSimilar').innerHTML = `<b>Similar open reports for ${esc(codes[0])}</b> — same problem? Add a 👍 or a comment there instead:<ul>${sim.items
+            .map((i) => `<li><a href="${esc(i.url)}" target="_blank" rel="noopener">#${i.number} ${esc(i.title)}</a></li>`)
+            .join('')}</ul>Different problem? Click <b>Report on GitHub</b> again to open a new report.`;
+          return;
+        }
+      }
+      window.open(url, '_blank', 'noopener');
+      await AJP.send('report.saved', { report: { reportId: b.reportId, codes, title: fields.title } });
+      $('#ghSimilar').hidden = true;
+      $('#reportOut').innerHTML = `🐙 GitHub opened with your report <b>${esc(b.reportId)}</b>. Review it and click <b>Submit new issue</b> there. You'll get an automatic acknowledgement, and its status appears under My reports.`;
+      renderReports();
+    });
     $('#reportDownload').addEventListener('click', async () => {
       const b = await ensureReport();
       download(`apply-job-report-${b.reportId}.json`, JSON.stringify(b, null, 2), 'application/json');
@@ -438,7 +509,28 @@
         $('#reportOut').textContent = 'Select the text below and copy it (Ctrl/Cmd+C).';
       }
     });
-    if (/[?&]report=1/.test(location.hash)) setTimeout(() => $('#reportOpen').click(), 0);
+    const openFromHash = () => {
+      if (!/[?&]report=1/.test(location.hash)) return;
+      const m = location.hash.match(/[?&]code=([A-Z0-9-]+)/);
+      reportCode = m ? m[1] : null;
+      $('#reportOpen').click();
+      if (reportCode && !$('#reportText').value) $('#reportText').value = `The extension showed an error (${reportCode}). What I was doing: `;
+    };
+    window.addEventListener('hashchange', openFromHash);
+    setTimeout(openFromHash, 0);
+    $('#reportsCheck').addEventListener('click', async () => {
+      $('#reportsCheck').disabled = true;
+      await AJP.send('github.status', { force: true });
+      $('#reportsCheck').disabled = false;
+      renderReports();
+    });
+    initCrashBanner();
+    // For testers (Tester Guide 8.6): a harmless coded error that goes through the normal crash-prompt path.
+    $('#simulateError').addEventListener('click', async () => {
+      AJP.logger('admin').error('Test error simulated by the user (safe to ignore)', { simulated: true }, { code: 'AJP-INTERNAL' });
+      await AJP.flushLogs();
+      toast('Test error created — the report prompt should appear');
+    });
   }
 
   // ---- Backup -------------------------------------------------------------------------------------
@@ -480,6 +572,8 @@
   AJP.api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     const on = (location.hash || '#profile').slice(1).split('?')[0];
+    if (changes.promptState) renderCrashBanner();
+    if (changes.reports && on === 'logs') renderReports();
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();

@@ -195,3 +195,29 @@ PARTS.append({'title': 'Career tracks', 'scenes': [
      'caption': 'Compare recent jobs across your tracks (★ = best track)', 'check': '7.8'},
     card('Part 6 done', 'Thank you for testing!', 'Mark checks seven point one to seven point nine in the guide. Thank you for testing!'),
 ]})
+
+# ---- Part 7: reporting problems on GitHub -------------------------------------------------------------
+GH_FAKE = """window.fetch = async (u) => new Response(JSON.stringify({ items: [{ number: 7, title: '[AJP-AI-5XX] Tailor resume failed on Greenhouse (R-20261117-Q8M2C)', html_url: 'https://github.com/samberchmans-games/apply-job-plugin/issues/7', state: 'open', labels: [] }] }));"""
+ERR_LOGS = LOGS + [{'t': '2026-11-18T11:00:00Z', 'lvl': 'error', 'ctx': 'bg', 'sid': 's0b9x2cd', 'mod': 'ai', 'msg': 'ai.resume.edits failed', 'tid': 't9q1w2e3', 'code': 'AJP-AI-5XX'}]
+MY_REPORTS = [
+    {'reportId': 'R-20261110-K2P9X', 'title': '[AJP-INTERNAL] Panel froze after autofill (R-20261110-K2P9X)', 'createdAt': '2026-11-10T10:00:00Z', 'status': 'fixed', 'number': 4, 'url': 'https://github.com/x/4', 'version': 'v0.2.0', 'seen': True},
+    {'reportId': 'R-20261116-W7D3A', 'title': '[AJP-AI-5XX] Tailor resume failed (R-20261116-W7D3A)', 'createdAt': '2026-11-16T10:00:00Z', 'status': 'fixing', 'number': 7, 'url': 'https://github.com/x/7', 'checkedAt': '2099-01-01T00:00:00Z'},
+    {'reportId': 'R-20261118-7KQ2D', 'title': '[AJP-JD-NONE] Badge missing on Workday (R-20261118-7KQ2D)', 'createdAt': '2026-11-18T10:00:00Z', 'status': 'received', 'number': 9, 'url': 'https://github.com/x/9', 'checkedAt': '2099-01-01T00:00:00Z'},
+]
+OPEN_REPORT = "H.click('#reportOpen'); H.fill('#reportText', 'Tailor resume failed on a Greenhouse job (check 3.1).');"
+
+PARTS.append({'title': 'Reporting problems', 'scenes': [
+    card('Part 7 · Reporting problems', 'New in this version', 'Part seven: reporting problems. When something fails, you can report it on GitHub in a few clicks. You get an acknowledgement, and you can follow the fix.',
+         'Tester Guide, Session 8. About 5 minutes. Needs a free GitHub account.'),
+    {'kind': 'admin', 'hash': 'logs', 'seed': {**BASE, 'logs': ERR_LOGS}, 'actions': OPEN_REPORT + ' await H.sleep(600);', 'highlight': '#reportDialog', 'settle': 900, 'budget': 7000,
+     'say': 'In Admin, Logs and support, click Report an issue. Describe what happened, then click Report on GitHub.', 'caption': '🆘 Report an issue → describe it → 🐙 Report on GitHub', 'check': '8.1'},
+    {'kind': 'admin', 'hash': 'logs', 'seed': {**BASE, 'logs': ERR_LOGS}, 'actions': GH_FAKE + OPEN_REPORT + "H.click('#reportGitHub'); await H.waitFor(() => !document.querySelector('#ghSimilar').hidden);", 'highlight': '#ghSimilar', 'budget': 7000,
+     'say': 'If someone already reported the same error, you see it first. Add a thumbs up or a comment there. Otherwise click Report on GitHub again.', 'caption': 'Same error already reported? Add 👍 there instead', 'check': '8.2'},
+    card('On GitHub: review and submit', 'Check 8.3 – 8.4', 'GitHub opens with the form filled in: your report id, the error code, your description, version and browser. No logs, links or personal data. Review it and click Submit. Within a minute you get a thank-you comment and labels.',
+         items=['Title: [AJP-…] your summary (R-…)', 'Filled in: report id · error codes · description · version · browser', 'Never included: logs, job links, email, phone, resume, API keys', 'Submit → automatic "Thanks, we received R-…" comment + labels']),
+    {'kind': 'admin', 'hash': 'logs', 'seed': {**BASE, 'reports': MY_REPORTS}, 'actions': 'await H.sleep(400);', 'highlight': '#myReports', 'budget': 6000,
+     'say': 'Back in Admin, My reports shows the status of each report: received, being fixed, or fixed, with the version that contains the fix.', 'caption': 'My reports: received → being fixed → 🎉 fixed in vX', 'check': '8.5'},
+    {'kind': 'job', 'seed': BASE, 'actions': OPEN_PANEL + "\nawait AJP.send('log', { entries: [{ t: new Date().toISOString(), lvl: 'error', ctx: 'content', mod: 'x', msg: 'unexpected', code: 'AJP-INTERNAL' }] }); await H.waitFor(() => H.shadow().querySelector('.crash'));",
+     'highlight': 'shadow:.crash', 'budget': 7000, 'say': 'If something fails quietly in the background, the panel asks whether you want to report it. Nothing is sent unless you click Report and submit it yourself.', 'caption': 'Background failure → "Report it?" (never sent without you)', 'check': '8.6 – 8.7'},
+    card('Part 7 done', 'Thank you for testing!', 'Mark checks eight point one to eight point eight in the guide. Thank you for testing!'),
+]})

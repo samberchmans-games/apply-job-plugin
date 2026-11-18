@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (565). Run them before every merge into `develop`.
+1. **Automated tests** (615). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **315** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **565** tests in headless Chrome. This is the full suite: the 315 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **344** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **615** tests in headless Chrome. This is the full suite: the 344 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -37,6 +37,8 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Resume tailoring end-to-end | `unit/enhance-flow.test.js` | Pipeline with a **fake AI that cheats** (copies job numbers, invents Kubernetes and Netflix, fakes evidence, edits the header, duplicates an edit): every attempt blocked, honest edits kept; JSON retry; error codes; creating the resume (original untouched, protected lines intact, user's real numbers accepted, blocked edits can't be forced, make active, resume-changed and missing-draft errors); panel summary and review link |
 | Career tracks logic | `unit/tracks.test.js` | Implicit "General" track (no setup = existing profile), max 3, normalize; core + track skills; salary / work type / area overrides; the track's own resume; **every job scored against every track**; best track by score, job title breaks ties; title bonus never inflates the shown %; insights (evaluated, average, best-for, applied, interviews, top gaps); history (one entry per job, max 300); Track column in CSV |
 | Career tracks end-to-end | `unit/tracks-flow.test.js` | Panel tabs with a % per track and ★ best; switching; job recorded per track; no tabs without tracks; **a new job resets a manual pick**; Mark applied / Autofill (resume file) / Tailor resume (resume + skills sent to AI) use the chosen track; "make active" sets the track's resume; Admin: insights, compare table, add/edit/max 3/delete, Applications filter by track |
+| Problem reports (rules) | `unit/issue-report.test.js` | Pre-filled GitHub issue (template, title `[code] … (R-…)`, every field); **public text masks emails, phone numbers, keys and links; never logs**; crash code first; URL ≤ 7,500 chars with the report id kept; search URLs; status mapping (received / needs-info / fixing / fixed vX / duplicate / won't fix / closed / not submitted); crash-prompt rules (always for AJP-INTERNAL/STORE, 3× in 10 min, once a day, "don't ask again", setting off, **never for user-fixable codes**) |
+| Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -200,6 +202,18 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | K8 | Mark applied | The application shows the track; Applications filter by track works; CSV has a Track column |
 | K9 | After 3+ jobs: Career tracks | Insights per track (evaluated, average, best-for, applied, interviews, top gaps); compare table with ★ |
 | K10 | Delete all tracks | Panel shows a single score; everything works as before |
+
+### L. Reporting problems on GitHub
+| ID | Steps | Expected |
+|---|---|---|
+| L1 | Report an issue → Report on GitHub | GitHub opens with title `[code] … (R-…)` and every form field filled; no logs, emails or URLs in it |
+| L2 | Submit the issue | Within about a minute, a "Thanks, received R-…" comment and the labels `bug`, `from-extension`, `needs-triage` and `code:…` appear |
+| L3 | Admin → My reports → Check status | It shows "Received #N" |
+| L4 | Maintainer closes it with `fixed-in:v0.2.0` | My reports shows "Fixed in v0.2.0"; the toolbar badge shows ✓ until Admin is opened |
+| L5 | Logs & support → 🧪 Simulate a problem (or a real `AJP-INTERNAL` error) | The prompt or banner appears once, and the toolbar shows !; Report opens the dialog pre-filled; Not now hides it for the day |
+| L6 | Report the same error code twice | "Similar open reports" lists the first issue |
+| L7 | Go offline → Report on GitHub | It still opens GitHub; similar reports and status show "couldn't check" |
+| L8 | Untick "Ask me to report problems…" | No prompts |
 
 ### H. Performance
 | ID | Steps | Expected |

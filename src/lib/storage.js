@@ -57,16 +57,19 @@
       autoAnalyze: true, // show match badge automatically on known job sites
       learnAnswers: true,
       tracker: { autoDetect: true, followUpDays: 7 },
+      support: { crashPrompt: true }, // ask to report unnoticed failures (never sends without a click)
     },
     resumes: { activeId: null, items: [] },
     answers: {},
     applications: [],
     enhancements: [], // resume enhancement drafts awaiting review (max 20)
     evaluations: [], // last 300 analyzed jobs with a score per track (track insights)
+    reports: [], // problem reports opened on GitHub: [{reportId, createdAt, codes, title, status, number, url, version, checkedAt, seen}]
+    promptState: {}, // internal: crash-prompt bookkeeping {recent, last, never, pending}
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };
-  const INTERNAL = new Set(['logs', 'tabJobs']); // never exported or imported
+  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState']); // never exported or imported
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();

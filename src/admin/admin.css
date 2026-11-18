@@ -131,3 +131,11 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 .track .insights { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .stats.small .tile b { font-size: 17px; }
 #trackCompare td.best { font-weight: 700; color: var(--ok); }
+
+/* ---- Problem reports ---- */
+.crash-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
+.crash-banner .row { margin: 6px 0 0; }
+#ghSimilar { background: var(--chip); border-radius: 10px; padding: 10px 14px; margin: 8px 0; font-size: 13px; }
+#ghSimilar li { margin: 4px 0; }
+.st-fixed { color: var(--ok); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .crash-banner { background: #3b0d0d; color: #fecaca; border-color: #7f1d1d; } }

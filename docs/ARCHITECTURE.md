@@ -52,6 +52,7 @@ src/
     diagnostics.js            "Report an issue" bundle; captureErrors for extension pages
     resume-engine.js          resume enhancement v2: parse, strict prompts, edit validator, assembly, integrity check
     tracks.js                 career tracks: per-track profile/resume, score every job per track, best track, insights
+    issue-report.js           problem reports on GitHub: pre-filled issue URL (public-safe), status mapping, crash-prompt rules
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
   content/                    runs inside job pages (every frame)
@@ -97,12 +98,12 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 | Context | Where it runs | Loaded files (in order) |
 |---|---|---|
-| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, tracks, background |
+| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, tracks, issue-report, background |
 | Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, tracks, jd-extractor, form-filler, apply-detector, panel, content |
-| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, resume-engine, tracks, diagnostics, tracker-view, enhance-view, tracks-view, admin |
+| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, resume-engine, tracks, issue-report, diagnostics, tracker-view, enhance-view, tracks-view, admin |
 | Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
-**Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
+**Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama) and `api.github.com` (read-only public issue search for problem-report status; no token). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
 
 ## 5. Data model (`storage.local`)
 
@@ -115,6 +116,8 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | `answers` | `{ [normKey]: {label,value,kind,count,lastUsed,hosts[≤10]} }` | Background | Values ≤ 5,000 chars |
 | `applications` | `[{ id, jobKey, url, title, company, location, score, status, date, appliedAt, updatedAt, statusHistory[≤30], snapshot{jd≤20k,salary,workTypes,location,source,savedAt}, resumeId, resumeName, notes, recruiter, interviewAt, nextStep, lastFollowUpAt, detectedBy, host }]` | Background (saves); Admin (edits) | Max 2,000; newest first |
 | `evaluations` | `[{ jobKey, url, title, company, at, bestTrackId, scores{trackId:n}, gaps{trackId:[skill]} }]` | Background | Last 300 analyzed jobs (one per job) — track insights & compare |
+| `reports` | `[{ reportId, createdAt, codes, title, status, number?, url?, version?, checkedAt?, checkFailed?, seen? }]` | Background | Problem reports opened on GitHub (max 50) |
+| `promptState` | `{ recent{code:[ts]}, last{code:ts}, never{code:true}, pending?{code,msg,at,tid} }` | Background only | **Internal**: crash-prompt bookkeeping |
 | `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
 | `tabJobs` | `{ [tabId]: { url, title, company, location, score, jobKey, snapshot, submittedAt?, appliedAt?, at } }` | Background only | **Internal**, never exported; at most 30 tabs |
 
@@ -122,7 +125,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 **Cache correctness.** `storage.js` versions every key. A read that started before a write never caches the stale value. This was a real race, found by the test suite.
 
-**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications`, `enhancements` and `evaluations`. `logs` and `tabJobs` are internal and are never imported.
+**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications`, `enhancements`, `evaluations` and `reports`. `logs`, `tabJobs` and `promptState` are internal and are never imported.
 
 ## 6. Messages
 
@@ -143,6 +146,11 @@ All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, …
 | `openAdmin` (`#resumes?enh=<id>`) | Open the review screen for a draft |
 | `learnAnswer` | Remember a question → answer pair |
 | `recordEvaluation` | Store a job's score per career track (insights, compare) |
+| `crashPromptAction` | Answer a crash prompt: `report` (opens Admin with the code) / `later` / `never` |
+| `github.similar` | Open issues with the same error code (public search; never throws) |
+| `report.saved` | Remember a report opened on GitHub |
+| `github.status` | Look up each report's issue by report id → status (max 5 per run, every 10 min; daily alarm) |
+| `reports.seen` | Clear the ✓ badge for newly fixed reports |
 | `setTabJob` | "This tab is looking at job X" (used for apply detection and snapshots) |
 | `recordApplication` | Insert or update an application (merge rules in §8.4) |
 | `undoStatus` | Revert the last status change, or remove a just-added entry |
@@ -159,6 +167,7 @@ All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, …
 | `fillQuestion` | all frames | The frame that owns the field fills it |
 | `appliedDetected` | top frame | Show "detected and saved as applied" with Undo |
 | `askApplied` | top frame | Show the "Did you submit?" prompt |
+| `crashPrompt` | top frame | "Something went wrong (AJP-…). Report it?" |
 
 ## 7. Key flows
 
@@ -383,6 +392,20 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
 | Report | `diagnostics.collect()`: §7.6; contents described in [SUPPORT.md](SUPPORT.md) |
 
+### 9a. Problem reports on GitHub (option A)
+Full spec: [ISSUE-REPORTING.md](ISSUE-REPORTING.md).
+
+- **Watching for errors:** the background watches every error entry (its own and those forwarded from pages) with `issues.shouldPrompt`. A prompt appears for `AJP-INTERNAL` / `AJP-STORE`, or for the same code 3 times in 10 minutes; never for codes users can fix themselves; at most once per code per day.
+- **Surfaces:** the job page's panel, the Admin banner, and a red `!` badge.
+- **Badge priority:** `!` (problem to report), then `✓` (a report got fixed), then the follow-up count.
+- **Report on GitHub:**
+  1. Builds the diagnostics bundle.
+  2. Checks `github.similar` for open issues with the same code.
+  3. `issues.buildIssueUrl` produces the public-safe, pre-filled form URL: summary fields only, scrubbed, no links, ≤ 7,500 chars.
+  4. Opens it with `window.open`, then `report.saved`.
+- **Status:** `github.status` searches by report id (public API, no token) and maps labels and state to received / fixing / fixed vX / … for **My reports**.
+- **Repo side:** `.github/ISSUE_TEMPLATE/bug_report.yml` (form) and `.github/workflows/issue-ack.yml` (acknowledgement comment + labels, using the repo's own `GITHUB_TOKEN`).
+
 ## 10. Security & privacy
 
 | Risk | Mitigation |
@@ -394,6 +417,7 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Credentials | Job-site passwords are not stored (the browser's password manager handles them). Password, SSN, bank and date-of-birth fields are never learned. |
 | Over-broad access | Content scripts are declared only on job sites; elsewhere they run only after a user gesture (`activeTab`). Host permissions are limited to the AI endpoints. |
 | Third-party chat sites | Not automated (terms of service and reliability). Free official APIs are used instead. |
+| Public GitHub issues | Only a scrubbed summary is pre-filled (no logs, links or personal data). The user reviews and submits it. No token in the extension; status lookups are read-only public searches. |
 
 ## 11. Performance budgets
 
@@ -415,12 +439,12 @@ tests/
                           (routes to background vs content listeners like real browsers), scripting,
                           tabs.onCreated/onRemoved, alarms, action badge, contextMenus
   mocks/url-polyfill.js   URL for the macOS JavaScriptCore CLI runner only
-  unit/*.test.js          70 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
+  unit/*.test.js          76 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
                           panel, background, tracker, tracker-flow, admin, errors-logging,
-                          resume-engine, enhance-flow, tracks, tracks-flow
+                          resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 315 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 565 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 344 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 615 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -493,6 +517,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Track applications without email access | Keeps the "all local" promise; email sync stays optional and later |
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
+| 2026-11-18 | Problem reports via pre-filled GitHub issues the user submits (option A); acknowledgement by a GitHub Action | No server or token in the extension; the user sees what is posted |
 | 2026-11-18 | Career tracks via an implicit "General" track, not a data migration | No risk to existing data; users without tracks see no change |
 | 2026-11-18 | Resume tailoring = evidence-checked targeted edits assembled by code, not an AI rewrite | Prompts alone can't guarantee truth; the code validator can. Never copy the job's numbers; keep results first. |
 

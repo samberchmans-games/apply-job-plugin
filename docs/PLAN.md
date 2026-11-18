@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **6, multiple career tracks**. Related documents:
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **7, issue reporting (extension side)**. Related documents:
 - [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
@@ -20,10 +20,10 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete |
-| Issue reporting to GitHub (option A) | ✅ issue form + auto-acknowledgement live · ⬜ extension button, crash prompt, My reports (step 7) |
+| Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
-| Tester material | ✅ Tester Guide (7 sessions) + 6 walkthrough videos, updated every step |
-| Tests | ✅ 565 automated + 108 manual scenarios · ⬜ CI |
+| Tester material | ✅ Tester Guide (8 sessions) + 7 walkthrough videos, updated every step |
+| Tests | ✅ 615 automated + 116 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -144,11 +144,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 565 across 18 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 565) · `./tests/run-tests.sh` (the 315 that need no browser) |
-| Tester Guide (shareable doc, 7 sessions, 64 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
+| Automated tests: 615 across 20 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 615) · `./tests/run-tests.sh` (the 344 that need no browser) |
+| Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 108 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 116 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -187,7 +187,7 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | Fix: Autofill no longer resets an "applied" job to "in progress" | ✅ | Automatic updates only move forward |
 | Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⬜ later | Ideas discussed; not planned yet |
 
-## 12. Issue reporting to GitHub (option A) — decided 2026-11-18
+## 12. Issue reporting to GitHub (option A) — ✅ done 2026-11-18 (step 7)
 Users report problems as GitHub issues. The extension pre-fills the form, and the user reviews and submits it from their own GitHub account. A GitHub Action acknowledges and labels each report. No server, and no token in the extension. Full spec: [ISSUE-REPORTING.md](ISSUE-REPORTING.md).
 
 | Item | Status | Notes |
@@ -195,11 +195,12 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | Issue form (report id, codes, description, version, browser, environment, optional report file) | ✅ | `.github/ISSUE_TEMPLATE/bug_report.yml`, usable now from GitHub |
 | Automatic acknowledgement comment + labels (`needs-triage`, `code:AJP-…`, `browser:…`) | ✅ | `.github/workflows/issue-ack.yml` |
 | Maintainer workflow: triage within 3 business days, labels, failing test → fix → `Fixes #N` → `fixed-in:vX` | ✅ | ISSUE-REPORTING.md §7 |
-| Extension: **Report on GitHub** button (pre-filled, summary only, no logs) | ⬜ | Step 7 |
-| Extension: "Similar reports" duplicate check before submitting | ⬜ | Step 7 |
-| Extension: crash prompt for unnoticed failures (ask, never auto-send) | ⬜ | Step 7 |
-| Extension: **My reports**, showing received #N, being fixed, or fixed in vX | ⬜ | Step 7, via public GitHub search by report id |
+| Extension: **Report on GitHub** button (pre-filled, summary only, no logs) | ✅ | Step 7 |
+| Extension: "Similar reports" duplicate check before submitting | ✅ | Step 7 |
+| Extension: crash prompt for unnoticed failures (ask, never auto-send) | ✅ | Step 7 |
+| Extension: **My reports**, showing received #N, being fixed, or fixed in vX | ✅ | Step 7, via public GitHub search by report id |
 | Reporters without GitHub: email the report to the organizer, who files it | ✅ | Process documented |
+| 🧪 Simulate a problem (for testers) | ✅ | Admin → Logs & support |
 | Option B (relay service, no GitHub account needed) | 💤 | Later, only if needed |
 
 ## Roadmap (updated 2026-11-18)
@@ -212,12 +213,12 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 7 | **Issue reporting, extension side** (section 12) + tester guide session & video | *see change log* |
 | 6 | **Multiple career tracks** (section 10) + tester guide session & video | `2ace0d5` |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 7 | **Issue reporting, extension side**: Report on GitHub button, similar reports, crash prompt, My reports status | 12 | Medium |
 | 8 | Read PDF resumes automatically (no more pasting) | 2 | Small |
 | 9 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
 | 10 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
@@ -230,7 +231,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 108 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 116 scenarios |
 | Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
@@ -274,6 +275,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | *this commit* | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
 | 2026-11-18 | `2ace0d5` | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
 | 2026-11-18 | `3022695` | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |

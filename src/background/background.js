@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js');
 }
 
 (function () {
@@ -27,13 +27,37 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
   // ---- Logging: background is the single writer of the `logs` key ---------
   const serialLogs = AJP.serial();
-  AJP.setLogSink((entries) =>
-    serialLogs(async () => {
+  AJP.setLogSink((entries) => {
+    watchErrors(entries, null);
+    return serialLogs(async () => {
       const cur = await AJP.store.get('logs');
       const next = cur.concat(entries);
       await AJP.store.set('logs', next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next);
-    })
-  );
+    });
+  });
+
+  // ---- Crash prompt: notice failures the user may not see, and ASK to report them (docs/ISSUE-REPORTING.md §4) ----
+  const serialPrompt = AJP.serial();
+  function watchErrors(entries, tabId) {
+    const errs = (entries || []).filter((e) => e && e.lvl === 'error' && e.code && !e.pre);
+    if (!errs.length) return Promise.resolve();
+    return serialPrompt(async () => {
+      const settings = await AJP.store.get('settings');
+      let st = await AJP.store.get('promptState');
+      let fire = null;
+      for (const e of errs) {
+        const r = AJP.issues.shouldPrompt(st, e, { enabled: settings.support.crashPrompt });
+        st = r.state;
+        if (r.prompt) fire = e;
+      }
+      if (fire) st.pending = { code: fire.code, msg: String(fire.msg || '').slice(0, 200), at: Date.now(), tid: fire.tid || null };
+      await AJP.store.set('promptState', st);
+      if (!fire) return;
+      AJP.logger('background').info('Crash prompt raised', { code: fire.code });
+      refreshBadgeSoon();
+      if (tabId != null) api.tabs.sendMessage(tabId, { type: 'crashPrompt', code: fire.code, msg: st.pending.msg }, { frameId: 0 }).catch(() => {});
+    });
+  }
   AJP.store.get('settings').then((s) => AJP.setLogLevel(s.logLevel));
   api.storage.onChanged.addListener((c, area) => {
     if (area === 'local' && c.settings && c.settings.newValue) AJP.setLogLevel(c.settings.newValue.logLevel || 'info');
@@ -118,8 +142,19 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   // ---- Follow-up reminders: badge on the toolbar icon -------------------------------
   async function refreshBadge() {
     try {
-      const [apps, settings] = await Promise.all([AJP.store.get('applications'), AJP.store.get('settings')]);
+      const [apps, settings, promptState, reports] = await Promise.all([AJP.store.get('applications'), AJP.store.get('settings'), AJP.store.get('promptState'), AJP.store.get('reports')]);
       const due = AJP.tracker.dueFollowUps(apps, Date.now(), Number(settings.tracker.followUpDays) || 7);
+      // Priority: a problem to report (!) → a report that got fixed (✓) → follow-ups due (count).
+      if (promptState.pending) {
+        await api.action.setBadgeText({ text: '!' });
+        await api.action.setBadgeBackgroundColor({ color: '#dc2626' });
+        return due.length;
+      }
+      if (reports.some((r) => r.status === 'fixed' && r.seen === false)) {
+        await api.action.setBadgeText({ text: '✓' });
+        await api.action.setBadgeBackgroundColor({ color: '#059669' });
+        return due.length;
+      }
       await api.action.setBadgeText({ text: due.length ? String(due.length) : '' });
       await api.action.setBadgeBackgroundColor({ color: '#d97706' });
       if (due.length) log.debug('Follow-ups due', { count: due.length });
@@ -140,8 +175,14 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     }
   }
   api.storage.onChanged.addListener((c, area) => {
-    if (area === 'local' && (c.applications || c.settings)) refreshBadgeSoon();
+    if (area === 'local' && (c.applications || c.settings || c.reports || c.promptState)) refreshBadgeSoon();
   });
+  if (api.alarms) {
+    try {
+      api.alarms.create('ajp-reports', { periodInMinutes: 24 * 60 });
+      api.alarms.onAlarm.addListener((a) => a.name === 'ajp-reports' && handlers['github.status']({}));
+    } catch (_) {}
+  }
   refreshBadge();
 
   // A job opened in a new tab (e.g. LinkedIn "Apply" -> company Workday) keeps its context.
@@ -161,8 +202,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
   // ---- Message handlers ------------------------------------------------------
   const handlers = {
-    async log({ entries }) {
+    async log({ entries }, sender) {
       if (Array.isArray(entries) && entries.length) {
+        watchErrors(entries.slice(-200), sender && sender.tab ? sender.tab.id : null);
         await serialLogs(async () => {
           const cur = await AJP.store.get('logs');
           const next = cur.concat(entries.slice(-200));
@@ -425,6 +467,86 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
     async fillQuestion({ ajpId, text }, sender) {
       if (sender.tab) await api.tabs.sendMessage(sender.tab.id, { type: 'fillQuestion', ajpId, text });
+      return {};
+    },
+
+    // ---- Problem reports on GitHub (option A) ------------------------------------------
+    async crashPromptAction({ code, action }) {
+      await serialPrompt(() =>
+        AJP.store.update('promptState', (st) => {
+          if (action === 'never') st.never = { ...(st.never || {}), [code]: true };
+          if (st.pending && st.pending.code === code) delete st.pending;
+        })
+      );
+      log.info('Crash prompt answered', { code, action });
+      refreshBadgeSoon();
+      if (action === 'report') await handlers.openAdmin({ hash: 'logs?report=1&code=' + encodeURIComponent(code) });
+      return {};
+    },
+
+    // Open issues with the same error code (public search, no login). Never throws: [] + note on failure.
+    async 'github.similar'({ codes }) {
+      const url = AJP.issues.similarSearchUrl(codes);
+      if (!url) return { items: [] };
+      try {
+        const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        return { items: (data.items || []).slice(0, 5).map((i) => ({ number: i.number, title: i.title, url: i.html_url, state: i.state })) };
+      } catch (e) {
+        log.warn('Similar reports lookup failed', { error: e.message });
+        return { items: [], unavailable: true };
+      }
+    },
+
+    async 'report.saved'({ report }) {
+      if (!report || !report.reportId) return {};
+      await serialData(() =>
+        AJP.store.update('reports', (list) => [{ status: 'not-submitted', ...report, createdAt: report.createdAt || new Date().toISOString() }, ...list.filter((r) => r.reportId !== report.reportId)].slice(0, 50))
+      );
+      log.info('Problem report opened on GitHub', { reportId: report.reportId, codes: report.codes });
+      return {};
+    },
+
+    // Find each report's issue by its report id and map labels/state to a status. Max 5 lookups per run.
+    async 'github.status'({ force = false } = {}) {
+      const FINAL = new Set(['fixed', 'duplicate', 'wont-fix', 'closed']);
+      const now = Date.now();
+      const reports = await AJP.store.get('reports');
+      const due = reports.filter((r) => !FINAL.has(r.status) && (force || !r.checkedAt || now - Date.parse(r.checkedAt) > 10 * 60000))
+        .sort((a, b) => (Date.parse(a.checkedAt || 0) || 0) - (Date.parse(b.checkedAt || 0) || 0)).slice(0, 5);
+      const updates = {};
+      for (const r of due) {
+        try {
+          const res = await fetch(AJP.issues.statusSearchUrl(r.reportId), { headers: { Accept: 'application/vnd.github+json' } });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          updates[r.reportId] = { ...AJP.issues.statusFromIssue((data.items || [])[0]), checkedAt: new Date().toISOString() };
+        } catch (e) {
+          updates[r.reportId] = { status: r.status === 'not-submitted' || !r.status ? 'unknown' : r.status, checkedAt: new Date().toISOString(), checkFailed: true };
+          log.warn('Report status lookup failed', { reportId: r.reportId, error: e.message });
+        }
+      }
+      let list = reports;
+      if (due.length) {
+        await serialData(() =>
+          AJP.store.update('reports', (l) =>
+            (list = l.map((r) => {
+              const u = updates[r.reportId];
+              if (!u) return r;
+              const becameFixed = u.status === 'fixed' && r.status !== 'fixed';
+              return { ...r, ...u, seen: becameFixed ? false : r.seen };
+            }))
+          )
+        );
+        refreshBadgeSoon();
+      }
+      return { reports: list, checked: due.length };
+    },
+
+    async 'reports.seen'() {
+      await serialData(() => AJP.store.update('reports', (l) => l.map((r) => (r.status === 'fixed' ? { ...r, seen: true } : r))));
+      refreshBadgeSoon();
       return {};
     },
 

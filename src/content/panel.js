@@ -138,7 +138,7 @@
           <button class="b p" data-act="autofill" ${dis('autofill')}>⚡ Autofill form</button>
           <button class="b" data-act="applied">✔ Mark applied</button>
         </div>`;
-    } else if (!state.message && !state.ask) {
+    } else if (!state.message && !state.ask && !state.crash) {
       body = `<div class="muted">Reading the page…</div>`;
     }
 
@@ -146,6 +146,11 @@
       const d = state.duplicate.app;
       const when = d.appliedAt || d.date;
       body = `<div class="msg warn">⚠ ${state.duplicate.how === 'same job' ? 'You already tracked this job' : 'You tracked a similar job at this company'}: <b>${esc(d.title || '')}</b> — ${esc(d.status)}${when ? ' since ' + esc(new Date(when).toLocaleDateString()) : ''}. <a data-act="openApps">Open tracker</a></div>` + body;
+    }
+
+    if (state.crash) {
+      body += `<div class="msg err crash">Something went wrong <span class="code">(${esc(state.crash.code)})</span>. Report it so we can fix it? Nothing is sent until you review it on GitHub.
+        <div class="btns"><button class="b p" data-act="crashReport">Report</button><button class="b" data-act="crashLater">Not now</button><button class="b" data-act="crashNever">Don't ask again for this error</button></div></div>`;
     }
 
     if (state.ask) {

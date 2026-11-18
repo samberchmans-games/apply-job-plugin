@@ -13,7 +13,7 @@
   AJP.logContext = isTop ? 'content' : 'frame';
   const log = AJP.logger('content');
 
-  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '', duplicate: null, ask: null, lastApp: null, tracks: null, trackId: null, trackPicked: null };
+  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '', duplicate: null, ask: null, lastApp: null, tracks: null, trackId: null, trackPicked: null, crash: null };
   let jdText = '';
   let lastUrl = location.href;
 
@@ -122,6 +122,25 @@
       log.info('Track switched', { best: id === state.tracks.bestId });
       AJP.send('setTabJob', { job: { ...jobMeta(), ...trackRef(), score: state.analysis.score, snapshot: snapshot() } });
       render();
+    },
+
+    async crashReport() {
+      const c = state.crash;
+      state.crash = null;
+      render();
+      if (c) await AJP.send('crashPromptAction', { code: c.code, action: 'report' });
+    },
+    async crashLater() {
+      const c = state.crash;
+      state.crash = null;
+      render();
+      if (c) await AJP.send('crashPromptAction', { code: c.code, action: 'later' });
+    },
+    async crashNever() {
+      const c = state.crash;
+      state.crash = null;
+      render();
+      if (c) await AJP.send('crashPromptAction', { code: c.code, action: 'never' });
     },
 
     toggle() {
@@ -307,6 +326,10 @@
       state.ask = null;
       state.minimized = false;
       say(`✅ Application to <b>${AJP.panel.esc(msg.app.company || msg.app.title || 'this job')}</b> detected and saved as <b>applied</b>. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>`);
+    } else if (msg.type === 'crashPrompt' && isTop) {
+      state.crash = { code: msg.code, msg: msg.msg };
+      state.minimized = false;
+      render();
     } else if (msg.type === 'askApplied' && isTop) {
       state.ask = msg.job;
       state.minimized = false;

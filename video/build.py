@@ -18,7 +18,7 @@ PORT = 8790
 sys.path.insert(0, os.path.join(ROOT, 'video'))
 from parts import PARTS  # noqa: E402
 
-LIBS = ['core', 'logger', 'errors', 'storage', 'skills-dictionary', 'matcher', 'ai', 'docx', 'tracker', 'resume-engine', 'tracks', 'diagnostics']
+LIBS = ['core', 'logger', 'errors', 'storage', 'skills-dictionary', 'matcher', 'ai', 'docx', 'tracker', 'resume-engine', 'tracks', 'issue-report', 'diagnostics']
 CONTENT = ['jd-extractor.js', 'form-filler.js', 'apply-detector.js', 'panel.js', 'content.js']
 
 

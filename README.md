@@ -80,7 +80,7 @@ What's in the logs and reports:
 - **The details just before an error are kept**, even at the normal log level.
 - **Nothing personal is included.** API keys, passwords, emails, phone numbers, SSNs, EEO answers and resume content are removed automatically.
 
-**Report it on GitHub:** [open a problem report](https://github.com/samberchmans-games/apply-job-plugin/issues/new?template=bug_report.yml). The form asks for the report id and error code, and you'll get an automatic acknowledgement. Fixes are tracked on the issue; see [docs/ISSUE-REPORTING.md](docs/ISSUE-REPORTING.md). No GitHub account? Email the report file to the person who invited you.
+**Report it on GitHub from the extension:** in the report dialog click **🐙 Report on GitHub**. The form opens pre-filled (summary only); you review it and submit. **My reports** then shows its status (received, being fixed, fixed in vX). If something fails in the background, the extension asks whether to report it, and never sends anything without you. You can also [open a problem report](https://github.com/samberchmans-games/apply-job-plugin/issues/new?template=bug_report.yml). The form asks for the report id and error code, and you'll get an automatic acknowledgement. Fixes are tracked on the issue; see [docs/ISSUE-REPORTING.md](docs/ISSUE-REPORTING.md). No GitHub account? Email the report file to the person who invited you.
 
 If you handle support, see [docs/SUPPORT.md](docs/SUPPORT.md) for how to read a report, plus the full list of error codes.
 
@@ -108,7 +108,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (565) in headless Chrome. `./tests/run-tests.sh` runs the 315 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (615) in headless Chrome. `./tests/run-tests.sh` runs the 344 that need no browser.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.

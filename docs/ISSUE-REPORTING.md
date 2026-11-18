@@ -12,7 +12,7 @@ The trade-off: reporters need a GitHub account. Users without one send the repor
 | Status | Part |
 |---|---|
 | ✅ Live now | Issue form (`.github/ISSUE_TEMPLATE/bug_report.yml`), automatic acknowledgement + labels (`.github/workflows/issue-ack.yml`), maintainer workflow (this doc) |
-| ⬜ Roadmap step 7 | Extension side: **Report on GitHub** button, crash prompt, duplicate check, "My reports" status (§3–§6) |
+| ✅ Step 7 (built) | Extension side: **Report on GitHub** button, crash prompt, duplicate check, "My reports" status (§3–§6), plus a **🧪 Simulate a problem** button for testers. Code: `src/lib/issue-report.js`, `background.js`, `admin.js`, `panel.js`; tests: `tests/unit/issue-report.test.js`, `issue-flow.test.js` |
 
 ---
 
@@ -53,7 +53,7 @@ The repo is **public**, so anyone can read issues.
 
 **URL limit:** pre-filled issue URLs are capped at about **7,500 characters**. The extension trims the description and error list to fit, and never drops the report id.
 
-## 3. Extension: "Report on GitHub" button (step 7)
+## 3. Extension: "Report on GitHub" button (step 7 ✅)
 - **Where:**
   - in the 🆘 Report an issue dialog, next to Download report
   - on the crash prompt (§4)
@@ -63,18 +63,19 @@ The repo is **public**, so anyone can read issues.
 - **Saves the report locally** in `reports[]` = `{ reportId, createdAt, codes[], title, openedOnGitHub: true }`.
 - Needs host permission `https://api.github.com/*` (read-only public search; no token).
 
-## 4. Extension: crash prompt (step 7)
+## 4. Extension: crash prompt (step 7 ✅)
 The prompt appears when something fails that the user may not notice.
 
 - **Triggers:**
   - any `AJP-INTERNAL` error
   - `AJP-STORE`
   - the same error code 3 times within 10 minutes
+  - never for problems users fix themselves (AI off, wrong key, rate limit, no job description, resume format, …)
 - **What the user sees:** a small panel or Admin banner: *"Something went wrong (AJP-INTERNAL). Report it?"* with **Report** and **Not now**, plus a **Don't ask again for this error** link.
 - **Limits:** at most once per error code per day. Can be switched off in Settings.
 - **Never sends anything automatically.** "Report" opens the same dialog, pre-filled.
 
-## 5. Extension: acknowledgement and status ("My reports")
+## 5. Extension: acknowledgement and status ("My reports", step 7 ✅)
 Admin → Logs & support → **My reports** lists `reports[]`:
 
 | Status shown | How it's known |
@@ -92,7 +93,7 @@ Admin → Logs & support → **My reports** lists `reports[]`:
 - **Limits:** GitHub allows 10 unauthenticated searches per minute, so the extension checks at most 5 reports per run.
 - When a report changes to "Fixed", the toolbar badge shows a ✓ until Admin is opened.
 
-## 6. Extension: tests to add (step 7)
+## 6. Extension: tests (step 7 ✅: 50 tests)
 
 | Area | Tests |
 |---|---|

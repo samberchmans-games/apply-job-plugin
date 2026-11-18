@@ -26,6 +26,7 @@
   </nav>
 
   <main>
+    <div id="crashBanner" class="crash-banner" hidden></div>
     <div class="privacy">🔒 Everything on this page is saved only in this browser on this computer (extension local storage). Nothing is uploaded, except text you choose to send to the AI provider you configure. Changes save automatically.</div>
 
     <!-- PROFILE -->
@@ -224,6 +225,11 @@
         <button id="logDownload">⬇ Download logs only</button>
         <label>Log level <select data-settings="logLevel"><option>debug</option><option>info</option><option>warn</option><option>error</option></select></label>
       </div>
+      <h3>My reports <button id="reportsCheck" class="small">↻ Check status</button></h3>
+      <div id="myReports"></div>
+      <div class="row"><label class="check"><input type="checkbox" data-settings="support.crashPrompt"> Ask me to report problems that happen in the background (never sent without my click)</label>
+        <button id="simulateError" class="small" title="For testers: creates a harmless test error so you can try the report prompt">🧪 Simulate a problem</button></div>
+      <h3>Logs</h3>
       <div id="errSummary" class="hint"></div>
       <div class="row">
         <select id="logFilter"><option value="">All levels</option><option>debug</option><option>info</option><option>warn</option><option>error</option></select>
@@ -241,11 +247,14 @@
         <label class="check"><input type="checkbox" id="reportLogs" checked> Include recent logs (recommended)</label>
         <p class="hint">Tip: if the problem repeats, set the log level to <b>debug</b>, reproduce it once, then report.</p>
         <div id="reportOut" class="hint"></div>
+        <div id="ghSimilar" hidden></div>
         <div class="row" style="justify-content:flex-end">
           <button id="reportCopy">📋 Copy summary</button>
-          <button id="reportDownload" class="primary">⬇ Download report</button>
+          <button id="reportDownload">⬇ Download report</button>
+          <button id="reportGitHub" class="primary">🐙 Report on GitHub</button>
           <button id="reportClose">Close</button>
         </div>
+        <p class="hint">GitHub issues are public: only a summary is filled in (report id, version, browser, error codes, your description). No logs, links or personal data. You review it and click Submit on GitHub. No GitHub account? Download the report and email it.</p>
         <textarea id="reportSummary" rows="7" readonly hidden></textarea>
       </dialog>
     </section>
@@ -277,6 +286,7 @@
 <script src="../lib/tracker.js"></script>
 <script src="../lib/resume-engine.js"></script>
 <script src="../lib/tracks.js"></script>
+<script src="../lib/issue-report.js"></script>
 <script src="../lib/diagnostics.js"></script>
 <script src="tracker-view.js"></script>
 <script src="enhance-view.js"></script>

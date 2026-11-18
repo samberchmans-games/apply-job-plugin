@@ -23,7 +23,8 @@
     "https://api.groq.com/*",
     "https://openrouter.ai/*",
     "http://localhost:11434/*",
-    "http://127.0.0.1:11434/*"
+    "http://127.0.0.1:11434/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "src/background/background.js",
@@ -38,6 +39,7 @@
       "src/lib/tracker.js",
       "src/lib/resume-engine.js",
       "src/lib/tracks.js",
+      "src/lib/issue-report.js",
       "src/background/background.js"
     ]
   },
