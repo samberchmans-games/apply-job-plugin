@@ -195,7 +195,7 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
-| 6 | **Multiple career tracks** (section 10) + tester guide session & video | *see change log* |
+| 6 | **Multiple career tracks** (section 10) + tester guide session & video | `2ace0d5` |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
@@ -256,6 +256,6 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
-| 2026-11-18 | *this commit* | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
+| 2026-11-18 | `2ace0d5` | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
 | 2026-11-18 | `3022695` | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
 
