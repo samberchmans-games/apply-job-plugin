@@ -156,14 +156,6 @@
     };
     const allText = () => JSON.stringify(calls.map((c) => c.body));
 
-    it('tailorResume forbids inventing facts and lists the gaps', async () => {
-      await AJP.ai.tasks.tailorResume({ jd: 'JD', resumeText: 'RESUME', profile: profile(), missing: ['Kafka'], job: { title: 'Dev', company: 'Acme' } });
-      const t = allText();
-      includes(t, 'NEVER invent');
-      includes(t, 'Kafka');
-      includes(t, '---GAPS---');
-      includes(t, 'Python (5y, expert)');
-    });
     it('draftAnswer uses only resume/profile facts and placeholders', async () => {
       await AJP.ai.tasks.draftAnswer({ question: 'Why us?', jd: 'JD', resumeText: 'R', profile: profile(), job: { title: 'Dev' }, maxWords: 50 });
       includes(allText(), 'Never invent facts');
@@ -171,7 +163,7 @@
     });
     it('EEO answers are NEVER sent to the AI', async () => {
       const p = profile();
-      await AJP.ai.tasks.tailorResume({ jd: 'JD', resumeText: 'R', profile: p, missing: [], job: {} });
+      await AJP.ai.tasks.analyzeForResume({ jd: 'JD', resumeText: 'R' });
       await AJP.ai.tasks.draftAnswer({ question: 'Q', jd: 'JD', resumeText: 'R', profile: p, job: {} });
       await AJP.ai.tasks.extractSkills({ jd: 'JD' });
       for (const v of ['UNIQUE_RACE_VALUE', 'UNIQUE_VET_VALUE', 'UNIQUE_DIS_VALUE']) excludes(allText(), v);

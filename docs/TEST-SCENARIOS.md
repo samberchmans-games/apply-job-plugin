@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (449). Run them before every merge into `develop`.
+1. **Automated tests** (532). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **241** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **449** tests in headless Chrome. This is the full suite: the 241 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **295** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **532** tests in headless Chrome. This is the full suite: the 295 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -31,8 +31,10 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Panel | `unit/panel.test.js` | Score, skill chips, fit, **HTML from the job page cannot run inside the panel**, page CSS can't break it, buttons, busy state, autofill report |
 | Tracker logic | `unit/tracker.test.js` | Same job across URLs for 8 sites; duplicate detection; saving rules (**automatic updates never move status backwards**, empty values never wipe data, Undo); confirmation and Submit wording incl. look-alikes that must NOT count; follow-up and interview reminders; stats; CSV escaping and formula-injection blocking |
 | Tracker end-to-end | `unit/tracker-flow.test.js` | Submit + "Thank you" → applied with snapshot; normal form submit; confirmation-page URL; ignored on unknown sites; newsletter forms ignored; JD text mentioning submission ignored; "Did you submit?" Yes/No; auto-detect setting; job context passed to new tabs; tab cleanup; duplicate warning; reminder badge |
-| Admin UI | `unit/admin.test.js` | Loads the real Admin page. Tracker: stats, board columns, drag & drop, search / due filters, table view, detail dialog saving (no lost edits, no timezone shift), "I followed up", HTML escaping, CSV export, empty state. Logs: error-code summary, click a trace id or code to filter, **Report an issue** download and copy summary, popup deep link, uncaught errors captured |
+| Admin UI | `unit/admin.test.js` | Loads the real Admin page. Tracker: stats, board columns, drag & drop, search / due filters, table view, detail dialog saving (no lost edits, no timezone shift), "I followed up", HTML escaping, CSV export, empty state. Logs: error-code summary, click a trace id or code to filter, **Report an issue** download and copy summary, popup deep link, uncaught errors captured. Tailoring review: requirements and evidence, blocked edits with reasons (can't be ticked), the real-number prompt, escaping, rewriting a blocked line, accept/reject count, Create → new active resume with exactly the chosen changes |
 | Support logging | `unit/errors-logging.test.js` | Every error code unique with a message and hint; HTTP status → code; value redaction (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, bearer tokens, `?key=`, phone numbers, SSNs) without mangling dates, salaries or URLs; session ids; traces (start/done/slow/fail); flight recorder; **one trace id shared page → background → AI**; host-only sender logging; storage failure → `AJP-STORE`; error code and hint shown in the panel; issue report contents, **no personal data in the report**, log cap, summary text, dead-background detection |
+| Resume rules engine | `unit/resume-engine.test.js` | Reading resumes (Markdown and plain text, roles, protected lines); **job numbers never copied** (10TB, 20+ APIs, <5%) while your own numbers are kept (2TB, 30%); invented numbers (including spelled out), skills, client names, copied job sentences, fake or missing evidence, protected targets all blocked; result-oriented warnings and the "add your real number" prompt; skills list rules; evidence and keyword coverage; final assembly + integrity check; strict prompts (rules, examples, data fencing, injection) |
+| Resume tailoring end-to-end | `unit/enhance-flow.test.js` | Pipeline with a **fake AI that cheats** (copies job numbers, invents Kubernetes and Netflix, fakes evidence, edits the header, duplicates an edit): every attempt blocked, honest edits kept; JSON retry; error codes; creating the resume (original untouched, protected lines intact, user's real numbers accepted, blocked edits can't be forced, make active, resume-changed and missing-draft errors); panel summary and review link |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -104,13 +106,24 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | C13 | Panel: drag it, minimize it, close it | Works. Closing removes it until the next Analyze. |
 | C14 | Browser pages (`chrome://`, the Web Store, a PDF viewer) → popup → Analyze | A readable error: "This page cannot be accessed by extensions" |
 
-### D. Resume tailoring
+### D. Resume tailoring (with a real free AI: Groq or Gemini)
+Use your real resume, with one achievement per line starting with `-` or `•`, and 2–3 real job posts. One of the jobs should ask for specific numbers (e.g. "migrated 10TB", "20+ APIs", "under 5% defects").
+
 | ID | Steps | Expected |
 |---|---|---|
-| D1 | Panel → Tailor resume (with AI on and a resume saved) | "Saved 'Tailored — Company — Role'" with a link to it |
-| D2 | Open it in Admin → Resumes | A new version with gap notes. Your original resume is unchanged and still active. |
-| D3 | Read it carefully | No invented employers, dates, degrees, certifications or skills |
-| D4 | Tailor resume with no resume saved | A clear error: "No resume text found…" |
+| D1 | On a job page → panel → **📝 Tailor resume** | Within ~40 s: "N job requirements: x strong, y partial, z not in your resume · M suggested edits · keywords a% → b% · Review →" |
+| D2 | Click **Review** | Admin → Resumes opens the review screen for this job |
+| D3 | Check "What the job asks for" | The requirements make sense, with sensible must/should/nice; every evidence quote really is in your resume |
+| D4 | Read every suggested change | **Nothing false**: no employer, title, date, degree, certification, tool or client you don't have |
+| D5 | For the job that asks for specific numbers | None of the job's numbers (10TB, 20+, 5%…) appear in any ticked change. Any edit that tried is shown as **blocked**, with the number. |
+| D6 | Lines where you already had a number | Your own number is kept exactly, even if smaller than the job asks |
+| D7 | Lines without a number | Rewritten as action → impact in words; a 💡 asks for your real number. Type one (e.g. "saving ~6 hours a week") and the line becomes ticked. |
+| D8 | Untick one change, edit another, tick "Make it my active resume" → **Create** | A new resume "Tailored — Company — Role" with exactly those changes; your original is unchanged; the new one is active |
+| D9 | Open the new resume → View / save as PDF | Name, contact, roles, dates and education are identical to the original |
+| D10 | Gaps section | Requirements you don't meet are listed with honest advice, and are **not** written into the resume |
+| D11 | Edit your original resume, then click Create on an old draft | A clear message: "Your resume was edited after this draft was made (AJP-RES-CHANGED)" |
+| D12 | Tailor resume with a resume that has no bullet points | "Could not find bullet points in your resume" with a how-to hint (AJP-RES-STRUCT) |
+| D13 | Tailor resume with AI off, or with no resume | Clear messages (AJP-AI-OFF / AJP-RES-NONE) |
 
 ### E. Autofill & applying
 | ID | Steps | Expected |

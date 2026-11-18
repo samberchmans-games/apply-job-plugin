@@ -4,7 +4,12 @@ A browser extension that runs in Chrome, Edge, Firefox and Safari. For any job p
 
 1. **Reads the job description** and calculates a **match % (0–100)** against your skills.
 2. Shows **matching vs. missing skills** (gaps), plus work-type, salary and location fit.
-3. **Tailors your resume** to the job with a free AI model, using only truthful changes. It never invents skills.
+3. **Tailors your resume** to the job with a free AI, using only truthful changes:
+   - It lists the job's requirements and finds proof for each one in **your own resume text**.
+   - It suggests targeted, **result-oriented** edits (action → what → result).
+   - It **never copies the job's numbers** ("10TB", "20+ APIs", "<5% defects"), never invents numbers, skills or employers, and never changes names, titles or dates.
+   - These rules are checked in code, not just requested in the prompt.
+   - You review every change and add your real results before anything is created.
 4. **Autofills application forms** (Greenhouse, Lever, Workday, Ashby, …) from your profile, attaches your resume, and uses AI to draft answers to free-text questions such as "Why do you want to work here?".
 5. **Learns** from what you type into forms, so the same question gets filled automatically next time.
 6. **Tracks your applications.** It notices when you submit, keeps a copy of each job description, and gives you a pipeline board, follow-up reminders, stats, and CSV export.
@@ -43,6 +48,7 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 - **On any other site**, click the toolbar icon, then **Analyze this job page**.
 - **Anywhere**, select the job description text, right-click, and choose **Apply Job: analyze selection as job description**.
 - In the panel you can use **AI deep analysis**, **Tailor resume**, **Autofill form** and **Mark applied**.
+  - **Tailor resume** shows a summary, then opens **Admin → Resumes** for review: what the job asks for and your evidence, each change before → after, blocked changes and why, and gaps with honest advice. Tick the changes you want, type your real numbers where asked, then click **Create tailored resume**. For best results, put one achievement per line, starting with `-` or `•`.
   - Green outlines show fields filled from your profile. Purple outlines show fields filled from learned answers.
   - Free-text questions get a **Draft answer with AI** button.
 - **When you submit an application**, the confirmation page is detected and the job is saved as *applied*, with an Undo option. If a site shows no confirmation, the panel asks you.
@@ -84,6 +90,7 @@ src/lib/                 shared, framework-free modules (namespace: globalThis.A
   logger.js              structured, redacted logging: sessions, trace ids, timings, flight recorder
   errors.js              error codes (AJP-…) with user messages and hints
   diagnostics.js         "Report an issue" bundle (environment, counts, health, error summary, logs)
+  resume-engine.js       resume tailoring: strict prompts, edit validator (truth rules), assembly
   storage.js             local "database" (storage.local + in-memory cache)
   skills-dictionary.js   canonical skills + aliases
   matcher.js             offline match % / gaps / fit
@@ -98,7 +105,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (449) in headless Chrome. `./tests/run-tests.sh` runs the 241 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (532) in headless Chrome. `./tests/run-tests.sh` runs the 295 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.
 

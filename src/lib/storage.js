@@ -8,6 +8,7 @@
  *   resumes       { activeId, items: [{id,name,text,file?,createdAt,job?}] }
  *   answers       learned answers: { [normKey]: {label,value,count,lastUsed,hosts[]} }
  *   applications  [{id,url,title,company,score,status,date,resumeId}]
+ *   enhancements  resume enhancement drafts: requirements, evidence, validated edits (max 20)
  *   logs          ring buffer of log entries (owned by background)
  *   tabJobs       internal: which job each browser tab is on (for apply detection)
  *
@@ -59,6 +60,7 @@
     resumes: { activeId: null, items: [] },
     answers: {},
     applications: [],
+    enhancements: [], // resume enhancement drafts awaiting review (max 20)
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };

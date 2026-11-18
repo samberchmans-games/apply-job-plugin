@@ -202,6 +202,7 @@
   const updateResumes = (fn) => serialResumes(() => AJP.store.update('resumes', fn));
 
   async function renderResumes() {
+    AJP.enhanceView.renderList();
     const r = await AJP.store.get('resumes');
     if (!selectedResumeId || !r.items.some((x) => x.id === selectedResumeId)) selectedResumeId = r.activeId || (r.items[0] && r.items[0].id);
     $('#resumeList').innerHTML =
@@ -219,7 +220,7 @@
       if (document.activeElement !== $('#resumeText')) $('#resumeText').value = sel.text || '';
       if (document.activeElement !== $('#resumeName')) $('#resumeName').value = sel.name || '';
       $('#resumeGaps').hidden = !sel.gaps;
-      $('#resumeGaps').textContent = sel.gaps ? 'Gap notes from AI tailoring:\n' + sel.gaps : '';
+      $('#resumeGaps').textContent = sel.gaps ? 'Gaps for this job (not added to the resume):\n' + sel.gaps : '';
       $('#resumeSetActive').disabled = sel.id === r.activeId;
     }
   }
@@ -480,7 +481,7 @@
     const on = (location.hash || '#profile').slice(1).split('?')[0];
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
-    if (changes.resumes && on === 'resumes') renderResumes();
+    if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();
   });
 
   // ---- Boot ---------------------------------------------------------------------------------------
@@ -496,6 +497,13 @@
     initResumes();
     initAnswers();
     AJP.trackerView.init({ toast, download });
+    AJP.enhanceView.init({
+      toast,
+      onCreated: (resume) => {
+        selectedResumeId = resume.id;
+        renderResumes();
+      },
+    });
     initLogs();
     initBackup();
     route();

@@ -79,27 +79,7 @@
       const r = await send('ai.extractSkills', { jd: 'JD' });
       eq(r.result.required_skills, ['Go']);
     });
-    it('ai.tailorResume needs a resume first', async () => {
-      await enableAI();
-      const r = await send('ai.tailorResume', { jd: 'JD', missing: [], job: {} });
-      eq(r.ok, false);
-      includes(r.error, 'No resume text');
-    });
-    it('ai.tailorResume saves a new resume version with gap notes, original untouched', async () => {
-      await enableAI();
-      await AJP.store.set('resumes', { activeId: 'orig', items: [{ id: 'orig', name: 'Mine', text: 'ORIGINAL', createdAt: '2026-01-01' }] });
-      fakeAI('# Ana\n## Skills\nPython\n---GAPS---\n- not covered: Kafka — take a course');
-      const r = await send('ai.tailorResume', { jd: 'JD', missing: ['Kafka'], job: { title: 'Dev', company: 'Acme' } });
-      ok(r.ok, r.error);
-      const res = await AJP.store.get('resumes');
-      eq(res.items.length, 2);
-      eq(res.activeId, 'orig', 'active resume unchanged');
-      eq(res.items[1].text, 'ORIGINAL');
-      const t = res.items[0];
-      eq([t.name, t.basedOn], ['Tailored — Acme — Dev', 'orig']);
-      eq(t.text, '# Ana\n## Skills\nPython');
-      includes(t.gaps, 'Kafka');
-    });
+    // Resume tailoring moved to 'resume.enhance' — see enhance-flow.test.js
     it('ai.draftAnswer returns text and sends no EEO data', async () => {
       await enableAI();
       await AJP.store.update('profile', (p) => void (p.autoApply.eeo.race = 'SECRET_RACE'));

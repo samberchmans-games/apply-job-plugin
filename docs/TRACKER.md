@@ -6,18 +6,19 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest code commit:** `ab79d58`
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 5, resume enhancement v2
 
 ## Summary
 
 | | |
 |---|---|
-| Components built | **23 / 28** |
+| Components built | **26 / 31** |
 | Components not started | **5**: career tracks, PDF reader, Workday adapter, resume export, CI |
-| Automated tests | **449 / 449 passing** (241 also run without a browser) |
+| Automated tests | **532 / 532 passing** (295 also run without a browser) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
-| Open bugs | **0 known** (7 found and fixed so far, each with a test) |
-| Next step | **Step 5: multiple career tracks** |
+| Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
+| Open bugs | **0 known** (10 found and fixed so far, each with a test) |
+| Next step | **Step 6: multiple career tracks** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -41,16 +42,17 @@ Columns:
 | C06 | Diagnostics / issue report | `src/lib/diagnostics.js` | ✅ | 11 | ⏳ | No personal data (tested) |
 | C07 | Skills dictionary | `src/lib/skills-dictionary.js` | ✅ | (in C08) | ⏳ | 199 skills |
 | C08 | Matcher (match %, gaps, fit) | `src/lib/matcher.js` | ✅ | 49 | ⏳ | ⬜ years/seniority check, synonyms (step 9) |
-| C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 29 | ⏳ | Gemini, Groq, OpenRouter, Ollama. ⬜ Chrome built-in AI (step 11) |
+| C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 | ⏳ | Gemini, Groq, OpenRouter, Ollama; one automatic retry on invalid JSON. ⬜ Chrome built-in AI (step 12) |
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
-| C11 | PDF resume reader | — | ⬜ | — | — | **Step 6.** Users paste the text for now. |
+| C11 | PDF resume reader | — | ⬜ | — | — | **Step 7.** Users paste the text for now. |
 | C12 | Application tracker logic | `src/lib/tracker.js` | ✅ | 77 | ⏳ | Job identity across 8 sites, merge rules, reminders, stats, CSV |
+| C29 | **Resume enhancement rules engine** | `src/lib/resume-engine.js` | ✅ | 54 | ⏳ | Parsing, strict prompts, validator (no job numbers, no invented numbers/skills/names, no copied job text, evidence required), result-oriented checks, assembly + integrity check |
 
 ### On the job page
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
 |---|---|---|---|---|---|---|
 | C13 | Job description reader | `src/content/jd-extractor.js` | ✅ | 26 | ⏳ | Live LinkedIn, Indeed and Glassdoor selectors are unverified |
-| C14 | Autofill + learning | `src/content/form-filler.js` | ✅ | 102 | ⏳ | 54 field rules. 🟡 Workday custom widgets are not handled (step 7). |
+| C14 | Autofill + learning | `src/content/form-filler.js` | ✅ | 102 | ⏳ | 54 field rules. 🟡 Workday custom widgets are not handled (step 8). |
 | C15 | Applied-job detector | `src/content/apply-detector.js` | ✅ | 25* | ⏳ | *Shared with C17/C18 (tracker end-to-end flows) |
 | C16 | On-page panel | `src/content/panel.js` | ✅ | 11 | ⏳ | Shadow DOM; escaping tested |
 | C17 | Page controller | `src/content/content.js` | ✅ | 3 + 25* | ⏳ | Covered by the end-to-end tests |
@@ -58,7 +60,8 @@ Columns:
 ### Background
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
 |---|---|---|---|---|---|---|
-| C18 | Background (router, AI, saving, badge, tabs) | `src/background/background.js` | ✅ | 23 | ⏳ | Trace correlation tested end-to-end |
+| C18 | Background (router, AI, saving, badge, tabs) | `src/background/background.js` | ✅ | 21 | ⏳ | Trace correlation tested end-to-end |
+| C30 | **Resume enhancement pipeline** (analyze → verify → edits → validate → draft → apply) | `background.js` (`resume.enhance`, `resume.applyEnhancement`), `content.js` | ✅ | 26 | ⏳ | Tested with a fake AI that deliberately cheats |
 
 ### Extension pages
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
@@ -66,19 +69,20 @@ Columns:
 | C19 | Admin: profile, skills, preferences, resumes, auto-apply, AI settings, learned answers, backup | `src/admin/admin.html/.js/.css` | ✅ | 0 | ⏳ | 🟡 **No automated UI tests yet**; covered by manual scenarios B1–B18 |
 | C20 | Admin: Applications (board, table, details, stats, CSV) | `src/admin/tracker-view.js` | ✅ | 10 | ⏳ | |
 | C21 | Admin: Logs & support (Report an issue) | `src/admin/admin.js` | ✅ | 7 | ⏳ | |
+| C31 | **Admin: resume tailoring review** | `src/admin/enhance-view.js` | ✅ | 6 | ⏳ | Requirements + evidence, before/after, blocked reasons, "add your real number", gaps, create |
 | C22 | Printable resume (Save as PDF) | `src/admin/resume-view.*` | ✅ | 0 | ⏳ | Manual scenario B9 |
 | C23 | Toolbar popup | `src/popup/*` | ✅ | 0 | ⏳ | 🟡 No automated tests; manual A2, F7, I12 |
 
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
-| C24 | Multiple career tracks | **5 (next)** | ⬜ | Design in ARCHITECTURE.md §15 |
-| C25 | Workday adapter (dropdowns, dates, "My Experience") | 7 | ⬜ | |
-| C26 | Tailored resume as a PDF/DOCX file | 8 | ⬜ | |
-| C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 10 | ⬜ | |
-| C28 | CI on GitHub (run tests on every push) | 13 | ⬜ | |
+| C24 | Multiple career tracks | **6 (next)** | ⬜ | Design in ARCHITECTURE.md §15; reuses resume enhancement per track |
+| C25 | Workday adapter (dropdowns, dates, "My Experience") | 8 | ⬜ | |
+| C26 | Tailored resume as a PDF/DOCX file | 9 | ⬜ | |
+| C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 11 | ⬜ | |
+| C28 | CI on GitHub (run tests on every push) | 14 | ⬜ | |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 29 + 5 + 102 + 26 + 11 + 26 (tracker flows + end-to-end) + 23 + 77 + 10 + 7 = **449**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) = **532**
 
 ---
 
@@ -86,15 +90,17 @@ Columns:
 
 | ID | Work item | Step | Owner | Status | Depends on |
 |---|---|---|---|---|---|
-| W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 5 | Claude | **⬜ Next**, waiting for your go | — |
-| W02 | Read PDF resumes automatically | 6 | Claude | ⬜ To do | — |
-| W03 | Workday custom dropdowns, date pickers, multi-step experience | 7 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
-| W04 | Attach the tailored resume as PDF/DOCX | 8 | Claude | ⬜ To do | — |
-| W05 | Years-of-experience & seniority check; skill synonyms | 9 | Claude | ⬜ To do | — |
-| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 10 | Claude | ⬜ To do | W10 findings |
-| W07 | Chrome built-in AI provider (no key) | 11 | Claude | ⬜ To do | — |
-| W08 | Suggest profile updates from learned answers | 12 | Claude | ⬜ To do | — |
-| W09 | CI on GitHub | 13 | Claude | ⬜ To do | — |
+| W16 | **Resume enhancement v2**: job-requirement analysis, verified evidence, targeted result-oriented edits, hard safety rules (never copy job numbers), review screen | 5 | Claude | ✅ Done | — |
+| W17 | Try resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs and your real resume; judge quality | — | **You** | ⏳ Waiting on you | A free API key |
+| W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | **⬜ Next**, waiting for your go | W16 ✅ |
+| W02 | Read PDF resumes automatically | 7 | Claude | ⬜ To do | — |
+| W03 | Workday custom dropdowns, date pickers, multi-step experience | 8 | Claude | ⬜ To do | Ideally W10 first (real Workday pages) |
+| W04 | Attach the tailored resume as PDF/DOCX | 9 | Claude | ⬜ To do | — |
+| W05 | Years-of-experience & seniority check; skill synonyms | 10 | Claude | ⬜ To do | — |
+| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 11 | Claude | ⬜ To do | W10 findings |
+| W07 | Chrome built-in AI provider (no key) | 12 | Claude | ⬜ To do | — |
+| W08 | Suggest profile updates from learned answers | 13 | Claude | ⬜ To do | — |
+| W09 | CI on GitHub | 14 | Claude | ⬜ To do | — |
 | W10 | Load in Chrome and run the manual scenarios | — | **You** | ⏳ Waiting on you | — |
 | W11 | Verify in Firefox, Edge and Safari | — | **You** | ⏳ Waiting on you | W10 |
 | W12 | Check job-page reading on live LinkedIn, Indeed and Glassdoor | — | **You** | ⏳ Waiting on you | W10 |
@@ -110,7 +116,8 @@ Columns:
 | 2 | Full automated test suite + manual scenarios | `3609410` | 279 |
 | 3 | Application tracker | `15fbc3c` | 391 |
 | 4 | Support logging: error codes, trace ids, Report an issue | `ab79d58` | 449 |
-| — | Architecture & plan documentation; this tracker | `bb34324`, *this commit* | 449 |
+| — | Architecture & plan documentation; this tracker | `bb34324`, `ab0c213` | 449 |
+| 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | *this commit* | 532 |
 
 ## 4. Bugs found & fixed
 
@@ -123,6 +130,9 @@ Columns:
 | B5 | Application details: editing two fields quickly lost the first edit | Automated tests | `15fbc3c` | admin › detail dialog … saved |
 | B6 | Interview date shown in UTC instead of local time | Screenshot review | `15fbc3c` | admin › detail dialog (no timezone shift) |
 | B7 | Some test files silently failed to load in headless runs (dev server backlog) | Test tooling | `3609410` | Runner now reports load errors |
+| B8 | Old tailoring let the AI rewrite the whole resume, trusting it not to invent facts | Your review | Step 5 | Replaced by the evidence-checked edit pipeline (86 tests) |
+| B9 | Resume reader treated `### Role — Company` lines as new sections, losing the role | Automated tests | Step 5 | resume engine › finds the bullets… with their role |
+| B10 | Review screen didn't open when the Admin tab was already open | Automated tests | Step 5 | admin › resume tailoring review |
 
 ## 5. How to update this file
 

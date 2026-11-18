@@ -3,15 +3,17 @@
  * then drives the Applications tracker UI (stats, board, table, detail dialog, CSV export).
  */
 (function () {
-  const { describe, it, eq, ok, includes, beforeEach, afterEach, waitFor, sleep } = globalThis.AJPTest;
+  const { describe, it, eq, ok, includes, excludes, beforeEach, afterEach, waitFor, sleep } = globalThis.AJPTest;
   const DAY = 86400000;
   let frame;
   let w; // iframe window
   const $ = (s) => w.document.querySelector(s);
   const $$ = (s) => [...w.document.querySelectorAll(s)];
 
-  async function loadAdmin(seed) {
-    const html = await (await fetch('../src/admin/admin.html', { cache: 'no-store' })).text();
+  async function loadAdmin(seed, { withBackground = false } = {}) {
+    let html = await (await fetch('../src/admin/admin.html', { cache: 'no-store' })).text();
+    // Optionally run the real background script inside the frame (for flows that need it).
+    if (withBackground) html = html.replace('<script src="tracker-view.js"></script>', '<script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>');
     const page = html
       .replace('<head>', '<head><base href="' + new URL('../src/admin/', location.href).href + '">')
       .replace('<script src="../lib/core.js"></script>', '<script src="../../tests/mocks/browser-mock.js"></script><script>window.__SEED__ && browser.storage.local.set(window.__SEED__)</script><script src="../lib/core.js"></script>');
@@ -211,6 +213,84 @@
       w.AJP.setLogSink(async (e) => got.push(...e));
       w.eval("setTimeout(function () { throw new Error('admin boom'); }, 0)"); // thrown inside the Admin page itself
       await waitFor(() => got.some((l) => l.msg === 'Uncaught error' && l.code === 'AJP-INTERNAL' && l.ctx === 'admin'), { msg: 'captured' });
+    });
+  }, { env: 'browser' });
+
+  describe('admin › resume tailoring review', () => {
+    let draft;
+    const F = () => globalThis.__ENH_FIXTURE__;
+    beforeEach(async () => {
+      // Build a real draft in the test page (fake AI), then open the Admin page seeded with it.
+      await browser.__reset();
+      await AJP.store.update('settings', (s) => { s.ai.provider = 'groq'; s.ai.keys.groq = 'gsk-test'; });
+      await AJP.store.update('profile', (p) => void (p.skills = [{ name: 'Java' }, { name: 'Python' }, { name: 'AWS' }]));
+      await AJP.store.set('resumes', { activeId: 'r1', items: [{ id: 'r1', name: 'Main resume', text: F().RESUME, createdAt: '2026-11-01' }] });
+      const real = globalThis.fetch;
+      let i = 0;
+      const answers = [F().ANALYSIS, { ...F().EDITS, edits: F().EDITS.edits.map((e) => (e.target === 'b3' ? { ...e, reason: '<b>bold</b> reason' } : e)) }];
+      globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(answers[i++]) } }] }));
+      draft = (await AJP.send('resume.enhance', { jd: F().JD, job: { title: 'Senior Data Engineer', company: 'Initech' } })).draft;
+      globalThis.fetch = real;
+      await loadAdmin({ resumes: await AJP.store.get('resumes'), profile: await AJP.store.get('profile'), enhancements: [draft] }, { withBackground: true });
+      w.location.hash = 'resumes?enh=' + draft.id;
+      await waitFor(() => $('#enhDialog') && $('#enhDialog').open, { msg: 'review dialog' });
+    });
+    afterEach(() => frame && frame.remove());
+    const dlg = () => $('#enhDialog');
+    const card = (target) => [...dlg().querySelectorAll('.edit')].find((c) => c.dataset.edit === draft.edits.find((e) => e.target === target).id);
+
+    it('shows requirements with evidence, and Kubernetes as not in the resume', () => {
+      eq(dlg().querySelectorAll('.reqs tbody tr').length, 5);
+      const k = [...dlg().querySelectorAll('.reqs tbody tr')].find((tr) => tr.textContent.includes('Kubernetes'));
+      includes(k.textContent, 'Not in resume');
+      includes(dlg().textContent, 'Migrated 2TB of billing data to S3 with zero downtime');
+    });
+    it('blocked edits are shown with the reason and cannot be ticked', () => {
+      eq(dlg().querySelectorAll('.edit.blocked').length, 5);
+      const b2 = card('b2');
+      ok(b2.querySelector('[data-accept]').disabled);
+      includes(b2.textContent, 'Copies a number from the job description: 10');
+    });
+    it('asks for a real number where a line has no measurable result', () => includes(card('b1').textContent, 'If you have a real number'));
+    it('AI text is escaped', () => {
+      ok(!card('b3').querySelector('b b'));
+      includes(card('b3').textContent, '<b>bold</b> reason');
+    });
+    it('rewriting a blocked line truthfully makes it selectable; unticking updates the count', async () => {
+      includes($('#enhCreate').textContent, '(4 changes)');
+      const ta = card('b2').querySelector('textarea');
+      ta.value = 'Led migration of 2TB of billing data to S3 with zero downtime, keeping invoicing available';
+      ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+      await waitFor(() => !card('b2').classList.contains('blocked'), { msg: 're-validated' });
+      ok(card('b2').querySelector('[data-accept]').checked);
+      includes($('#enhCreate').textContent, '(5 changes)');
+      const sum = card('summary').querySelector('[data-accept]');
+      sum.checked = false;
+      sum.dispatchEvent(new w.Event('change', { bubbles: true }));
+      await waitFor(() => /\(4 changes\)/.test($('#enhCreate').textContent), { msg: 'count' });
+    });
+    it('Create builds the new resume with exactly the chosen changes and makes it active', async () => {
+      const ta = card('b2').querySelector('textarea');
+      ta.value = 'Led migration of 2TB of billing data to S3 with zero downtime, keeping invoicing available';
+      ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+      await waitFor(() => !card('b2').classList.contains('blocked'));
+      const sum = card('summary').querySelector('[data-accept]');
+      sum.checked = false;
+      sum.dispatchEvent(new w.Event('change', { bubbles: true }));
+      await waitFor(() => /\(4 changes\)/.test($('#enhCreate').textContent));
+      $('#enhActive').checked = true;
+      $('#enhCreate').click();
+      const r = await waitFor(async () => {
+        const x = await w.AJP.store.get('resumes');
+        return x.items.length === 2 && x;
+      }, { msg: 'resume created' });
+      const created = r.items[0];
+      eq(r.activeId, created.id);
+      includes(created.text, 'keeping invoicing available');
+      includes(created.text, 'Backend engineer with 8 years of experience building data platforms.', 'summary change was unticked');
+      excludes(created.text, '10TB');
+      await waitFor(() => !dlg().open, { msg: 'dialog closed' });
+      await waitFor(() => /created/.test($('#enhList').textContent), { msg: 'draft marked created' });
     });
   }, { env: 'browser' });
 

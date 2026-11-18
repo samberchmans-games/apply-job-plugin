@@ -36,6 +36,7 @@
       "src/lib/matcher.js",
       "src/lib/ai.js",
       "src/lib/tracker.js",
+      "src/lib/resume-engine.js",
       "src/background/background.js"
     ]
   },

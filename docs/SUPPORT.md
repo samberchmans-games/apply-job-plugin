@@ -51,6 +51,9 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-JD-NONE` | No job description found on the page | User can select the text → right-click → analyze. If it's a common site, add a selector in `jd-extractor.js` (see `data.host`). |
 | `AJP-RES-NONE` | No resume text | Add or paste resume text in Admin → Resumes |
 | `AJP-RES-PARSE` | Couldn't read a .docx | See `details.reason`; the user can paste the text instead |
+| `AJP-RES-STRUCT` | Resume tailoring found no bullet points | Ask the user to put each achievement on its own line starting with `-` or `•` |
+| `AJP-RES-DRAFT` | A tailoring draft (or its original resume) no longer exists | Run Tailor resume again |
+| `AJP-RES-CHANGED` | The resume was edited after the draft was made | Run Tailor resume again so line ids match |
 | `AJP-FILE-SIZE` | Resume file over 5 MB | Use a smaller file |
 | `AJP-BACKUP` | Import file isn't a backup | Use a file from Admin → Backup → Export |
 | `AJP-STORE` | Browser storage write failed (quota or blocked) | Export a backup; clear old logs; check browser site-data settings |
@@ -64,3 +67,4 @@ New codes are added in `src/lib/errors.js`. Every code needs a message and a hin
 - **Autofill missed fields.** Find the `frame.autofill done` entry (`filled`, `learned`, `unknown`, `questions`, `host`). A high `unknown` count on a common ATS means a new label rule is needed in `form-filler.js`.
 - **An application wasn't marked applied.** Look for `Submit seen` and `Application confirmation detected` / `Application auto-detected as applied`, or `Confirmation ignored (no job context, unknown site)`.
 - **The AI is slow.** Look for `ai.<task> slow` warnings, with `ms`.
+- **Resume tailoring suggested few changes.** Find `Resume enhancement drafted`: `blocked` and `blockedBy` (e.g. `{"JD_NUMBER":2,"NEW_NAME":1}`) show which safety rules fired, and `droppedQuotes` shows how many fake evidence quotes the AI made up. Many blocks usually means a small free model; suggest a larger one.

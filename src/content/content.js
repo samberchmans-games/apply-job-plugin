@@ -122,17 +122,29 @@
 
     async tailor() {
       state.busy = 'tailor';
-      say('Tailoring your resume to this job (only truthful changes)… this can take ~30s.');
-      const missing = (state.analysis ? state.analysis.missing : []).map((m) => m.skill);
-      const tr = AJP.startTrace('panel.tailorResume', { mod: 'content', slowMs: 60000 });
-      const r = await AJP.send('ai.tailorResume', { jd: jdText, missing, job: jobMeta() }, tr);
+      say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s…');
+      const tr = AJP.startTrace('panel.enhanceResume', { mod: 'content', slowMs: 90000 });
+      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta() }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
         return fail(r);
       }
-      tr.end({ resumeChars: r.resume.text.length });
-      say(`Saved “${AJP.panel.esc(r.resume.name)}”. <a data-act="openResumes">Open in Admin → Resumes</a> to review, edit, export to PDF and make it active.`);
+      const d = r.draft;
+      const st = d.stats;
+      const esc = AJP.panel.esc;
+      tr.end({ requirements: st.requirements, edits: st.edits, blocked: st.blocked });
+      say(
+        `<b>${st.requirements} job requirements</b>: ${st.strong} strong, ${st.partial} partial, ${st.none} not in your resume.<br>` +
+          `<b>${st.edits - st.blocked} suggested edits</b>${st.blocked ? ` (${st.blocked} blocked by safety checks)` : ''}` +
+          `${st.needsMetric ? ` · ${st.needsMetric} could use your real numbers` : ''}.<br>` +
+          (d.coverage.atsBefore != null ? `Job keywords in your resume: ${esc(d.coverage.atsBefore)}% → ${esc(d.coverage.atsAfter)}%.<br>` : '') +
+          `<a data-act="openEnhance" data-arg="${esc(d.id)}">Review the changes &amp; create the resume →</a>`
+      );
+    },
+
+    openEnhance(id) {
+      AJP.send('openAdmin', { hash: 'resumes?enh=' + id });
     },
 
     openResumes() {

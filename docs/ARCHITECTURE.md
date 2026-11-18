@@ -16,7 +16,7 @@ For any job posting the extension:
 1. reads the job description
 2. scores it against the user's skills, showing a match %, matching skills and gaps
 3. checks fit on work type, salary and location
-4. optionally uses a free AI to tailor the resume or draft answers to application questions
+4. optionally uses a free AI to tailor the resume, through evidence-checked, result-oriented edits that you review, or to draft answers to application questions
 5. autofills the application form, and learns from what the user types
 6. detects that the application was submitted and tracks it on a pipeline board with reminders
 
@@ -50,6 +50,7 @@ src/
     ai.js                     free AI providers + prompts (background only)
     tracker.js                application tracker logic (job identity, merge rules, reminders, stats, CSV)
     diagnostics.js            "Report an issue" bundle; captureErrors for extension pages
+    resume-engine.js          resume enhancement v2: parse, strict prompts, edit validator, assembly, integrity check
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
   content/                    runs inside job pages (every frame)
@@ -61,6 +62,7 @@ src/
   admin/                      Admin page (options page, opens in a tab)
     admin.html / .css / .js   profile, skills, preferences, resumes, auto-apply, AI, answers, logs, backup
     tracker-view.js           Applications: stats, board, table, detail dialog, CSV export
+    enhance-view.js           Resumes → tailoring drafts: review requirements, evidence and edits; create the resume
     resume-view.html / .js    printable resume ("Save as PDF")
   popup/                      toolbar popup (analyze, autofill, open Admin, report a problem)
 tests/                        automated tests (see §12)
@@ -93,9 +95,9 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 | Context | Where it runs | Loaded files (in order) |
 |---|---|---|
-| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, background |
+| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, background |
 | Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, jd-extractor, form-filler, apply-detector, panel, content |
-| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, diagnostics, tracker-view, admin |
+| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, resume-engine, diagnostics, tracker-view, enhance-view, admin |
 | Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
 **Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
@@ -106,7 +108,8 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 |---|---|---|---|
 | `profile` | `{ personal{…}, skills[{name,level,years}], targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
 | `settings` | `{ ai{provider,model,keys{gemini,groq,openrouter},ollamaUrl}, logLevel, autoAnalyze, learnAnswers, tracker{autoDetect,followUpDays} }` | Admin | Keys are never exported by default |
-| `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
+| `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,enhancementId?,coverage?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
+| `enhancements` | `[{ id, createdAt, job, jd≤12k, resumeId, resumeName, baseHash, requirements[{id,text,jdQuote,type,priority,keywords,evidence[{quote,where}],match}], atsKeywords, edits[{id,target,kind,role,before,after,reason,requirementIds,evidence,ok,violations,warnings,needsMetric,accepted}], gaps[{requirementId,text,priority,advice}], coverage{evidence,atsBefore,atsAfter,atsMissingAfter}, stats, appliedResumeId? }]` | Background (create, apply); Admin (delete) | Resume tailoring drafts awaiting review; max 20 |
 | `answers` | `{ [normKey]: {label,value,kind,count,lastUsed,hosts[≤10]} }` | Background | Values ≤ 5,000 chars |
 | `applications` | `[{ id, jobKey, url, title, company, location, score, status, date, appliedAt, updatedAt, statusHistory[≤30], snapshot{jd≤20k,salary,workTypes,location,source,savedAt}, resumeId, resumeName, notes, recruiter, interviewAt, nextStep, lastFollowUpAt, detectedBy, host }]` | Background (saves); Admin (edits) | Max 2,000; newest first |
 | `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
@@ -116,7 +119,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 **Cache correctness.** `storage.js` versions every key. A read that started before a write never caches the stale value. This was a real race, found by the test suite.
 
-**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers` and `applications`. `logs` and `tabJobs` are internal and are never imported.
+**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications` and `enhancements`. `logs` and `tabJobs` are internal and are never imported.
 
 ## 6. Messages
 
@@ -131,7 +134,10 @@ All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, …
 | `autofillTab` | Inject, then send `doAutofill` to all frames, carrying the trace id |
 | `autofillReport` | A frame finished filling → forward to the top frame |
 | `fillQuestion` | Put an AI-drafted answer into a specific field (any frame) |
-| `ai.extractSkills` / `ai.tailorResume` / `ai.draftAnswer` / `ai.test` | AI tasks (§9) |
+| `ai.extractSkills` / `ai.draftAnswer` / `ai.test` | AI tasks (§8.5) |
+| `resume.enhance` | Resume enhancement pipeline → saves a draft (§8.7) |
+| `resume.applyEnhancement` | Build the tailored resume from a reviewed draft: re-validate, assemble, integrity check |
+| `openAdmin` (`#resumes?enh=<id>`) | Open the review screen for a draft |
 | `learnAnswer` | Remember a question → answer pair |
 | `setTabJob` | "This tab is looking at job X" (used for apply detection and snapshots) |
 | `recordApplication` | Insert or update an application (merge rules in §8.4) |
@@ -196,6 +202,22 @@ New tab opened from a job tab (LinkedIn "Apply" → company ATS): tabs.onCreated
 
 ### 7.5 Follow-up reminders
 `alarms` fires hourly. Applications change → `refreshBadge` (debounced) → `tracker.dueFollowUps(days)` → toolbar badge count. The popup shows "🔔 N follow-ups due", linking to `#applications?due=1`.
+
+### 7.6a Tailor the resume (resume enhancement v2)
+```
+panel "📝 Tailor resume" → startTrace → send resume.enhance {jd, job}
+background:
+  parse(active resume) → bullets b1…bn, summary, skills; everything else protected   (no bullets → AJP-RES-STRUCT)
+  AI #1 analyzeForResume → requirements[] (must/should/nice) + evidence quotes + ATS keywords
+  CODE verifyRequirements → drop quotes not found word-for-word; no evidence ⇒ match "none"
+  AI #2 proposeResumeEdits(supported requirements, gaps, keywords, skills, resume lines)
+  CODE validateEdit(each) → blocked edits keep the original; duplicates blocked
+  save draft in `enhancements` → reply summary
+panel: "12 requirements: 7 strong, 3 partial, 2 gaps · 8 edits (2 blocked) · keywords 45% → 70% · Review →"
+Admin #resumes?enh=<id>: user ticks/edits (typing real results) → resume.applyEnhancement
+  → re-validate every accepted edit (user text: only placeholders/first-person/length) → assemble
+  → verifyIntegrity (protected lines unchanged) → new resume version (optional: make active)
+```
 
 ### 7.6 Report an issue
 Admin (or the popup link → `#logs?report=1`) → `diagnostics.collect()`:
@@ -281,9 +303,12 @@ A result needs at least 200 chars. `extract({root, host, url})` can be pointed a
 
 **Tasks:**
 - `extractSkills` (JSON)
-- `tailorResume`: Markdown plus a `---GAPS---` section. Saved as a **new** resume version; the original is untouched.
+- `analyzeForResume` (JSON): resume enhancement stage 1 (§8.7)
+- `proposeResumeEdits` (JSON): stage 3 (§8.7)
 - `draftAnswer`
 - `test`
+
+JSON tasks get **one automatic retry**, with a firm reminder, if the model replies with invalid JSON.
 
 **Prompt rules:**
 - never invent employers, dates, degrees, certifications or skills
@@ -299,6 +324,46 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 - It's draggable and can be minimized.
 - It's a pure view: `content.js` owns the state and passes callbacks via `data-act` attributes.
 
+### 8.7 Resume enhancement v2 (`resume-engine.js`, `background.js`, `enhance-view.js`)
+**Principle:** the AI *suggests*, the code *decides*. The AI never writes the final resume. Code assembles it from the original text plus edits that passed validation, and the user approves each one.
+
+**What's editable:** bullets in Experience, Projects and other sections; the summary; and the order of the skills list. **Protected** (never changed): the header (name, contact), headings, role/company/date lines, education, certifications, and anything that isn't a bullet. If the resume has no summary, one can be inserted.
+
+**Validator rules** (`validateEdit`). Any violation blocks the edit:
+
+| Code | Rule |
+|---|---|
+| `JD_NUMBER` | The line contains a number that appears in the job description but not in the original line ("10TB", "20+", "5%") |
+| `NEW_NUMBER` | Any other number, including spelled-out ones ("three", "dozens"), that isn't in the original line. For the summary, numbers elsewhere in the resume are allowed. |
+| `UNEVIDENCED_SKILL` | A skill or tool not in the resume, the profile skills or the skills section |
+| `NEW_NAME` | A capitalized name (employer, client, product) not found in the resume |
+| `COPIED_JD` | 6 or more consecutive words copied from the job description (the prompt asks for ≤ 4) |
+| `NO_EVIDENCE` | No cited quote exists word for word in the resume |
+| `BAD_TARGET` / `DUPLICATE` | Not an editable line, or a second edit to the same line |
+| `TOO_LONG`, `FIRST_PERSON`, `PLACEHOLDER`, `EMPTY` | Style and safety |
+
+**Warnings** (shown, never block):
+- `NO_RESULT`: no impact stated.
+- `WEAK_START`: doesn't start with an action verb.
+- `NEEDS_METRIC`: neither the original nor the new line has a number. The user is asked for a **real** one.
+
+**Text the user types** is treated as their own claim, so their real numbers are allowed. Placeholders, first person and length are still checked.
+
+**Result-oriented by design:**
+- The prompt requires *action verb + what + result*.
+- An existing result is kept and made prominent.
+- Otherwise the impact is described in words that follow from the original, with no figures, and the review screen asks for a real number.
+
+**Coverage reported:**
+- *Backed by your resume*: requirements weighted must 3 / should 2 / nice 1; strong 1 / partial 0.5.
+- *Job keywords present*: before vs. after the accepted edits.
+
+**Safety:**
+- The job description and resume are fenced as data, and closing tags inside them are stripped, so a page can't break out of the fence.
+- EEO data is never included.
+- A content hash detects a resume edited after drafting (`AJP-RES-CHANGED`).
+- Blocked AI edits can't be forced through without being rewritten.
+
 ## 9. Logging, errors and diagnostics
 
 | Piece | Design |
@@ -308,7 +373,7 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Trace (`tid`) | One id per user action. `AJP.startTrace(name)` creates it; `AJP.send(type, payload, trace)` carries it as `_tid`; the background router and `ai.complete` reuse it. The result is a single id across page → background → AI → page. |
 | Timing | `trace.end()` logs `ms`. Above `slowMs` it logs a `… slow` warning instead. |
 | Flight recorder | The last 60 entries below the log level are held in memory and written only if an error follows (`pre: true`) |
-| Errors | `errors.js`: 19 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
+| Errors | `errors.js`: 22 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
 | Redaction | By **key** (`apiKey`, `token`, `password`, `email`, `phone`, `eeo`, `race`, `veteran`, `disability`, `gender`, `dataUrl`, …) and by **value pattern** (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, Bearer tokens, `?key=`, phone numbers, SSNs). Applied to messages, data and error stacks. |
 | Transport | Contexts batch entries (700 ms; 50 ms after an error) → `log` message → the background writes the ring buffer (3,000 entries) |
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
@@ -346,17 +411,20 @@ tests/
                           (routes to background vs content listeners like real browsers), scripting,
                           tabs.onCreated/onRemoved, alarms, action badge, contextMenus
   mocks/url-polyfill.js   URL for the macOS JavaScriptCore CLI runner only
-  unit/*.test.js          50 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
-                          panel, background, tracker, tracker-flow, admin, errors-logging
+  unit/*.test.js          63 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
+                          panel, background, tracker, tracker-flow, admin, errors-logging,
+                          resume-engine, enhance-flow
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 241 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 449 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 295 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 532 tests; results POSTed to serve.py
+                          (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
 ```
 
 - **End-to-end tests** run the real `background.js` and `content.js` together. Messages flow content → background → content through the mock.
-- **Admin tests** load the real `admin.html` in an iframe with its own mock, and drive the UI (drag & drop, dialogs, downloads).
+- **Admin tests** load the real `admin.html` in an iframe with its own mock, and drive the UI (drag & drop, dialogs, downloads). When a flow needs it, the real background script runs inside the frame too.
+- **Adversarial AI tests:** resume enhancement is tested with a fake AI that deliberately cheats. It copies the job's numbers, invents a client and a skill, fakes evidence, targets a protected line and duplicates an edit. The tests prove the code blocks each attempt.
 - **Rule:** every bug fix comes with a test that fails without it. Manual browser scenarios live in [TEST-SCENARIOS.md](TEST-SCENARIOS.md).
 
 ## 13. Cross-browser notes
@@ -382,7 +450,7 @@ tests/
 | Add a message type | `background.js` `handlers` | Handlers receive `(msg, sender, {tid, log})`; list it in §6 |
 | Add a stored key | `storage.js` `DEFAULTS` | Add a default; mark it `INTERNAL` if it must not be exported |
 
-## 15. Planned architecture: multiple career tracks (roadmap step 5)
+## 15. Planned architecture: multiple career tracks (roadmap step 6)
 
 The design is agreed in [PLAN.md §10](PLAN.md); it isn't built yet.
 
@@ -408,11 +476,14 @@ insights per track: evaluated, avg score, applied, top recurring gaps
 | 2026-11-18 | Track applications without email access | Keeps the "all local" promise; email sync stays optional and later |
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
+| 2026-11-18 | Resume tailoring = evidence-checked targeted edits assembled by code, not an AI rewrite | Prompts alone can't guarantee truth; the code validator can. Never copy the job's numbers; keep results first. |
 
 ## 17. Known limitations
 
-- **PDF resumes:** text isn't extracted yet; the user pastes it (roadmap step 6).
-- **Workday:** custom dropdowns, date pickers and the multi-step experience pages aren't automated yet (step 7).
-- **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 8).
+- **PDF resumes:** text isn't extracted yet; the user pastes it (roadmap step 7).
+- **Workday:** custom dropdowns, date pickers and the multi-step experience pages aren't automated yet (step 8).
+- **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 9).
+- **Resume tailoring with a real AI:** not yet tried with live free models; quality depends on the model (the safety rules hold regardless).
+- **Resume structure:** tailoring works line by line, so achievements must be one per line, starting with `-` or `•` (otherwise `AJP-RES-STRUCT`).
 - **Real-browser testing:** not done yet (on the user's side). Site selectors for LinkedIn, Indeed and Glassdoor may need updates.
 - **Firefox:** job-site permissions must be granted manually after install.

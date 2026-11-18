@@ -108,3 +108,21 @@ dialog#reportDialog::backdrop { background: rgba(0,0,0,.4); }
 dialog#reportDialog textarea { font-family: inherit; font-size: 14px; margin-top: 6px; }
 label.stack { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); }
 .errchip { display: inline-block; background: #fee2e2; color: #991b1b; border-radius: 999px; padding: 0 8px; margin: 2px 4px 2px 0; font-size: 12px; cursor: pointer; }
+
+/* ---- Resume enhancement review ---- */
+dialog#enhDialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg); width: min(980px, calc(100vw - 32px)); max-height: 90vh; padding: 20px; }
+dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
+.reqs q { quotes: '“' '”'; font-size: 12px; }
+.edit { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: var(--bg); }
+.edit.blocked { border-color: #fca5a5; }
+.edit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.edit .before { color: var(--muted); font-size: 13px; margin: 4px 0; text-decoration: line-through; text-decoration-color: rgba(100,116,139,.5); }
+.edit .before .hint, .edit .after .hint { text-decoration: none; display: inline-block; min-width: 46px; }
+.edit textarea { font-family: inherit; font-size: 14px; }
+.viol { color: #b91c1c; font-size: 13px; margin-top: 6px; }
+.viol ul { margin: 4px 0 4px 18px; padding: 0; }
+.metric { background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 6px 10px; font-size: 13px; margin-top: 6px; }
+.pill.warn { background: #fef3c7; color: #92400e; }
+.gaps-list li { margin: 4px 0; }
+.res.enh { cursor: default; }
+@media (prefers-color-scheme: dark) { .metric { background: #172554; color: #bfdbfe; } .viol { color: #fca5a5; } }

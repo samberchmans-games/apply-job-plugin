@@ -128,9 +128,19 @@
     const model = cfg.model || p.defaultModel;
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider: cfg.provider, model, promptChars: prompt.length } });
     try {
-      const out = await CALLERS[cfg.provider](cfg, model, system, prompt, json);
+      let out = await CALLERS[cfg.provider](cfg, model, system, prompt, json);
       if (!out || !String(out).trim()) throw AJP.err('AI_BAD_RESPONSE', { reason: 'empty answer' });
-      const result = json ? parseJsonLoose(out) : out.trim();
+      let result;
+      if (json) {
+        try {
+          result = parseJsonLoose(out);
+        } catch (e) {
+          // Free models sometimes add prose or break JSON: retry once with a firm reminder.
+          tr.log.warn(`ai.${task} invalid JSON, retrying once`, { reason: e.details && e.details.reason });
+          out = await CALLERS[cfg.provider](cfg, model, system, prompt + '\n\nIMPORTANT: Your previous reply was not valid JSON. Reply with ONE valid JSON object only, no other text.', json);
+          result = parseJsonLoose(out);
+        }
+      } else result = out.trim();
       tr.end({ provider: cfg.provider, model, outChars: out.length });
       return result;
     } catch (e) {
@@ -161,25 +171,14 @@
       });
     },
 
-    tailorResume({ jd, resumeText, profile, missing, job, tid }) {
-      return complete({
-        task: 'tailorResume',
-        tid,
-        system:
-          'You are an honest, expert resume writer. You NEVER invent employers, job titles, dates, degrees, ' +
-          'certifications, metrics or skills the candidate has no evidence for. You may reorder, rephrase, tighten, ' +
-          'and emphasize truthful, transferable experience, and mirror the job\'s terminology where it is accurate.',
-        prompt:
-          `Tailor this resume for the role "${(job && job.title) || 'the target role'}"` +
-          `${job && job.company ? ' at ' + job.company : ''}.\n\n` +
-          'Output format:\n1) The full tailored resume in Markdown (# Name, contact line, ## Summary, ## Skills, ## Experience, ## Education ...).\n' +
-          '2) Then a line containing exactly ---GAPS---\n' +
-          '3) Then a bullet list: for each gap skill, either "covered: <where in resume it is now evidenced>" ' +
-          'or "not covered: <honest suggestion — e.g. a short course, side project, or how to address it in an interview>".\n\n' +
-          `GAP SKILLS (from the job, not found in the candidate profile): ${(missing || []).join(', ') || 'none'}\n\n` +
-          `CANDIDATE SKILLS (self-reported): ${skillList(profile)}\n\n` +
-          `CURRENT RESUME:\n${clip(resumeText, 15000)}\n\nJOB DESCRIPTION:\n${clip(jd, 10000)}`,
-      });
+    // Resume enhancement v2, stage 1: requirements + evidence (prompt lives in resume-engine.js).
+    analyzeForResume({ jd, resumeText, tid }) {
+      return complete({ task: 'resume.analyze', tid, json: true, ...AJP.resumeEngine.analyzePrompt({ jd, resumeText }) });
+    },
+
+    // Stage 3: targeted, evidence-backed edits.
+    proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, tid }) {
+      return complete({ task: 'resume.edits', tid, json: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job }) });
     },
 
     draftAnswer({ question, jd, resumeText, profile, job, maxWords, tid }) {

@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest feature commit `ab79d58`. Related documents:
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **5, resume enhancement v2**. Related documents:
 - [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
@@ -15,14 +15,14 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Platform (Chrome / Edge / Firefox / Safari, local-only storage) | ✅ built · ⬜ real-browser verification (your side) |
 | Admin page | ✅ · ⬜ PDF text extraction |
 | Job reading & match % | ✅ · ⬜ seniority/years check, synonyms |
-| Resume tailoring | ✅ · ⬜ attach the tailored file |
+| Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
 | Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete |
-| Multiple career tracks | ⬜ next (step 5) |
-| Tests | ✅ 449 automated + 89 manual scenarios · ⬜ CI |
+| Multiple career tracks | ⬜ next (step 6) |
+| Tests | ✅ 532 automated + 98 manual scenarios · ⬜ CI |
 
-**Code size:** about 3,800 lines of JavaScript in 20 files (plus HTML/CSS), plus 14 test files. No dependencies, no build step.
+**Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
 ## How we work
 
@@ -75,13 +75,22 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Smarter matching (synonyms / embeddings) | ⬜ | |
 | Site selectors verified on live LinkedIn, Indeed, Glassdoor | ⬜ | These sites change often |
 
-## 4. Resume enhancement
+## 4. Resume enhancement — ✅ v2 done 2026-11-18 (step 5)
 | Item | Status | Notes |
 |---|---|---|
-| AI tailoring for key gaps, without inventing skills | ✅ | Saved as a new resume version |
-| Gap notes (covered / not covered + suggestions) | ✅ | |
+| Extract the job's key points: requirements with priority (must / should / nice), type, exact job wording, and keywords an applicant tracking system (ATS) scans for | ✅ | AI, strict JSON |
+| Evidence for each requirement, quoted word for word from the resume; **fake quotes are dropped by code** | ✅ | Strong / partial / not in resume |
+| Targeted edits only (summary, skills order, individual bullets); the AI never rewrites the whole resume | ✅ | Code assembles the final resume |
+| **Never copy the job's numbers** ("10TB", "20+ APIs", "<5% defects"); keep the candidate's own numbers exactly, even if smaller | ✅ | Enforced by the validator, not just the prompt |
+| **Result-oriented** bullets: action → what → result. Existing results kept and made prominent; otherwise impact described in words, and the user is asked for a real number | ✅ | "Add your real number" prompt |
+| Block invented numbers (including spelled out), skills, tools, employers/clients/products, copied job sentences, placeholders, first person, overlong lines | ✅ | 54 rule tests |
+| Protected lines (name, contact, employers, titles, dates, education) can never change | ✅ | Integrity check before saving |
+| Review screen: requirements + evidence, before → after, why, blocked reasons, accept/reject, edit, gaps with honest advice | ✅ | Admin → Resumes |
+| Coverage: % of requirements backed by the resume; job keywords before → after | ✅ | |
+| Prompt hygiene: job and resume fenced as data; injected instructions ignored; one automatic retry on invalid JSON | ✅ | |
+| Quality check with a real free AI on real jobs | ⏳ | Your side: needs a Groq or Gemini key (scenarios D1–D10) |
 | View / print / save as PDF, download .md | ✅ | |
-| Generate a real PDF/DOCX file and attach the **tailored** resume | ⬜ | Autofill currently attaches the uploaded file |
+| Generate a real PDF/DOCX file and attach the **tailored** resume | ⬜ | Step 9 |
 
 ## 5. Apply / autofill
 | Item | Status | Notes |
@@ -119,7 +128,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 |---|---|---|
 | Structured logs from every part (`[AJP][context][module]`) | ✅ | |
 | Session id per page or background run; trace id per user action, shared page → background → AI | ✅ | `AJP.startTrace`, `AJP.send(type, payload, trace)` |
-| Error codes (`AJP-AI-429`, `AJP-JD-NONE`, …) with a message and a hint, shown in the panel, popup and Admin | ✅ | `src/lib/errors.js`, 19 codes |
+| Error codes (`AJP-AI-429`, `AJP-JD-NONE`, …) with a message and a hint, shown in the panel, popup and Admin | ✅ | `src/lib/errors.js`, 22 codes |
 | Timing for actions; slow steps logged as warnings | ✅ | |
 | Flight recorder: debug details before an error are kept even at level "info" | ✅ | |
 | Redaction by key **and** by value (emails, API keys, bearer tokens, phone numbers, SSNs) | ✅ | |
@@ -131,10 +140,10 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 449 across 14 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 449) · `./tests/run-tests.sh` (the 241 that need no browser) |
+| Automated tests: 532 across 16 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 532) · `./tests/run-tests.sh` (the 295 that need no browser) |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 89 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 98 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks (new — requested 2026-11-18)
@@ -155,7 +164,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Compare view: pick 2–3 saved jobs and see their scores across tracks side by side | ⬜ | Helps decide where to apply first |
 | Tests for multi-track scoring, best-track choice, migration and insights | ⬜ | Added to the automated suite |
 
-Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture-multiple-career-tracks-roadmap-step-5).
+Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture-multiple-career-tracks-roadmap-step-6).
 
 ## 11. Application tracker (no email needed) — ✅ done 2026-11-18
 | Item | Status | Notes |
@@ -182,24 +191,26 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2 | Full automated test suite + manual test scenarios | `3609410` |
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
+| 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | *see change log* |
 
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 5 | **Multiple career tracks**: 2–3 profiles; every job scored against each; best track picked; track insights | 10 | Large |
-| 6 | Read PDF resumes automatically (no more pasting) | 2 | Small |
-| 7 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
-| 8 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
-| 9 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
-| 10 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
-| 11 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
-| 12 | Suggest profile updates from learned answers | 6 | Small |
-| 13 | CI on GitHub: run the tests on every push/PR | 9 | Small |
+| 6 | **Multiple career tracks**: 2–3 profiles; every job scored against each; best track picked; track insights | 10 | Large |
+| 7 | Read PDF resumes automatically (no more pasting) | 2 | Small |
+| 8 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
+| 9 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
+| 10 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
+| 11 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
+| 12 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
+| 13 | Suggest profile updates from learned answers | 6 | Small |
+| 14 | CI on GitHub: run the tests on every push/PR | 9 | Small |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 89 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 98 scenarios |
+| Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
 
@@ -222,10 +233,11 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | Not yet run in a real browser | Integration issues (permissions, Safari quirks) may appear | Your Chrome pass using TEST-SCENARIOS.md; Claude fixes what you find |
 | Job sites change their HTML (LinkedIn, Indeed, Glassdoor) | The badge may not appear (`AJP-JD-NONE`) | JSON-LD and the heuristic are fallbacks; selectors are in one place (`jd-extractor.js` `SITES`); issue reports include the host |
 | Workday forms use custom widgets | Lower fill rate on Workday | Roadmap step 7 |
-| Free AI tiers have rate limits | `AJP-AI-429` during heavy use | Clear message + hint; switching providers is one click; matching works without AI |
+| Free AI tiers have rate limits | `AJP-AI-429` during heavy use (tailoring makes 2 calls) | Clear message + hint; switching providers is one click; matching works without AI |
 | Firefox requires manual site permission | Badge missing on Firefox until granted | Documented in the README; consider an in-Admin prompt |
 | Detecting "applied" depends on confirmation wording | Some sites may be missed | "Did you submit?" prompt as a fallback; manual "Mark applied"; patterns tested |
 | Publishing to stores | Store review needs a privacy policy and a description of permissions | Plan once real-browser testing is done |
+| Free AI models may propose few valid edits | Fewer suggestions (blocked edits are shown with reasons) | Rules are enforced in code either way; try a larger free model; quality check W17 |
 
 ## Change log
 
@@ -239,5 +251,6 @@ Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture
 | 2026-11-18 | `ab79d58` | Support logging: error codes, trace ids, flight recorder, Report an issue, SUPPORT.md |
 | 2026-11-18 | `5d78eb1` | Consolidated roadmap |
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
-| 2026-11-18 | *this commit* | TRACKER.md: component status tracker; per-suite test counts in the runner |
+| 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
+| 2026-11-18 | *this commit* | **Step 5: resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, hard rules (never copy job numbers), review screen; 3 new error codes; 532 tests |
 

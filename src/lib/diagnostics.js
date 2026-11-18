@@ -42,7 +42,7 @@
     };
   }
 
-  function summarizeData({ profile, resumes, answers, applications }) {
+  function summarizeData({ profile, resumes, answers, applications, enhancements = [] }) {
     const p = profile.personal || {};
     const active = resumes.items.find((r) => r.id === resumes.activeId) || resumes.items[0] || null;
     const byStatus = {};
@@ -62,8 +62,9 @@
         activeTextChars: active ? (active.text || '').length : 0,
         activeHasFile: !!(active && active.file),
         activeFileType: active && active.file ? active.file.type : null,
-        tailored: resumes.items.filter((r) => r.gaps != null).length,
+        tailored: resumes.items.filter((r) => r.enhancementId || r.gaps != null).length,
       },
+      tailoringDrafts: enhancements.length,
       learnedAnswers: Object.keys(answers).length,
       applications: { total: applications.length, byStatus },
     };
@@ -107,9 +108,9 @@
 
   async function collect({ description = '', includeLogs = true, maxLogs = 2000, nav = globalThis.navigator } = {}) {
     await AJP.flushLogs();
-    const [profile, settings, resumes, answers, applications, logs, ping, storage] = await Promise.all([
+    const [profile, settings, resumes, answers, applications, logs, ping, storage, enhancements] = await Promise.all([
       AJP.store.get('profile'), AJP.store.get('settings'), AJP.store.get('resumes'), AJP.store.get('answers'),
-      AJP.store.get('applications'), AJP.store.get('logs'), AJP.send('ping'), storageHealth(),
+      AJP.store.get('applications'), AJP.store.get('logs'), AJP.send('ping'), storageHealth(), AJP.store.get('enhancements'),
     ]);
     const ua = (nav && nav.userAgent) || '';
     const bundle = {
@@ -134,7 +135,7 @@
         reportedFrom: AJP.logContext,
       },
       settings: summarizeSettings(settings),
-      data: summarizeData({ profile, resumes, answers, applications }),
+      data: summarizeData({ profile, resumes, answers, applications, enhancements }),
       health: {
         background: ping.ok ? { ok: true, version: ping.version, sessionId: ping.sessionId, uptimeSec: ping.uptimeSec, logLevel: ping.logLevel } : { ok: false, error: ping.error },
         storage,
