@@ -60,7 +60,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Forms inside iframes (e.g. Greenhouse embeds) | ✅ | |
 | Draft free-text answers with AI from the resume | ✅ | |
 | Never auto-submit (user reviews) | ✅ | By design |
-| Application tracking (in progress / applied / interview / offer / rejected) | ✅ | Admin → Applications |
+| Application tracking | ✅ | Full tracker — see section 11 |
 | Workday custom dropdowns, date pickers, multi-step "My Experience" | ⬜ | High priority |
 | Repeatable experience/education entries on forms | ⬜ | |
 | Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ⬜ | |
@@ -93,10 +93,10 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 279 across 10 areas, incl. end-to-end | ✅ | `./tests/run-browser-tests.sh` (all 279) · `./tests/run-tests.sh` (the 139 that need no browser) |
+| Automated tests: 391 across 13 areas, incl. end-to-end and Admin UI | ✅ | `./tests/run-browser-tests.sh` (all 391) · `./tests/run-tests.sh` (the 216 that need no browser) |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 68 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 85 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks (new — requested 2026-11-18)
@@ -117,9 +117,26 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Compare view: pick 2–3 saved jobs and see their scores across tracks side by side | ⬜ | Helps decide where to apply first |
 | Tests for multi-track scoring, best-track choice, migration and insights | ⬜ | Added to the automated suite |
 
+## 11. Application tracker (no email needed) — ✅ done 2026-11-18
+| Item | Status | Notes |
+|---|---|---|
+| Detect "applied" automatically: Submit on an application form + confirmation ("Thank you for applying", `/confirmation`, LinkedIn "application was sent") | ✅ | `src/content/apply-detector.js`. Asks "Did you submit?" if no confirmation within 30 s. Undo available. |
+| Job context survives new tabs (LinkedIn → company Workday) and multi-page apply flows | ✅ | Per-tab job memory in the background |
+| Same job recognized across URLs (LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby, SmartRecruiters, Glassdoor) | ✅ | `tracker.jobKey` |
+| Job snapshot: description, salary, work type, location, resume used | ✅ | Kept even after the posting disappears |
+| Pipeline board (drag & drop) + table view, search, status and "due" filters | ✅ | Admin → Applications |
+| Details: notes, recruiter, interview date, next step, status history | ✅ | |
+| Follow-up reminders: count on the toolbar icon + popup link; "I followed up" resets it | ✅ | Default 7 days, configurable |
+| Stats: tracked, applied, per week (8 weeks), response rate, interview rate, avg match interviewed vs others | ✅ | |
+| CSV export (Excel / Google Sheets), safe against formula injection | ✅ | |
+| Duplicate warning on job pages ("You already tracked this job…") | ✅ | Same job or same company + similar title |
+| Fix: Autofill no longer resets an "applied" job to "in progress" | ✅ | Automatic updates only move forward |
+| Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⬜ later | Ideas discussed; not planned yet |
+
 ## Suggested order for next work
 1. ~~Push `develop` to GitHub.~~ ✅
 1. ~~Full automated test suite.~~ ✅
+1. ~~Application tracker (section 11).~~ ✅
 1. Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).
 1. **Multiple career tracks** (section 10).
 2. Load in Chrome and fix anything found (smoke test against the sample page plus 2–3 real job posts).

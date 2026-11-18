@@ -9,6 +9,7 @@
  *   answers       learned answers: { [normKey]: {label,value,count,lastUsed,hosts[]} }
  *   applications  [{id,url,title,company,score,status,date,resumeId}]
  *   logs          ring buffer of log entries (owned by background)
+ *   tabJobs       internal: which job each browser tab is on (for apply detection)
  *
  * Reads go through an in-memory cache that is invalidated by storage.onChanged,
  * so repeated reads are effectively free.
@@ -53,12 +54,15 @@
       logLevel: 'info',
       autoAnalyze: true, // show match badge automatically on known job sites
       learnAnswers: true,
+      tracker: { autoDetect: true, followUpDays: 7 },
     },
     resumes: { activeId: null, items: [] },
     answers: {},
     applications: [],
     logs: [],
+    tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };
+  const INTERNAL = new Set(['logs', 'tabJobs']); // never exported or imported
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();
@@ -92,7 +96,7 @@
       const ver = versions.get(key) || 0;
       const r = await area().get(key);
       const v = withDefaults(key, r[key]);
-      if (key !== 'logs' && (versions.get(key) || 0) === ver) cache.set(key, v);
+      if (!INTERNAL.has(key) && (versions.get(key) || 0) === ver) cache.set(key, v);
       return AJP.clone(v);
     },
 
@@ -123,7 +127,7 @@
     },
 
     async exportAll({ includeKeys = false, includeLogs = false } = {}) {
-      const data = await this.getMany(this.KEYS.filter((k) => includeLogs || k !== 'logs'));
+      const data = await this.getMany(this.KEYS.filter((k) => (includeLogs && k === 'logs') || !INTERNAL.has(k)));
       if (!includeKeys && data.settings) data.settings.ai.keys = { gemini: '', groq: '', openrouter: '' };
       return { app: 'apply-job-plugin', version: AJP.VERSION, exportedAt: new Date().toISOString(), data };
     },
@@ -131,7 +135,7 @@
     async importAll(backup) {
       if (!backup || backup.app !== 'apply-job-plugin' || !backup.data) throw new Error('Not an Apply Job backup file');
       const toSet = {};
-      for (const k of this.KEYS) if (k in backup.data && k !== 'logs') toSet[k] = backup.data[k];
+      for (const k of this.KEYS) if (k in backup.data && !INTERNAL.has(k)) toSet[k] = backup.data[k];
       cache.clear();
       for (const k of Object.keys(toSet)) bump(k);
       await area().set(toSet);

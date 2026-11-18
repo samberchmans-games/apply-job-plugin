@@ -33,7 +33,7 @@
   <h1>Apply Job Assistant — automated tests</h1>
   <div class="bar">
     <a href="?">Run all</a><a href="?grep=autofill">Autofill</a><a href="?grep=job%20page">Job page</a>
-    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a>
+    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a><a href="?grep=tracker">Tracker</a><a href="?grep=admin">Admin</a>
   </div>
   <div id="summary">Running…</div>
   <div id="results"></div>
@@ -50,9 +50,11 @@
   <script src="../src/lib/matcher.js"></script>
   <script src="../src/lib/ai.js"></script>
   <script src="../src/lib/docx.js"></script>
+  <script src="../src/lib/tracker.js"></script>
   <script src="../src/background/background.js"></script>
   <script src="../src/content/jd-extractor.js"></script>
   <script src="../src/content/form-filler.js"></script>
+  <script src="../src/content/apply-detector.js"></script>
   <script src="../src/content/panel.js"></script>
   <script src="../src/content/content.js"></script>
   <!-- 3. test suites -->
@@ -66,6 +68,9 @@
   <script src="unit/jd-extractor.test.js"></script>
   <script src="unit/panel.test.js"></script>
   <script src="unit/background.test.js"></script>
+  <script src="unit/tracker.test.js"></script>
+  <script src="unit/tracker-flow.test.js"></script>
+  <script src="unit/admin.test.js"></script>
   <script>
   (async () => {
     const params = new URLSearchParams(location.search);

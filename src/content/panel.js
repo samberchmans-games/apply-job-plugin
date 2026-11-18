@@ -38,6 +38,8 @@
   button.b:disabled { opacity: .5; cursor: wait; }
   .msg { margin-top: 10px; padding: 8px; border-radius: 8px; background: #f3f4f6; white-space: pre-wrap; }
   .msg.err { background: #fef2f2; color: #991b1b; }
+  .msg.warn { background: #fffbeb; color: #92400e; margin: 0 0 10px; }
+  .msg.ask { background: #eff6ff; }
   .q { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-top: 6px; }
   .muted { color: #6b7280; font-size: 12px; }
   a { color: #2563eb; cursor: pointer; }
@@ -48,6 +50,7 @@
     .ring span { background: #111827; }
     button.b { background: #1f2937; color: #f3f4f6; border-color: #4b5563; }
     .msg { background: #1f2937; } .q { border-color: #374151; }
+    .msg.warn { background: #3a2a0a; color: #fcd34d; } .msg.ask { background: #172554; }
   }`;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -126,8 +129,19 @@
           <button class="b p" data-act="autofill" ${dis('autofill')}>⚡ Autofill form</button>
           <button class="b" data-act="applied">✔ Mark applied</button>
         </div>`;
-    } else {
+    } else if (!state.message && !state.ask) {
       body = `<div class="muted">Reading the page…</div>`;
+    }
+
+    if (state.duplicate && state.duplicate.app) {
+      const d = state.duplicate.app;
+      const when = d.appliedAt || d.date;
+      body = `<div class="msg warn">⚠ ${state.duplicate.how === 'same job' ? 'You already tracked this job' : 'You tracked a similar job at this company'}: <b>${esc(d.title || '')}</b> — ${esc(d.status)}${when ? ' since ' + esc(new Date(when).toLocaleDateString()) : ''}. <a data-act="openApps">Open tracker</a></div>` + body;
+    }
+
+    if (state.ask) {
+      body += `<div class="msg ask">Did you submit your application${state.ask.company ? ' to <b>' + esc(state.ask.company) + '</b>' : ''}${state.ask.title ? ' for <b>' + esc(state.ask.title) + '</b>' : ''}?
+        <div class="btns"><button class="b p" data-act="askYes">Yes, I applied</button><button class="b" data-act="askNo">No</button></div></div>`;
     }
 
     if (state.message) body += `<div class="msg ${state.messageErr ? 'err' : ''}">${state.message}</div>`;

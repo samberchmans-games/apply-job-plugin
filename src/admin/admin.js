@@ -34,7 +34,7 @@
 
   // ---- Routing --------------------------------------------------------------------
   function route() {
-    const id = (location.hash || '#profile').slice(1);
+    const id = (location.hash || '#profile').slice(1).split('?')[0];
     $$('section').forEach((s) => s.classList.toggle('on', s.id === id));
     $$('nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
     if (id === 'logs') renderLogs();
@@ -347,33 +347,8 @@
     });
   }
 
-  // ---- Applications ------------------------------------------------------------------------------
-  const STATUSES = ['in progress', 'applied', 'interviewing', 'offer', 'rejected', 'withdrawn'];
-  async function renderApps() {
-    const apps = await AJP.store.get('applications');
-    $('#appRows').innerHTML =
-      apps
-        .map((a) => `<tr><td>${new Date(a.date).toLocaleDateString()}</td><td>${esc(a.company || '—')}</td>
-          <td><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title || a.url)}</a></td>
-          <td>${a.score == null ? '—' : a.score + '%'}</td>
-          <td><select data-app="${a.id}">${STATUSES.map((s) => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
-          <td><button class="small danger" data-delapp="${a.id}">✕</button></td></tr>`)
-        .join('') || '<tr><td colspan="6" class="hint">No applications tracked yet.</td></tr>';
-  }
-  function initApps() {
-    $('#appRows').addEventListener('change', async (e) => {
-      const id = e.target.dataset.app;
-      if (!id) return;
-      await AJP.store.update('applications', (l) => void (l.find((a) => a.id === id).status = e.target.value));
-      toast('Saved');
-    });
-    $('#appRows').addEventListener('click', async (e) => {
-      const id = e.target.dataset.delapp;
-      if (!id) return;
-      await AJP.store.update('applications', (l) => l.filter((a) => a.id !== id));
-      renderApps();
-    });
-  }
+  // ---- Applications: see tracker-view.js ---------------------------------------------
+  const renderApps = () => AJP.trackerView.render();
 
   // ---- Logs ---------------------------------------------------------------------------------------
   async function renderLogs() {
@@ -453,7 +428,7 @@
   // ---- Live refresh when content pages write data ------------------------------------------------------------
   AJP.api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    const on = (location.hash || '#profile').slice(1);
+    const on = (location.hash || '#profile').slice(1).split('?')[0];
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if (changes.resumes && on === 'resumes') renderResumes();
@@ -471,7 +446,7 @@
     initCards();
     initResumes();
     initAnswers();
-    initApps();
+    AJP.trackerView.init({ toast, download });
     initLogs();
     initBackup();
     route();

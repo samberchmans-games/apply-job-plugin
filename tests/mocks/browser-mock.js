@@ -76,13 +76,29 @@
     });
   }
 
+  const tabCreated = [];
+  const tabRemoved = [];
+  const alarmListeners = [];
   const mock = {
     __data: data,
+    __badge: { text: '', color: '' },
+    __alarms: {},
+    async __fireTabCreated(tab) {
+      await Promise.all(tabCreated.map((fn) => fn(tab)));
+    },
+    async __fireTabRemoved(tabId) {
+      await Promise.all(tabRemoved.map((fn) => fn(tabId)));
+    },
+    async __fireAlarm(name) {
+      await Promise.all(alarmListeners.map((fn) => fn({ name })));
+    },
     __sent: [],
     __tabMsgs: [],
     __created: [],
     __injected: [],
+    __tabId: 1, // the tab id the page pretends to be in (tests switch it to simulate new tabs)
     async __reset() {
+      mock.__tabId = 1;
       await local.clear();
       mock.__sent.length = 0;
       mock.__tabMsgs.length = 0;
@@ -94,7 +110,7 @@
       getURL: (p) => 'moz-extension://test/' + p,
       async sendMessage(msg) {
         mock.__sent.push(clone(msg));
-        return dispatch(true, msg, { tab: { id: 1, url: location.href }, frameId: 0 });
+        return dispatch(true, msg, { tab: { id: mock.__tabId, url: location.href, title: document.title }, frameId: 0 });
       },
       onMessage: {
         addListener(fn) {
@@ -115,6 +131,20 @@
       },
       async query() {
         return [{ id: 1 }];
+      },
+      onCreated: { addListener: (fn) => tabCreated.push(fn) },
+      onRemoved: { addListener: (fn) => tabRemoved.push(fn) },
+    },
+    alarms: {
+      create: (name, info) => (mock.__alarms[name] = info),
+      onAlarm: { addListener: (fn) => alarmListeners.push(fn) },
+    },
+    action: {
+      async setBadgeText({ text }) {
+        mock.__badge.text = text;
+      },
+      async setBadgeBackgroundColor({ color }) {
+        mock.__badge.color = color;
       },
     },
     scripting: {

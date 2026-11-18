@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (279). Run them before every merge into `develop`.
+1. **Automated tests** (391). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **139** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **279** tests in headless Chrome. This is the full suite: the 139 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **216** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **391** tests in headless Chrome. This is the full suite: the 216 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -29,6 +29,9 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Autofill | `unit/form-filler.test.js` | 54 label→field rules; option matching incl. "decline to answer"; label detection (label tag, aria, Workday markup, placeholder, name); full form fill: text, select, radio, resume file, learned answers, free-text questions, unknown fields; **never fills password/hidden/disabled fields, never overwrites what the user typed, never submits**; React-style inputs; learning typed, select and radio answers; **never learns SSN or passwords**; ignores its own fills; respects the "learn answers" setting |
 | Job page reading | `unit/jd-extractor.test.js` | Structured job data (JSON-LD, incl. @graph), Greenhouse, Lever, Workday, Indeed and LinkedIn layouts (on LinkedIn the job currently shown wins over stale data), fallback when a site changes its layout, fallback that ignores navigation and footer, no job description, look-alike domains |
 | Panel | `unit/panel.test.js` | Score, skill chips, fit, **HTML from the job page cannot run inside the panel**, page CSS can't break it, buttons, busy state, autofill report |
+| Tracker logic | `unit/tracker.test.js` | Same job across URLs for 8 sites; duplicate detection; saving rules (**automatic updates never move status backwards**, empty values never wipe data, Undo); confirmation and Submit wording incl. look-alikes that must NOT count; follow-up and interview reminders; stats; CSV escaping and formula-injection blocking |
+| Tracker end-to-end | `unit/tracker-flow.test.js` | Submit + "Thank you" → applied with snapshot; normal form submit; confirmation-page URL; ignored on unknown sites; newsletter forms ignored; JD text mentioning submission ignored; "Did you submit?" Yes/No; auto-detect setting; job context passed to new tabs; tab cleanup; duplicate warning; reminder badge |
+| Admin tracker UI | `unit/admin.test.js` | Loads the real Admin page: stats, board columns, drag & drop, search / due filters, table view, detail dialog saving (no lost edits, no timezone shift), "I followed up", HTML escaping, CSV export, empty state |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -142,6 +145,27 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | G2 | With AI off, use the extension normally | No network requests from the extension |
 | G3 | Search the storage for passwords (DevTools → Application → Extension storage) | No job-site passwords stored |
 | G4 | A job page whose title contains HTML, e.g. `<img onerror=…>` | Shown as plain text in the panel; nothing runs |
+
+### I. Application tracker
+| ID | Steps | Expected |
+|---|---|---|
+| I1 | Greenhouse: open a job → Autofill → submit the application | The panel says "Application … detected and saved as applied", with Undo. Admin → Applications shows it under Applied, marked **auto**. |
+| I2 | Lever and Ashby: the same as I1 | Same |
+| I3 | LinkedIn Easy Apply: submit | Detected from "Your application was sent" |
+| I4 | LinkedIn job → **Apply** (opens the company Workday in a new tab) → finish the application | The job is saved with the **LinkedIn** title and company, not the Workday page's |
+| I5 | Submit on a site that shows no confirmation | After about 30 s the panel asks "Did you submit your application…?". Yes → saved; No → nothing saved. |
+| I6 | Subscribe to a newsletter on a careers site | Nothing is tracked |
+| I7 | Click Undo right after a detection | It goes back to its previous status, or is removed if it was just added |
+| I8 | Open a job you already applied to (same link, or the same job from another site) | A ⚠ "You already tracked this job…" banner appears in the panel |
+| I9 | Admin → Applications: drag a card to Interviewing | It moves; the status history shows the change |
+| I10 | Open a card: add notes, recruiter, interview date and next step; close and reopen | Everything is saved; the interview date shows exactly as you typed it |
+| I11 | "Saved job description" in a card | The full posting text is there, even after the job is taken down |
+| I12 | Set the follow-up days to 1 and wait a day (or edit a test record) | The toolbar icon shows a count, the popup shows "🔔 1 follow-up due", and the link opens the filtered list |
+| I13 | "I followed up today" | The reminder clears |
+| I14 | Export CSV and open it in Excel / Google Sheets | Columns line up; accents and commas are intact; nothing runs as a formula |
+| I15 | Turn off "Detect submitted applications automatically" | No automatic detection; Mark applied still works |
+| I16 | Stats tiles after 5+ applications with a few status changes | The numbers match the board (response rate = replies ÷ applied) |
+| I17 | Click Autofill on a job that's already Applied | It stays Applied (this was a bug before) |
 
 ### H. Performance
 | ID | Steps | Expected |

@@ -13,7 +13,7 @@
   AJP.logContext = isTop ? 'content' : 'frame';
   const log = AJP.logger('content');
 
-  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '' };
+  const state = { job: null, analysis: null, aiSkills: null, aiUsed: false, minimized: false, busy: '', message: '', messageErr: false, autofill: null, error: '', duplicate: null, ask: null, lastApp: null };
   let jdText = '';
   let lastUrl = location.href;
 
@@ -47,6 +47,10 @@
     const [profile, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.activeResume()]);
     state.analysis = AJP.matcher.analyze({ jdText, profile, resumeText: resume ? resume.text : '', aiSkills: state.aiSkills, jobLocation: job.location });
     log.info('Analyzed job', { source: job.source, score: state.analysis.score, matched: state.analysis.matched.length, missing: state.analysis.missing.length, ms: Math.round(performance.now() - t0) });
+    // Remember this job for the tab (apply detection) and warn if already applied.
+    const apps = await AJP.store.get('applications');
+    state.duplicate = AJP.tracker.findDuplicate(apps, jobMeta());
+    AJP.send('setTabJob', { job: { ...jobMeta(), score: state.analysis.score, snapshot: snapshot() } });
     render();
     return state.analysis;
   }
@@ -55,6 +59,21 @@
     const j = state.job || {};
     return { title: j.title, company: j.company, url: j.url || location.href, location: j.location };
   }
+
+  // What we keep with an application, so the posting can be re-read after it disappears.
+  function snapshot() {
+    const a = state.analysis;
+    return {
+      jd: String(jdText || '').slice(0, 20000),
+      salary: a && a.fit.salary.job,
+      workTypes: a && a.fit.workType.job,
+      location: (state.job && state.job.location) || '',
+      source: state.job && state.job.source,
+      savedAt: new Date().toISOString(),
+    };
+  }
+
+  const appPayload = (extra) => ({ app: { ...jobMeta(), score: state.analysis && state.analysis.score, snapshot: jdText ? snapshot() : undefined, ...extra } });
 
   const callbacks = {
     toggle() {
@@ -103,7 +122,7 @@
       const r = await AJP.send('autofillTab', {});
       state.busy = '';
       if (!r.ok) return say(AJP.panel.esc(r.error), true);
-      AJP.send('recordApplication', { app: { ...jobMeta(), score: state.analysis && state.analysis.score, status: 'in progress' } });
+      AJP.send('recordApplication', appPayload({ status: 'in progress', auto: true }));
     },
 
     async draft(ajpId, btn) {
@@ -119,10 +138,55 @@
     },
 
     async applied() {
-      const r = await AJP.send('recordApplication', { app: { ...jobMeta(), score: state.analysis && state.analysis.score, status: 'applied', appliedAt: new Date().toISOString() } });
-      say(r.ok ? 'Marked as applied. See Admin → Applications.' : AJP.panel.esc(r.error), !r.ok);
+      const r = await AJP.send('recordApplication', appPayload({ status: 'applied', detectedBy: 'manual' }));
+      if (r.ok) state.lastApp = r.app;
+      say(r.ok ? 'Marked as applied. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>' : AJP.panel.esc(r.error), !r.ok);
+    },
+
+    async undoApplied() {
+      if (!state.lastApp) return;
+      const r = await AJP.send('undoStatus', { id: state.lastApp.id });
+      state.lastApp = null;
+      say(!r.ok || !r.app ? 'Nothing to undo.' : r.removed ? 'Undone — removed from the tracker.' : `Undone — status is back to “${AJP.panel.esc(r.app.status)}”.`);
+    },
+
+    openApps() {
+      AJP.send('openAdmin', { hash: 'applications' });
+    },
+
+    async askYes() {
+      const job = state.ask;
+      state.ask = null;
+      const r = await AJP.send('recordApplication', { app: { ...pickJob(job), status: 'applied', detectedBy: 'confirmed by you' } });
+      if (r.ok) state.lastApp = r.app;
+      say(r.ok ? 'Saved as applied. <a data-act="undoApplied">Undo</a>' : AJP.panel.esc(r.error), !r.ok);
+    },
+
+    askNo() {
+      state.ask = null;
+      say('OK — not marked as applied.');
     },
   };
+
+  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score });
+
+  // ---- Apply detection (every frame) ----------------------------------------------
+  function startDetector() {
+    AJP.detector.start({
+      onSubmit() {
+        AJP.send('applicationSignal', { signal: 'submit', url: location.href, title: document.title, host: location.hostname });
+        // No confirmation after a while? Ask the user instead of guessing.
+        setTimeout(async () => {
+          const r = await AJP.send('applicationSignal', { signal: 'check' });
+          if (r.ok && !r.applied && !r.ignored && r.job) AJP.send('askApplied', { job: r.job });
+        }, AJP.detector.CONFIG.askAfterMs);
+      },
+      onConfirm(how) {
+        AJP.send('applicationSignal', { signal: 'confirm', how, url: location.href, title: document.title, host: location.hostname });
+      },
+    });
+  }
+  AJP.store.get('settings').then((s) => s.tracker.autoDetect && startDetector());
 
   // ---- Messages from background ------------------------------------------------
   api.runtime.onMessage.addListener((msg) => {
@@ -144,6 +208,15 @@
       for (const k of ['filled', 'learned', 'unknown', 'questions', 'skipped']) cur[k] = cur[k].concat(r[k] || []);
       state.autofill = cur;
       state.message = '';
+      render();
+    } else if (msg.type === 'appliedDetected' && isTop) {
+      state.lastApp = msg.app;
+      state.ask = null;
+      state.minimized = false;
+      say(`✅ Application to <b>${AJP.panel.esc(msg.app.company || msg.app.title || 'this job')}</b> detected and saved as <b>applied</b>. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>`);
+    } else if (msg.type === 'askApplied' && isTop) {
+      state.ask = msg.job;
+      state.minimized = false;
       render();
     } else if (msg.type === 'fillQuestion') {
       AJP.filler.fillQuestion(msg.ajpId, msg.text);

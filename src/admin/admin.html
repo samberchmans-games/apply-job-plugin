@@ -181,7 +181,24 @@
     <!-- APPLICATIONS -->
     <section id="applications">
       <h1>Applications</h1>
-      <table class="tbl"><thead><tr><th>Date</th><th>Company</th><th>Role</th><th>Match</th><th>Status</th><th></th></tr></thead><tbody id="appRows"></tbody></table>
+      <p class="hint">Jobs are added when you use Autofill or Mark applied, and marked <b>applied</b> automatically when a site confirms your submission. Drag cards between columns, or click a card for notes, interview date and the saved job description.</p>
+      <div id="trkStats" class="stats"></div>
+      <div class="row">
+        <input id="trkSearch" placeholder="Search company, title, notes…">
+        <select id="trkStatus"><option value="">All statuses</option></select>
+        <label class="check"><input type="checkbox" id="trkDue"> Follow-ups due only</label>
+        <span class="seg" role="group" aria-label="View"><button data-view="board">Board</button><button data-view="table">Table</button></span>
+        <button id="trkExport">⬇ Export CSV</button>
+      </div>
+      <div id="trkView"></div>
+      <details class="trk-settings">
+        <summary>Tracker settings</summary>
+        <div class="row">
+          <label class="check"><input type="checkbox" data-settings="tracker.autoDetect"> Detect submitted applications automatically</label>
+          <label class="check">Remind me to follow up after <input type="number" min="1" max="90" class="narrow" data-settings="tracker.followUpDays"> days without a reply</label>
+        </div>
+      </details>
+      <dialog id="trkDetail"></dialog>
     </section>
 
     <!-- LOGS -->
@@ -223,6 +240,8 @@
 <script src="../lib/matcher.js"></script>
 <script src="../lib/ai.js"></script>
 <script src="../lib/docx.js"></script>
+<script src="../lib/tracker.js"></script>
+<script src="tracker-view.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

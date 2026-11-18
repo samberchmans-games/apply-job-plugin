@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js');
 }
 
 (function () {
@@ -21,8 +21,8 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   const MAX_LOGS = 3000;
   const CONTENT_FILES = [
     'src/lib/core.js', 'src/lib/logger.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
-    'src/lib/matcher.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js',
-    'src/content/panel.js', 'src/content/content.js',
+    'src/lib/matcher.js', 'src/lib/tracker.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js',
+    'src/content/apply-detector.js', 'src/content/panel.js', 'src/content/content.js',
   ];
 
   // ---- Logging: background is the single writer of the `logs` key ---------
@@ -59,6 +59,90 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function aiContext() {
     const [profile, resume] = await Promise.all([AJP.store.get('profile'), AJP.store.activeResume()]);
     return { profile, resumeText: (resume && resume.text) || '', resume };
+  }
+
+  // ---- Application tracking helpers --------------------------------------------
+  const MAX_TAB_JOBS = 30;
+  const pickJob = (j) => ({ url: j.url, title: j.title, company: j.company, location: j.location, score: j.score, jobKey: j.jobKey });
+
+  async function getTabJob(tabId) {
+    if (tabId == null) return null;
+    const all = await AJP.store.get('tabJobs');
+    return all[tabId] || null;
+  }
+
+  function setTabJob(tabId, job) {
+    if (tabId == null) return Promise.resolve();
+    return serialData(() =>
+      AJP.store.update('tabJobs', (all) => {
+        all[tabId] = { ...job, at: Date.now() };
+        const ids = Object.keys(all).sort((a, b) => all[b].at - all[a].at);
+        for (const id of ids.slice(MAX_TAB_JOBS)) delete all[id];
+      })
+    );
+  }
+
+  // Merge, attach snapshot (job description etc.) and the resume used, then save.
+  async function saveApplication(app, tabJob) {
+    const resume = await AJP.store.activeResume();
+    const enriched = { ...app };
+    if (!enriched.snapshot && tabJob && tabJob.snapshot && (!app.url || AJP.tracker.jobKey(app.url) === tabJob.jobKey)) {
+      enriched.snapshot = tabJob.snapshot;
+    }
+    if (resume && !enriched.resumeId && (app.status === 'applied' || app.status === 'in progress')) {
+      enriched.resumeId = resume.id;
+      enriched.resumeName = resume.name;
+    }
+    let result;
+    await serialData(() => AJP.store.update('applications', (list) => void (result = AJP.tracker.upsert(list, enriched))));
+    log.info(result.created ? 'Application added' : 'Application updated', {
+      status: result.app.status, changed: result.changed, auto: !!app.auto, key: result.app.jobKey,
+    });
+    return result.app;
+  }
+
+  // ---- Follow-up reminders: badge on the toolbar icon -------------------------------
+  async function refreshBadge() {
+    try {
+      const [apps, settings] = await Promise.all([AJP.store.get('applications'), AJP.store.get('settings')]);
+      const due = AJP.tracker.dueFollowUps(apps, Date.now(), Number(settings.tracker.followUpDays) || 7);
+      await api.action.setBadgeText({ text: due.length ? String(due.length) : '' });
+      await api.action.setBadgeBackgroundColor({ color: '#d97706' });
+      if (due.length) log.debug('Follow-ups due', { count: due.length });
+      return due.length;
+    } catch (e) {
+      log.warn('Badge update failed', { error: e.message });
+      return 0;
+    }
+  }
+  AJP.refreshBadge = refreshBadge;
+  const refreshBadgeSoon = AJP.debounce(refreshBadge, 500);
+  if (api.alarms) {
+    try {
+      api.alarms.create('ajp-followups', { periodInMinutes: 60 });
+      api.alarms.onAlarm.addListener((a) => a.name === 'ajp-followups' && refreshBadge());
+    } catch (e) {
+      log.warn('Alarms unavailable', { error: e.message });
+    }
+  }
+  api.storage.onChanged.addListener((c, area) => {
+    if (area === 'local' && (c.applications || c.settings)) refreshBadgeSoon();
+  });
+  refreshBadge();
+
+  // A job opened in a new tab (e.g. LinkedIn "Apply" -> company Workday) keeps its context.
+  if (api.tabs.onCreated) {
+    api.tabs.onCreated.addListener(async (tab) => {
+      if (tab.openerTabId == null) return;
+      const parent = await getTabJob(tab.openerTabId);
+      if (parent) {
+        await setTabJob(tab.id, { ...parent, submittedAt: undefined, appliedAt: undefined });
+        log.debug('Job context passed to new tab', { from: tab.openerTabId, to: tab.id });
+      }
+    });
+  }
+  if (api.tabs.onRemoved) {
+    api.tabs.onRemoved.addListener((tabId) => serialData(() => AJP.store.update('tabJobs', (all) => void delete all[tabId])));
   }
 
   // ---- Message handlers ------------------------------------------------------
@@ -126,19 +210,62 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return {};
     },
 
-    async recordApplication({ app }) {
-      let saved;
-      await serialData(() =>
-        AJP.store.update('applications', (list) => {
-          const i = list.findIndex((x) => x.url === app.url);
-          saved = { ...(i >= 0 ? list[i] : { id: AJP.uid('app'), date: new Date().toISOString() }), ...app, updatedAt: new Date().toISOString() };
-          if (i >= 0) list[i] = saved;
-          else list.unshift(saved);
-          return list.slice(0, 2000);
-        })
-      );
-      log.info('Application recorded', { company: saved.company, status: saved.status });
-      return { app: saved };
+    // Save or update an application (dedupes by job identity, see tracker.jobKey).
+    async recordApplication({ app }, sender) {
+      const tabId = sender && sender.tab && sender.tab.id;
+      const tj = tabId != null ? await getTabJob(tabId) : null;
+      return { app: await saveApplication(app, tj) };
+    },
+
+    async undoStatus({ id }) {
+      let res = null;
+      await serialData(() => AJP.store.update('applications', (list) => void (res = AJP.tracker.undoStatus(list, id))));
+      log.info('Application status undone', { id, removed: !!(res && res.removed), status: res && !res.removed ? res.app.status : null });
+      return res || { app: null, removed: false };
+    },
+
+    // Content (top frame) tells us which job this tab is looking at.
+    async setTabJob({ job }, sender) {
+      if (!sender.tab || !job) return {};
+      await setTabJob(sender.tab.id, { ...job, jobKey: AJP.tracker.jobKey(job.url) });
+      return {};
+    },
+
+    // Apply detection signals from any frame: 'submit' | 'confirm' | 'check'.
+    async applicationSignal({ signal, how, url, title, host }, sender) {
+      const tabId = sender.tab && sender.tab.id;
+      const settings = await AJP.store.get('settings');
+      if (!settings.tracker.autoDetect) return { ignored: 'auto-detect off' };
+      const tj = await getTabJob(tabId);
+      const now = Date.now();
+
+      if (signal === 'submit') {
+        await setTabJob(tabId, { ...(tj || { url, title, jobKey: AJP.tracker.jobKey(url) }), submittedAt: now });
+        log.info('Submit seen', { host, hasJob: !!tj });
+        return {};
+      }
+      if (signal === 'check') return { applied: !!(tj && tj.appliedAt && tj.appliedAt >= (tj.submittedAt || 0)), job: tj };
+
+      if (signal === 'confirm') {
+        const recentSubmit = !!(tj && tj.submittedAt && now - tj.submittedAt < 30 * 60000);
+        if (!tj && !AJP.tracker.isJobHost(host)) {
+          log.info('Confirmation ignored (no job context, unknown site)', { host });
+          return { ignored: 'no context' };
+        }
+        const job = tj || { url, title, jobKey: AJP.tracker.jobKey(url) };
+        const app = await saveApplication({ ...pickJob(job), status: 'applied', auto: true, detectedBy: how, host }, job);
+        await setTabJob(tabId, { ...job, appliedAt: now });
+        log.info('Application auto-detected as applied', { how, host, confidence: recentSubmit ? 'high' : 'medium', company: app.company });
+        api.tabs.sendMessage(tabId, { type: 'appliedDetected', app }, { frameId: 0 }).catch(() => {});
+        return { app };
+      }
+      return {};
+    },
+
+    // A frame saw Submit but no confirmation followed: ask the user in the top frame's panel.
+    async askApplied({ job }, sender) {
+      if (sender.tab) api.tabs.sendMessage(sender.tab.id, { type: 'askApplied', job }, { frameId: 0 }).catch(() => {});
+      return {};
     },
 
     // From popup or context menu: make sure scripts are present, then open the panel.

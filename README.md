@@ -7,6 +7,7 @@ A browser extension that runs in Chrome, Edge, Firefox and Safari. For any job p
 3. **Tailors your resume** to the job with a free AI model, using only truthful changes. It never invents skills.
 4. **Autofills application forms** (Greenhouse, Lever, Workday, Ashby, …) from your profile, attaches your resume, and uses AI to draft answers to free-text questions such as "Why do you want to work here?".
 5. **Learns** from what you type into forms, so the same question gets filled automatically next time.
+6. **Tracks your applications.** It notices when you submit, keeps a copy of each job description, and gives you a pipeline board, follow-up reminders, stats, and CSV export.
 
 It **never submits** an application. You always review and click submit yourself.
 
@@ -44,6 +45,8 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 - In the panel you can use **AI deep analysis**, **Tailor resume**, **Autofill form** and **Mark applied**.
   - Green outlines show fields filled from your profile. Purple outlines show fields filled from learned answers.
   - Free-text questions get a **Draft answer with AI** button.
+- **When you submit an application**, the confirmation page is detected and the job is saved as *applied*, with an Undo option. If a site shows no confirmation, the panel asks you.
+- **In Admin → Applications** you get a board (drag cards between statuses), notes and interview dates, the saved job description, stats, and **Export CSV**. A number on the toolbar icon tells you when follow-ups are due.
 
 ## Free AI options
 
@@ -77,6 +80,7 @@ src/lib/                 shared, framework-free modules (namespace: globalThis.A
   matcher.js             offline match % / gaps / fit
   ai.js                  free AI providers + prompts (background only)
   docx.js                .docx text extraction, zero dependencies
+  tracker.js             application tracker logic (job identity, saving rules, reminders, stats, CSV)
 src/background/          message hub, AI calls, log persistence, learning
 src/content/             JD extractor, form filler, on-page panel, controller
 src/admin/               Admin page (local UI) + printable resume view
@@ -85,7 +89,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/ARCHITECTURE.md     design notes and roadmap
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (279) in headless Chrome. `./tests/run-tests.sh` runs the 139 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (391) in headless Chrome. `./tests/run-tests.sh` runs the 216 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.
 
