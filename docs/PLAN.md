@@ -277,7 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-18 | *this commit* | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
+| 2026-11-18 | `3fb5ee3` | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
 | 2026-11-18 | `845b501` | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |
 | 2026-11-18 | `53f4881` | Tester walkthrough videos (5 parts) + Tester Guide doc |
 | 2026-11-18 | `2ace0d5` | **Step 6: multiple career tracks** + tester Session 7 + video Part 6; 565 tests |
