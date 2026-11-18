@@ -2,8 +2,8 @@
 
 A browser extension that runs in Chrome, Edge, Firefox and Safari. For any job posting it:
 
-1. **Reads the job description** and calculates a **match % (0–100)** against your skills.
-2. Shows **matching vs. missing skills** (gaps), plus work-type, salary and location fit.
+1. **Reads the job description** and calculates a **match % (0–100)** against your skills. Related skills count too: Next.js counts as React, and Azure gives half credit for AWS.
+2. Shows **matching vs. missing skills** (gaps), plus work-type, salary, location, **years of experience** (overall and per skill) and **seniority level** fit.
 3. **Tailors your resume** to the job with a free AI, using only truthful changes:
    - It lists the job's requirements and finds proof for each one in **your own resume text**.
    - It suggests targeted, **result-oriented** edits (action → what → result).
@@ -97,6 +97,7 @@ src/lib/                 shared, framework-free modules (namespace: globalThis.A
   storage.js             local "database" (storage.local + in-memory cache)
   skills-dictionary.js   canonical skills + aliases
   matcher.js             offline match % / gaps / fit
+  experience.js          years of experience & seniority checks
   ai.js                  free AI providers + prompts (background only)
   docx.js                .docx text extraction, zero dependencies
   tracker.js             application tracker logic (job identity, saving rules, reminders, stats, CSV)
@@ -108,7 +109,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (749) in headless Chrome. `./tests/run-tests.sh` runs the 393 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (812) in headless Chrome. `./tests/run-tests.sh` runs the 456 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.

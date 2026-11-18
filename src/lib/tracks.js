@@ -72,7 +72,7 @@
   function analyzeAll({ jdText, jobTitle = '', jobLocation = '', profile, resumes, aiSkills = null }) {
     const results = list(profile).map((track) => {
       const resume = resumeFor(track, resumes);
-      const analysis = AJP.matcher.analyze({ jdText, profile: effectiveProfile(profile, track), resumeText: resume ? resume.text : '', aiSkills, jobLocation });
+      const analysis = AJP.matcher.analyze({ jdText, profile: effectiveProfile(profile, track), resumeText: resume ? resume.text : '', aiSkills, jobLocation, jobTitle });
       const tf = titleFit(jobTitle, track);
       return { track: { id: track.id, name: track.name, implicit: !!track.implicit }, analysis, titleFit: Math.round(tf * 100) / 100, rank: (analysis.score || 0) + TITLE_BONUS * tf, resumeId: resume ? resume.id : null };
     });

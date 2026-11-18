@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (749). Run them before every merge into `develop`.
+1. **Automated tests** (812). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **393** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **749** tests in headless Chrome. This is the full suite: the 393 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **456** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **812** tests in headless Chrome. This is the full suite: the 456 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -39,6 +39,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Career tracks end-to-end | `unit/tracks-flow.test.js` | Panel tabs with a % per track and ★ best; switching; job recorded per track; no tabs without tracks; **a new job resets a manual pick**; Mark applied / Autofill (resume file) / Tailor resume (resume + skills sent to AI) use the chosen track; "make active" sets the track's resume; Admin: insights, compare table, add/edit/max 3/delete, Applications filter by track |
 | Problem reports (rules) | `unit/issue-report.test.js` | Pre-filled GitHub issue (template, title `[code] … (R-…)`, every field); **public text masks emails, phone numbers, keys and links; never logs**; crash code first; URL ≤ 7,500 chars with the report id kept; search URLs; status mapping (received / needs-info / fixing / fixed vX / duplicate / won't fix / closed / not submitted); crash-prompt rules (always for AJP-INTERNAL/STORE, 3× in 10 min, once a day, "don't ask again", setting off, **never for user-fixable codes**) |
 | Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
+| Smarter matching | `unit/experience.test.js` | Years asked (7 phrasings, ranges, number words) and what to ignore (company history, ages, degrees, "past 10 years"); highest required ask wins; per-skill asks ("3+ years with Kafka", "4 years of Java experience", either-or); date formats; Experience-section roles only; overlapping jobs counted once; profile > work history > resume; years per skill incl. implied skills; seniority from 12 title styles, "Product Manager" not a level, fallback to years; fit rows (enough / close / short / unknown / stretch / below); implied skills (one-way), similar half credit, new aliases, **"Go" still not a word match**, score ignores years, **a crash in the check never breaks matching**, speed; B14 |
 | PDF resumes | `unit/pdf.test.js` | Rebuilding lines from positioned text (order, spacing, paragraphs, 7 bullet glyphs → "- ", negative numbers kept, columns, uneven baselines); error mapping (locked → AJP-PDF-LOCKED, broken → AJP-RES-PARSE); **real pdf.js on generated PDFs** (resume, ready for tailoring, multi-page, scanned → AJP-PDF-NOTEXT, not-a-PDF, reader fails to load then recovers); Admin upload (text + file saved, bullet count message, scanned PDF message, "Read text from PDF" for older uploads) |
 | The standard (errors / retries / conventions) | `unit/standard.test.js` | Temporary vs permanent codes; retry with backoff and Retry-After; `AJP.http` (JSON, 5xx retried, 4xx not, network, timeout, bad JSON, Retry-After); AI uses it (503 retried, 401 not); `AJP.guard` (coded log + trace, message shown, never throws); panel actions guarded; send/storage recover; **source scan**: no `throw new Error`, no raw fetch, error keys exist and are documented, no silent catch, no console, captureErrors on pages |
 | Workday | `unit/workday.test.js` (+ `fixtures/workday-mock.js`) | Dates ("06/2019", "June 2019", "2019-06"…), Workday wording (TX → Texas, USA → United States of America, B.S. → Bachelor's Degree, decline → "I do not wish to answer"); detection (also on custom domains); against an **emulated Workday form**: text fields, pop-up dropdowns, search prompts with learned answers, unanswerable questions reported, user choices kept, no pop-up left open, **Save and Continue / Submit never clicked**, broken dropdown reported while the rest fills, learning from picked options; My Experience: one entry per job via Add, Month/Year dates, "currently work here", education prompts + degree; existing entries kept; EEO wording; multi-page "Autofill this page" in the panel |
@@ -115,6 +116,10 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | C9 | A job listing a salary below your minimum | The salary row shows ⚠️ |
 | C10 | AI deep analysis (with AI set up) | The summary appears and the score and gaps are recalculated |
 | C11 | AI deep analysis with AI turned off | A clear error: "AI is turned off…" |
+| C13 | A job asking "5+ years of experience" (fill Total years + Current title in Admin → Profile first) | Fit shows "Experience: 5+ yrs asked · you have N" with ✅ / 🟡 (one short) / ⚠️; company history ("founded 20 years ago") is ignored |
+| C14 | A job asking "3+ years with <skill>" | A line under Experience with your years for that skill, from your dated jobs that mention it |
+| C15 | A Senior, a Junior and a Director job | Level row: same level / a step up or down ✅; two or more apart ⚠️ |
+| C16 | A job asking AWS while you only have Azure | Gap chip "AWS ≈ Azure", "(+1 similar)"; Next.js counts as React, PostgreSQL as SQL |
 | C12 | Turn off "Show the match badge automatically" in Admin | No badge on job sites, but the popup's Analyze still works |
 | C13 | Panel: drag it, minimize it, close it | Works. Closing removes it until the next Analyze. |
 | C14 | Browser pages (`chrome://`, the Web Store, a PDF viewer) → popup → Analyze | A readable error: "This page cannot be accessed by extensions" |

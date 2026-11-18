@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 10, one resume format (PDF)
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 11, smarter matching
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **749 / 749 passing** (393 also run without a browser), incl. convention checks |
+| Automated tests | **812 / 812 passing** (456 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 83 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
+| Tester material | Tester Guide (8 sessions, 87 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (13 found and fixed so far, each with a test) |
-| Next step | **Step 11: smarter matching (years of experience, seniority, synonyms)** |
+| Open bugs | **0 known** (14 found and fixed so far, each with a test) |
+| Next step | **Step 12: per-site adapters for Greenhouse, Lever, Ashby, iCIMS** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -44,7 +44,8 @@ Columns:
 | C05 | Error codes + **THE STANDARD** (retry, http, guard) | `src/lib/errors.js` | ✅ | 7 + 43 | ⏳ | 23 codes in SUPPORT.md; convention tests scan the source |
 | C06 | Diagnostics / issue report | `src/lib/diagnostics.js` | ✅ | 11 | ⏳ | No personal data (tested) |
 | C07 | Skills dictionary | `src/lib/skills-dictionary.js` | ✅ | (in C08) | ⏳ | 199 skills |
-| C08 | Matcher (match %, gaps, fit) | `src/lib/matcher.js` | ✅ | 49 | ⏳ | ⬜ years/seniority check, synonyms (step 9) |
+| C08 | Matcher (match %, gaps, fit) + **synonyms**: implied skills count fully (Next.js → React), similar ones half (Azure for AWS) | `src/lib/matcher.js`, `src/lib/skills-dictionary.js` | ✅ | 49 + 13 | ⏳ | |
+| C26 | **Experience & seniority check**: years asked (overall + per skill) vs. profile / work history / resume dates; job level vs. your level; fit rows only, never the % | `src/lib/experience.js` | ✅ | 50 | ⏳ | Check on real job posts (2.10–2.13): report a number it misread |
 | C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 | ⏳ | Gemini, Groq, OpenRouter, Ollama; one automatic retry on invalid JSON. ⬜ Chrome built-in AI (step 12) |
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
 | C11 | **PDF resume reader** (pdf.js 4.10.38, loaded on demand; lines, bullets, paragraphs) | `src/lib/pdf.js`, `src/vendor/pdfjs/` | ✅ | 26 | ⏳ | Scanned PDFs → AJP-PDF-NOTEXT; locked → AJP-PDF-LOCKED |
@@ -89,7 +90,7 @@ Columns:
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) = **749**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) = **812**
 
 ---
 
@@ -136,6 +137,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 11 | **Smarter matching**: years of experience (overall + per skill, from profile / work history / resume dates), seniority level, implied and similar skills; fixed B14; Tester Guide 2.10–2.13 + video Part 2 scene | _pending_ | 812 |
 | 10 | **One resume format (PDF)**: built-in PDF writer; every resume gets a PDF (tailored ones named for the company); Autofill uploads the resume tailored for *this* job and the panel names the file; Admin Download / View PDF (print view and .md removed); Tester Guide 1.13–1.15, 4.13–4.14 + video scenes | `b7b2522` | 749 |
 
 ## 4. Bugs found & fixed
@@ -155,6 +157,7 @@ Columns:
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B14 | A short bullet with "experience" or "skills" under **Nice to have** (e.g. "- Experience with Snowflake") was read as a heading and flipped the rest back to *required* | Experience tests | Step 11 | matcher › bug B14… |
 
 ## 5. How to update this file
 

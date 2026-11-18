@@ -1,12 +1,15 @@
 /*
  * matcher.js — offline job/profile matching. No AI required.
  *
- *   AJP.matcher.analyze({ jdText, profile, resumeText, aiSkills })
- *     -> { score, matched[], missing[], fit{workType,salary,location}, jdSkillCount }
+ *   AJP.matcher.analyze({ jdText, profile, resumeText, aiSkills, jobTitle, jobLocation })
+ *     -> { score, matched[], missing[], similarCount, fit{workType,salary,location,years,seniority}, jdSkillCount }
  *
  * Scoring: every skill the JD mentions gets a weight
  *   required section = 3, unlabeled = 2, preferred / "nice to have" = 1
  * score = 100 * (weight of skills the user has) / (weight of all JD skills).
+ * Synonyms (skills-dictionary.js): a skill implied by one you have counts fully (Next.js → React);
+ * a SIMILAR skill gives half credit (Azure for AWS) and the gap says "you have Azure".
+ * Years of experience and seniority (experience.js) are fit rows; they never change the score.
  */
 (function () {
   'use strict';
@@ -14,6 +17,7 @@
   if (AJP.matcher) return;
 
   const W = { required: 3, neutral: 2, preferred: 1 };
+  const SIMILAR_CREDIT = 0.5;
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   // ---- Dictionary compilation (once) --------------------------------------
@@ -92,6 +96,26 @@
     return found;
   }
 
+  // ---- Synonyms ---------------------------------------------------------------
+  // Everything a skill implies, transitively (Next.js → React → JavaScript).
+  function impliedBy(skill) {
+    const map = AJP.SKILL_IMPLIES || {};
+    const out = new Set();
+    const todo = [...(map[skill] || [])];
+    while (todo.length) {
+      const s = todo.shift();
+      if (out.has(s) || s === skill) continue;
+      out.add(s);
+      todo.push(...(map[s] || []));
+    }
+    return [...out];
+  }
+  function similarTo(skill) {
+    const n = AJP.norm(skill);
+    const g = (AJP.SKILL_SIMILAR || []).find((grp) => grp.some((x) => AJP.norm(x) === n));
+    return g ? g.filter((x) => AJP.norm(x) !== n) : [];
+  }
+
   // ---- JD sectioning -------------------------------------------------------
   const PREF_HEAD = /(preferred|nice[\s-]to[\s-]have|bonus|pluses|a plus|desired|good to have|not required|extra credit)/i;
   const REQ_HEAD = /(required|requirements|qualifications|must[\s-]have|what you('|’)ll need|what you bring|looking for|you have|who you are|minimum|basic qualifications|skills|experience)/i;
@@ -106,7 +130,8 @@
     for (const raw of lines) {
       const line = raw.trim();
       if (!line) continue;
-      const isHeading = line.length < 80 && !/[.;]$/.test(line) && (line.split(/\s+/).length <= 9);
+      // A bullet ("- 3+ years of Go") is content, never a heading, however short.
+      const isHeading = line.length < 80 && !/[.;]$/.test(line) && line.split(/\s+/).length <= 9 && !/^[-*•▪●◦·]\s/.test(line);
       if (isHeading) {
         if (PREF_HEAD.test(line)) kind = 'preferred';
         else if (OTHER_HEAD.test(line)) kind = 'other';
@@ -194,10 +219,11 @@
       if (name) map.set(canonical(name), 'profile');
     }
     for (const name of findSkills(resumeText || '').keys()) if (!map.has(name)) map.set(name, 'resume');
+    for (const [name] of [...map]) for (const x of impliedBy(name)) if (!map.has(x)) map.set(x, `implied by ${name}`);
     return map;
   }
 
-  function analyze({ jdText, profile, resumeText = '', aiSkills = null, jobLocation = '' }) {
+  function analyze({ jdText, profile, resumeText = '', aiSkills = null, jobLocation = '', jobTitle = '' }) {
     const t0 = Date.now();
     profile = profile || {};
     const mine = userSkillSet(profile, resumeText);
@@ -222,16 +248,23 @@
     const missing = [];
     let got = 0;
     let total = 0;
+    let similarCount = 0;
+    const has = (name) => [...mine.keys()].find((k) => AJP.norm(k) === AJP.norm(name));
     for (const [name, info] of jd) {
       // Mentioned many times => slightly more important.
       const weight = info.weight + Math.min(info.count - 1, 2) * 0.25;
       total += weight;
-      const key = [...mine.keys()].find((k) => AJP.norm(k) === AJP.norm(name));
+      const key = has(name);
       if (key) {
         got += weight;
         matched.push({ skill: name, weight, source: mine.get(key) });
       } else {
-        missing.push({ skill: name, weight, importance: info.weight === 3 ? 'required' : info.weight === 1 ? 'preferred' : 'mentioned' });
+        const sim = similarTo(name).map(has).find(Boolean);
+        if (sim) {
+          got += weight * SIMILAR_CREDIT;
+          similarCount++;
+        }
+        missing.push({ skill: name, weight, importance: info.weight === 3 ? 'required' : info.weight === 1 ? 'preferred' : 'mentioned', ...(sim ? { similar: sim } : {}) });
       }
     }
     const byWeight = (a, b) => b.weight - a.weight || a.skill.localeCompare(b.skill);
@@ -242,12 +275,25 @@
       score: total ? Math.round((100 * got) / total) : null,
       matched,
       missing,
+      similarCount,
       jdSkillCount: jd.size,
       userSkillCount: mine.size,
-      fit: fitChecks(jdText || '', profile, jobLocation),
+      fit: { ...fitChecks(jdText || '', profile, jobLocation), ...experienceFit({ jdText, jobTitle, profile, resumeText }) },
       ms: Date.now() - t0,
     };
   }
 
-  AJP.matcher = { analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes };
+  // Years / seniority rows (experience.js). A failure there must never break the match itself.
+  function experienceFit(args) {
+    if (!AJP.experience) return { years: null, seniority: null };
+    try {
+      return AJP.experience.check(args);
+    } catch (e) {
+      const x = AJP.toAppError ? AJP.toAppError(e) : e;
+      if (AJP.logger) AJP.logger('matcher').warn('Experience check failed', { code: x.code, error: x.message }, { code: x.code });
+      return { years: null, seniority: null };
+    }
+  }
+
+  AJP.matcher = { analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
 })();

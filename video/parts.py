@@ -136,9 +136,11 @@ PARTS = [
          'say': 'Green chips are skills you have. Red ones are missing. Amber means missing, but only nice to have. Compare them with the job post.', 'caption': 'Green = you have it · Red = missing · Amber = nice to have', 'check': '2.2'},
         {'kind': 'job', 'seed': BASE, 'actions': OPEN_PANEL, 'highlight': 'shadow:.fit',
          'say': 'The fit rows compare work type, salary and location with your preferences.', 'caption': 'Fit: work type, salary, location vs. your preferences', 'check': '2.7'},
+        {'kind': 'job', 'seed': {**BASE, 'profile': {**PROFILE, 'skills': [{'name': n} for n in ['Python', 'Azure', 'Docker', 'MySQL', 'REST APIs']]}}, 'actions': OPEN_PANEL, 'highlight': ['shadow:.fit', 'shadow:.chip.sim'], 'budget': 9000,
+         'say': 'New: the panel also checks years of experience and level. Here the job asks for five years of Python, and you have eight in your dated roles. Similar skills count half: MySQL for PostgreSQL is marked, you have MySQL.', 'caption': 'Experience years, level, and similar skills (≈ you have…)', 'check': '2.10 – 2.13'},
         card('Any other page', 'Check 2.5 – 2.6', 'On any other careers site, click the extension icon, then Analyze this job page. Or select the job text, right-click, and choose analyze selection. Try it with the sample job in the guide.',
              items=['Toolbar icon → Analyze this job page', 'Or select the job text → right-click → Apply Job: analyze selection', 'Try it with the sample job in the Tester Guide']),
-        card('Part 2 done', 'Next: Part 3 · Resume tailoring', 'Mark checks two point one to two point nine. Next, part three: resume tailoring, the most important session.'),
+        card('Part 2 done', 'Next: Part 3 · Resume tailoring', 'Mark checks two point one to two point thirteen. Next, part three: resume tailoring, the most important session.'),
     ]},
     {'title': 'Resume tailoring', 'scenes': [
         card('Part 3 · Resume tailoring', 'The most important session', 'Part three, resume tailoring. The rule: tailoring must never make your resume untrue. No numbers copied from the job, no invented skills, employers or dates.',

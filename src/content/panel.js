@@ -31,6 +31,9 @@
   .chip.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
   .chip.no { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
   .chip.no.pref { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .chip.sim { border-style: dashed; }
+  .chip .sim { opacity: .8; font-size: 11px; }
+  .fit .sub { grid-column: 2; font-size: 12px; opacity: .85; margin: 0 0 3px; }
   .fit { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
   .tracks { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px 0 10px; }
   .tk { border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
@@ -61,6 +64,26 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const color = (s) => (s == null ? '#6b7280' : s >= 75 ? '#059669' : s >= 50 ? '#d97706' : '#dc2626');
   const tick = (ok) => (ok === true ? '✅' : ok === false ? '⚠️' : '—');
+  const yrs = (n) => (n == null ? '?' : Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, ''));
+  // Years-of-experience row (+ one line per skill the job asks years for).
+  function yearsRow(y) {
+    if (!y || y.asked == null) {
+      return `<span>—</span><span class="yrs">Experience: no total years asked</span>${skillYears(y)}`;
+    }
+    const asked = `${y.asked}${y.askedMax ? '–' + y.askedMax : '+'} yrs${y.preferred ? ' (preferred)' : ''}`;
+    const have = y.have == null ? 'add your total in Admin → Profile' : `you have ${yrs(y.have)} (from ${esc(y.source)})`;
+    const t = y.ok === true ? '✅' : y.close ? '🟡' : tick(y.ok);
+    return `<span title="${esc(y.quote || '')}">${t}</span><span class="yrs">Experience: ${asked} asked · ${have}${y.close ? ' — close' : ''}</span>${skillYears(y)}`;
+  }
+  function skillYears(y) {
+    if (!y || !y.skills || !y.skills.length) return '';
+    return y.skills.slice(0, 4).map((s) => `<span class="sub">${s.ok === true ? '✅' : s.ok === false ? '⚠️' : '—'} ${esc(s.skill)}: ${s.asked}+ yrs${s.preferred ? ' (preferred)' : ''} · ${s.have == null ? 'not in your dated roles' : 'you have ' + yrs(s.have)}</span>`).join('');
+  }
+  function levelRow(l) {
+    if (!l || !l.job) return `<span>—</span><span>Level: not stated</span>`;
+    const mine = l.mine ? `you: ${esc(l.mine.label)}` : 'set your current title in Admin → Profile';
+    return `<span>${tick(l.ok)}</span><span class="lvl">Level: ${esc(l.job.label)} · ${mine}${l.note ? ' — ' + esc(l.note) : ''}</span>`;
+  }
 
   let host = null;
   let root = null;
@@ -119,18 +142,20 @@
         <div class="job"><b>${esc(job.title || 'Job')}</b>${job.company ? ' · ' + esc(job.company) : ''}</div>${tabs}
         <div class="score">
           <div class="ring" style="background:conic-gradient(${color(s)} ${(s || 0) * 3.6}deg,#e5e7eb 0)"><span>${s == null ? '?' : s + '%'}</span></div>
-          <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match<br>
+          <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match${a.similarCount ? ` <span class="muted">(+${a.similarCount} similar)</span>` : ''}<br>
           <span class="muted">${state.aiUsed ? 'AI-enhanced analysis' : 'Offline keyword analysis'} · ${a.ms}ms</span></div>
         </div>
         <h4>Matching (${a.matched.length})</h4>
-        <div class="chips">${a.matched.map((m) => `<span class="chip ok" title="from ${m.source}">${esc(m.skill)}</span>`).join('') || '<span class="muted">none</span>'}</div>
+        <div class="chips">${a.matched.map((m) => `<span class="chip ok" title="${esc(/^implied/.test(m.source) ? m.source : 'from ' + m.source)}">${esc(m.skill)}</span>`).join('') || '<span class="muted">none</span>'}</div>
         <h4>Gaps (${a.missing.length})</h4>
-        <div class="chips">${a.missing.map((m) => `<span class="chip no ${m.importance === 'preferred' ? 'pref' : ''}" title="${m.importance}">${esc(m.skill)}</span>`).join('') || '<span class="muted">none 🎉</span>'}</div>
+        <div class="chips">${a.missing.map((m) => `<span class="chip no ${m.importance === 'preferred' ? 'pref' : ''} ${m.similar ? 'sim' : ''}" title="${m.importance}${m.similar ? ` · you have ${esc(m.similar)} (similar, half credit)` : ''}">${esc(m.skill)}${m.similar ? ` <span class="sim">≈ ${esc(m.similar)}</span>` : ''}</span>`).join('') || '<span class="muted">none 🎉</span>'}</div>
         <h4>Fit</h4>
         <div class="fit">
           <span>${tick(f.workType.ok)}</span><span>Work type: ${esc(f.workType.job.join(', ') || 'not stated')}</span>
           <span>${tick(f.salary.ok)}</span><span>Salary: ${esc(sal)}</span>
           <span>${tick(f.location.ok)}</span><span>Location: ${esc(f.location.matched || job.location || 'not matched to your areas')}</span>
+          ${yearsRow(f.years)}
+          ${levelRow(f.seniority)}
         </div>
         <div class="btns">
           <button class="b" data-act="ai" ${dis('ai')}>✨ AI deep analysis</button>

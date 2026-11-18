@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js');
 }
 
 (function () {
@@ -21,7 +21,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   const MAX_LOGS = 3000;
   const CONTENT_FILES = [
     'src/lib/core.js', 'src/lib/logger.js', 'src/lib/errors.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
-    'src/lib/matcher.js', 'src/lib/tracker.js', 'src/lib/tracks.js', 'src/lib/pdf-writer.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js', 'src/content/workday.js',
+    'src/lib/matcher.js', 'src/lib/experience.js', 'src/lib/tracker.js', 'src/lib/tracks.js', 'src/lib/pdf-writer.js', 'src/content/jd-extractor.js', 'src/content/form-filler.js', 'src/content/workday.js',
     'src/content/apply-detector.js', 'src/content/panel.js', 'src/content/content.js',
   ];
 

@@ -55,6 +55,7 @@ src/
     issue-report.js           problem reports on GitHub: pre-filled issue URL (public-safe), status mapping, crash-prompt rules
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
     pdf.js                    PDF → text via Mozilla pdf.js (loaded on demand): lines, bullets → "- ", paragraphs
+    experience.js             years of experience (asked vs. yours, per skill) and seniority level → fit rows
     pdf-writer.js             resume text → ATS-readable PDF (Helvetica, WinAnsi, Letter); the one file format we upload
   vendor/pdfjs/               pdf.js 4.10.38 legacy build (Apache-2.0), integrity-verified; see its README
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
@@ -264,6 +265,11 @@ A result needs at least 200 chars. `extract({root, host, url})` can be pointed a
   - work type: remote / hybrid / on-site, with negations
   - salary: annual and hourly ranges compared with the user's range
   - location: the user's areas, or remote
+  - **years of experience** (`experience.js`): reads "5+ years of experience", "3–5 years", "five or more years", "3+ years with Kafka", "4 years of Java experience"; ignores company history ("founded 20 years ago"), ages and "4 year degree"; preferred asks never raise the required one. The candidate's total = Admin → Profile total, else Auto-apply work history dates, else the resume's Experience-section date ranges (overlaps merged, education ignored). Years per skill = merged dates of roles mentioning the skill or a skill implying it. ✅ / 🟡 one year short / ⚠️
+  - **seniority:** level from the job title (Intern → Junior → Mid → Senior → Staff/Lead/Principal or Manager → Director → Executive; "Engineer II/III"), else from the years asked; mine from my current title, else my years. Within one level = ✅
+  - Years and seniority are **shown, never scored**: a wrong reading can't hide a good job, and the % stays a pure skills measure.
+- **Synonyms** (`skills-dictionary.js`): `SKILL_IMPLIES` (transitive, full credit: Next.js → React → JavaScript, PostgreSQL → SQL, Spring → Java) and `SKILL_SIMILAR` groups (half credit, the gap chip says "≈ you have Azure"). Groups are kept tight: only skills a recruiter would accept as transferable.
+- **Bullets are never headings** in `sectionize` (B14).
 
 ### 8.3 Autofill and learning (`form-filler.js`)
 - **Label** for each field, taken in this order:
@@ -482,8 +488,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 393 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 749 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 456 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 812 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -558,6 +564,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-18 | **Years & seniority are fit rows, not part of the %**; synonyms via a hand-kept implies/similar table, not embeddings | Parsing years from free text is heuristic, so it informs instead of scoring; embeddings would need a model download or a server, against "fast, offline, no database" |
 | 2026-11-18 | **One resume format: PDF.** A small built-in writer (no library) makes a text-based PDF for every resume that has no uploaded PDF; tailored resumes get one on creation; Autofill uploads the resume tailored for the current job, else the track's / active one | PDF is what every ATS accepts and keeps the layout; one format is simpler for users and for us; uncompressed standard-font text is read back exactly by ATS parsers (tested with pdf.js) |
 | 2026-11-18 | PDF text via vendored, integrity-verified pdf.js loaded on demand (not a hand-written parser) | Resume PDFs use embedded fonts/CMaps a small parser gets wrong; on-demand loading keeps Admin fast |
 | 2026-11-18 | Problem reports via pre-filled GitHub issues the user submits (option A); acknowledgement by a GitHub Action | No server or token in the extension; the user sees what is posted |
