@@ -24,18 +24,18 @@
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
   };
 
-  const TIMEOUT_MS = 90000;
+  const CONFIG = { timeoutMs: 90000 }; // tests shorten this
 
   async function fetchJson(url, opts) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), CONFIG.timeoutMs);
     try {
       const res = await fetch(url, { ...opts, signal: ctrl.signal });
       const text = await res.text();
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
       return JSON.parse(text);
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error(`AI request timed out after ${TIMEOUT_MS / 1000}s`);
+      if (e.name === 'AbortError') throw new Error(`AI request timed out after ${CONFIG.timeoutMs / 1000}s`);
       throw e;
     } finally {
       clearTimeout(timer);
@@ -195,5 +195,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, complete, tasks, parseJsonLoose };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose };
 })();

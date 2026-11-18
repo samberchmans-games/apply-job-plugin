@@ -95,6 +95,8 @@
   // ---- JD sectioning -------------------------------------------------------
   const PREF_HEAD = /(preferred|nice[\s-]to[\s-]have|bonus|pluses|a plus|desired|good to have|not required|extra credit)/i;
   const REQ_HEAD = /(required|requirements|qualifications|must[\s-]have|what you('|’)ll need|what you bring|looking for|you have|who you are|minimum|basic qualifications|skills|experience)/i;
+  // "Kafka is a plus", "Go (preferred)", "Terraform preferred." — but not "our preferred vendors".
+  const INLINE_PREF = /(\ba plus\b|\b(is|are|strongly) preferred\b|\(preferred\)|\bpreferred[.:;)]?\s*$|nice[\s-]to[\s-]have|\bbonus\b)/i;
   const OTHER_HEAD = /(about (us|the company)|benefits|perks|what we offer|compensation|equal opportunity|eeo|our values|why join)/i;
 
   function sectionize(jd) {
@@ -111,7 +113,7 @@
         else if (REQ_HEAD.test(line)) kind = 'required';
       }
       let lineKind = kind;
-      if (kind !== 'preferred' && /(a plus|preferred|nice to have|bonus|is a plus|are a plus)/i.test(line) && !isHeading) {
+      if (kind !== 'preferred' && !isHeading && INLINE_PREF.test(line)) {
         lineKind = 'preferred';
       }
       out.push({ text: line, kind: lineKind === 'other' ? 'neutral' : lineKind });

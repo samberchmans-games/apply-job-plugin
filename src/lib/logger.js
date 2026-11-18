@@ -63,6 +63,7 @@
 
   AJP.LOG_LEVELS = Object.keys(LEVELS);
   AJP.setLogSink = (fn) => (sink = fn);
+  AJP.getLogSink = () => sink;
   AJP.setLogLevel = (lvl) => {
     if (LEVELS[lvl]) minLevel = lvl;
   };

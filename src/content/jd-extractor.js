@@ -20,6 +20,10 @@
     { name: 'smartrecruiters', host: /smartrecruiters\.com$/, jd: ['.job-sections', '[itemprop="description"]'], title: ['h1'], company: ['[itemprop="hiringOrganization"] [itemprop="name"]'] },
   ];
 
+  // Scope for one extraction. Tests pass {root, host}; the page uses document/location.
+  let D = typeof document !== 'undefined' ? document : null;
+  let HOST = '';
+
   const KEYWORDS = /(responsibilit|requirement|qualification|experience|what you|about the role|skills|you will|preferred)/gi;
 
   function htmlToText(html) {
@@ -37,7 +41,7 @@
   function pick(selectors) {
     for (const s of selectors || []) {
       const [sel, attr] = s.split('@');
-      const el = document.querySelector(sel);
+      const el = D.querySelector(sel);
       if (!el) continue;
       const v = attr ? el.getAttribute(attr) : textOf(el);
       if (v && v.trim()) return v.trim();
@@ -46,7 +50,7 @@
   }
 
   function fromJsonLd() {
-    for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+    for (const s of D.querySelectorAll('script[type="application/ld+json"]')) {
       let data;
       try {
         data = JSON.parse(s.textContent);
@@ -70,8 +74,7 @@
   }
 
   function fromSite() {
-    const host = location.hostname.replace(/^www\./, '');
-    const site = SITES.find((s) => s.host.test(host));
+    const site = SITES.find((s) => s.host.test(HOST));
     if (!site) return null;
     const text = pick(site.jd);
     if (!text || text.length < 200) return null;
@@ -81,7 +84,7 @@
   function heuristic() {
     let best = null;
     let bestScore = 0;
-    for (const el of document.querySelectorAll('main, article, section, div')) {
+    for (const el of D.querySelectorAll('main, article, section, div')) {
       if (el.offsetParent === null && el !== document.body) continue;
       const t = el.innerText || '';
       if (t.length < 400 || t.length > 25000) continue;
@@ -95,15 +98,17 @@
       }
     }
     if (!best) return null;
-    const h1 = document.querySelector('h1');
+    const h1 = D.querySelector('h1');
     return { source: 'heuristic', title: h1 ? textOf(h1).slice(0, 150) : document.title, company: '', location: '', text: textOf(best) };
   }
 
-  function extract() {
+  function extract(opts = {}) {
+    D = opts.root || document;
+    HOST = String(opts.host || location.hostname).replace(/^www\./, '');
     const t0 = performance.now();
     let r = null;
     // On SPA sites (LinkedIn) the selected job changes without reload, so site selectors go first there.
-    const spa = /linkedin\.com$/.test(location.hostname);
+    const spa = /linkedin\.com$/.test(HOST);
     for (const fn of spa ? [fromSite, fromJsonLd, heuristic] : [fromJsonLd, fromSite, heuristic]) {
       try {
         r = fn();
@@ -114,14 +119,14 @@
       r = null;
     }
     if (r) {
-      r.title = r.title || (document.querySelector('h1') && textOf(document.querySelector('h1'))) || document.title;
+      r.title = r.title || (D.querySelector('h1') && textOf(D.querySelector('h1'))) || document.title;
       r.title = r.title.split('\n')[0].trim().slice(0, 200);
       r.company = (r.company || '').split('\n')[0].trim().slice(0, 120);
-      r.url = location.href;
+      r.url = opts.url || location.href;
     }
-    log.info('JD extraction', { source: r && r.source, chars: r ? r.text.length : 0, ms: Math.round(performance.now() - t0), host: location.hostname });
+    log.info('JD extraction', { source: r && r.source, chars: r ? r.text.length : 0, ms: Math.round(performance.now() - t0), host: HOST });
     return r;
   }
 
-  AJP.jd = { extract, htmlToText, isKnownJobSite: () => SITES.some((s) => s.host.test(location.hostname.replace(/^www\./, ''))) };
+  AJP.jd = { extract, htmlToText, isKnownJobSite: (host = location.hostname) => SITES.some((s) => s.host.test(String(host).replace(/^www\./, ''))), SITES };
 })();

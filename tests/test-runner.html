@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apply Job tests</title>
+  <style>
+    :root { --bg:#f8fafc; --fg:#0f172a; --muted:#64748b; --line:#e2e8f0; --pass:#059669; --fail:#dc2626; --card:#fff; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0b1120; --fg:#e5e7eb; --muted:#94a3b8; --line:#1f2937; --card:#111827; } }
+    body { margin:0; padding:20px; background:var(--bg); color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+    h1 { margin:0 0 6px; font-size:20px; }
+    #summary { font-size:16px; font-weight:600; margin:8px 0 14px; }
+    #summary.pass { color:var(--pass); } #summary.fail { color:var(--fail); }
+    .bar a { margin-right:12px; color:#2563eb; }
+    .suite { background:var(--card); border:1px solid var(--line); border-radius:10px; margin:10px 0; padding:8px 14px; }
+    .suite h2 { font-size:14px; margin:4px 0; }
+    .t { padding:2px 0; } .t.pass::before { content:"✓ "; color:var(--pass); } .t.fail::before { content:"✗ "; color:var(--fail); }
+    .t.fail { color:var(--fail); } .ms { color:var(--muted); font-size:12px; }
+    pre { white-space:pre-wrap; background:#0f172a; color:#fecaca; padding:8px; border-radius:8px; font-size:12px; }
+    #sandbox { margin-top:30px; padding:10px; border:1px dashed var(--line); min-height:20px; }
+  </style>
+</head>
+<body>
+  <script>
+    // Catch suite files that fail to load/parse so they can't silently shrink the test count.
+    window.__LOAD_ERRORS__ = [];
+    window.addEventListener('error', (e) => {
+      if (window.__RUNNING__) return;
+      if (e.target && e.target.tagName === 'SCRIPT') window.__LOAD_ERRORS__.push('could not load ' + e.target.src);
+      else if (e.filename) window.__LOAD_ERRORS__.push(`${e.filename}:${e.lineno} ${e.message}`);
+    }, true);
+  </script>
+  <h1>Apply Job Assistant — automated tests</h1>
+  <div class="bar">
+    <a href="?">Run all</a><a href="?grep=autofill">Autofill</a><a href="?grep=job%20page">Job page</a>
+    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a>
+  </div>
+  <div id="summary">Running…</div>
+  <div id="results"></div>
+  <div id="sandbox" aria-label="test sandbox"></div>
+
+  <!-- 1. test framework + fake browser APIs (must load before the extension code) -->
+  <script src="harness.js"></script>
+  <script src="mocks/browser-mock.js"></script>
+  <!-- 2. the real extension code, in the same order the manifest loads it -->
+  <script src="../src/lib/core.js"></script>
+  <script src="../src/lib/logger.js"></script>
+  <script src="../src/lib/storage.js"></script>
+  <script src="../src/lib/skills-dictionary.js"></script>
+  <script src="../src/lib/matcher.js"></script>
+  <script src="../src/lib/ai.js"></script>
+  <script src="../src/lib/docx.js"></script>
+  <script src="../src/background/background.js"></script>
+  <script src="../src/content/jd-extractor.js"></script>
+  <script src="../src/content/form-filler.js"></script>
+  <script src="../src/content/panel.js"></script>
+  <script src="../src/content/content.js"></script>
+  <!-- 3. test suites -->
+  <script src="unit/core.test.js"></script>
+  <script src="unit/matcher.test.js"></script>
+  <script src="unit/logger.test.js"></script>
+  <script src="unit/storage.test.js"></script>
+  <script src="unit/ai.test.js"></script>
+  <script src="unit/docx.test.js"></script>
+  <script src="unit/form-filler.test.js"></script>
+  <script src="unit/jd-extractor.test.js"></script>
+  <script src="unit/panel.test.js"></script>
+  <script src="unit/background.test.js"></script>
+  <script>
+  (async () => {
+    const params = new URLSearchParams(location.search);
+    const grep = params.get('grep') || '';
+    const t0 = performance.now();
+    window.__RUNNING__ = true;
+    const box = document.getElementById('results');
+    const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const suites = {};
+    AJP.setLogLevel('debug');
+    await new Promise((r) => setTimeout(r, 50)); // let background/content finish booting
+    const results = await AJPTest.run({
+      filter: grep,
+      onResult(r) {
+        if (!suites[r.suite]) {
+          suites[r.suite] = document.createElement('div');
+          suites[r.suite].className = 'suite';
+          suites[r.suite].innerHTML = `<h2>${esc(r.suite)}</h2>`;
+          box.appendChild(suites[r.suite]);
+        }
+        const d = document.createElement('div');
+        d.className = 't ' + r.status;
+        d.innerHTML = `${esc(r.test)} <span class="ms">${r.ms}ms</span>` + (r.error ? `<pre>${esc(r.error)}</pre>` : '');
+        suites[r.suite].appendChild(d);
+      },
+    });
+    const failed = results.filter((r) => r.status === 'fail');
+    const s = document.getElementById('summary');
+    s.className = failed.length ? 'fail' : 'pass';
+    s.textContent = `${results.length - failed.length} passed, ${failed.length} failed (${results.length} tests)`;
+    document.title = (failed.length ? 'FAIL ' : 'PASS ') + s.textContent;
+    // Machine-readable result for headless runs.
+    window.__TEST_SUMMARY__ = {
+      total: results.length,
+      suites: AJPTest.suites.length,
+      ms: Math.round(performance.now() - t0),
+      loadErrors: window.__LOAD_ERRORS__,
+      failed: failed.map((f) => `${f.suite} › ${f.test}: ${f.error.split('\n')[0]}`),
+    };
+    if (window.__LOAD_ERRORS__.length) {
+      s.className = 'fail';
+      s.textContent += ` — ${window.__LOAD_ERRORS__.length} file(s) failed to load: ${window.__LOAD_ERRORS__.join('; ')}`;
+    }
+    if (params.get('report')) fetch('/__results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(window.__TEST_SUMMARY__) });
+    const out = document.createElement('script');
+    out.type = 'application/json';
+    out.id = 'test-results';
+    out.textContent = JSON.stringify(window.__TEST_SUMMARY__);
+    document.body.appendChild(out);
+  })();
+  </script>
+</body>
+</html>

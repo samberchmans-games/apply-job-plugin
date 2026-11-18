@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: 2026-11-18 · Version 0.1.0 · Branch `develop`
+Last updated: 2026-11-18 · Version 0.1.0 (+ test suite) · Branch `develop`
 
 Legend: ✅ done · 🟡 partial · ⬜ pending
 
@@ -93,13 +93,16 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Matcher unit tests (11 passing) | ✅ | `./tests/run-tests.sh` |
+| Automated tests: 279 across 10 areas, incl. end-to-end | ✅ | `./tests/run-browser-tests.sh` (all 279) · `./tests/run-tests.sh` (the 139 that need no browser) |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
-| Tests for the form filler and extractor | ⬜ | |
+| Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 68 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## Suggested order for next work
-1. Push `develop` to GitHub.
+1. ~~Push `develop` to GitHub.~~ ✅
+1. ~~Full automated test suite.~~ ✅
+1. Stronger support logging (session/action IDs, error codes, "Report an issue" bundle).
 2. Load in Chrome and fix anything found (smoke test against the sample page plus 2–3 real job posts).
 3. `feature/pdf-text`: read PDF resumes automatically.
 4. `feature/workday-widgets`: Workday dropdowns and the experience step.

@@ -248,11 +248,11 @@
     }
   }
 
-  async function fillInner({ profile, answers, resume }) {
+  async function fillInner({ profile, answers, resume, root = document }) {
     const t0 = performance.now();
     const report = { filled: [], learned: [], skipped: [], questions: [], unknown: [], host: location.hostname };
     const doneGroups = new Set();
-    const fields = [...document.querySelectorAll(FIELD_SEL)].filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el));
+    const fields = [...root.querySelectorAll(FIELD_SEL)].filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el));
 
     for (const el of fields) {
       if (!el.dataset.ajpId) el.dataset.ajpId = AJP.uid('f');
@@ -263,7 +263,7 @@
           const name = el.name || el.dataset.ajpId;
           if (doneGroups.has(name)) continue;
           doneGroups.add(name);
-          const group = el.name ? [...document.querySelectorAll(`input[name="${CSS.escape(el.name)}"]`)] : [el];
+          const group = el.name ? [...root.querySelectorAll(`input[name="${CSS.escape(el.name)}"]`)] : [el];
           if (group.some((r) => r.checked)) continue;
           const q = groupQuestion(el);
           const rule = ruleFor(q);
@@ -371,5 +371,5 @@
     log.debug('Learning listener on', { host: location.hostname });
   }
 
-  AJP.filler = { fill, fillQuestion, startLearning, labelFor, ruleFor, optionScore };
+  AJP.filler = { fill, fillQuestion, startLearning, labelFor, groupQuestion, ruleFor, optionScore, findLearned, NEVER_LEARN };
 })();

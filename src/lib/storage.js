@@ -62,6 +62,9 @@
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();
+  // Bumped on every change, so a read that started before a write never caches the stale value.
+  const versions = new Map();
+  const bump = (k) => versions.set(k, (versions.get(k) || 0) + 1);
 
   function withDefaults(key, value) {
     const def = DEFAULTS[key];
@@ -73,7 +76,10 @@
   try {
     AJP.api.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
-      for (const k of Object.keys(changes)) cache.delete(k);
+      for (const k of Object.keys(changes)) {
+        cache.delete(k);
+        bump(k);
+      }
     });
   } catch (_) {}
 
@@ -83,9 +89,10 @@
 
     async get(key) {
       if (cache.has(key)) return AJP.clone(cache.get(key));
+      const ver = versions.get(key) || 0;
       const r = await area().get(key);
       const v = withDefaults(key, r[key]);
-      if (key !== 'logs') cache.set(key, v);
+      if (key !== 'logs' && (versions.get(key) || 0) === ver) cache.set(key, v);
       return AJP.clone(v);
     },
 
@@ -97,6 +104,7 @@
 
     async set(key, value) {
       cache.delete(key);
+      bump(key);
       await area().set({ [key]: value });
     },
 
@@ -125,12 +133,14 @@
       const toSet = {};
       for (const k of this.KEYS) if (k in backup.data && k !== 'logs') toSet[k] = backup.data[k];
       cache.clear();
+      for (const k of Object.keys(toSet)) bump(k);
       await area().set(toSet);
       return Object.keys(toSet);
     },
 
     async wipe() {
       cache.clear();
+      for (const k of this.KEYS) bump(k);
       await area().clear();
     },
   };

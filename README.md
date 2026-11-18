@@ -81,12 +81,12 @@ src/background/          message hub, AI calls, log persistence, learning
 src/content/             JD extractor, form filler, on-page panel, controller
 src/admin/               Admin page (local UI) + printable resume view
 src/popup/               toolbar popup
-tests/                   matcher tests + a sample job/application page
+tests/                   automated tests (harness, browser mock, unit + end-to-end), sample job page
 docs/ARCHITECTURE.md     design notes and roadmap
 ```
 
-- Run the tests with `./tests/run-tests.sh`. It uses Node if Node is installed, and macOS JavaScriptCore otherwise.
-- To test manually, serve the fixtures with `python3 -m http.server -d tests/fixtures 8000`, open `http://localhost:8000/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (279) in headless Chrome. `./tests/run-tests.sh` runs the 139 that need no browser. You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
+- **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.
 
 ## License
