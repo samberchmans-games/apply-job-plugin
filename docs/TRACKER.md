@@ -127,7 +127,7 @@ Columns:
 | — | Architecture & plan documentation; this tracker | `bb34324`, `ab0c213` | 449 |
 | 5 | **Resume enhancement v2**: requirements + verified evidence, targeted result-oriented edits, safety validator, review screen | `3022695` | 532 |
 | — | Tester Guide (shareable doc) + 5 walkthrough videos | `53f4881` | 532 |
-| — | Issue reporting option A: spec, GitHub issue form, auto-acknowledgement | *this commit* | 565 |
+| — | Issue reporting option A: spec, GitHub issue form, auto-acknowledgement | `dbf8a47` | 565 |
 | 6 | **Multiple career tracks**: per-track scoring, best track, switching, per-track tailoring/autofill/tracking, insights, compare; Tester Guide Session 7 + video Part 6 | `2ace0d5` | 565 |
 
 ## 4. Bugs found & fixed
