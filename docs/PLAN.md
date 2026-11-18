@@ -215,7 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
-| 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | *see change log* |
+| 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | `fd1b226` |
 | 8 | **PDF resumes** (section 2) + tester checks & video scene | `eacd1a3` |
 | 7 | **Issue reporting, extension side** (section 12) + tester guide session & video | `845b501` |
 | 6 | **Multiple career tracks** (section 10) + tester guide session & video | `2ace0d5` |
@@ -277,7 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-18 | *this commit* | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |
+| 2026-11-18 | `fd1b226` | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |
 | 2026-11-18 | `eacd1a3` | **Step 8: PDF resumes** (pdf.js, Read text from PDF, AJP-PDF-* codes) + tester checks + videos re-rendered; 684 tests |
 | 2026-11-18 | `3fb5ee3` | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
 | 2026-11-18 | `845b501` | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |
