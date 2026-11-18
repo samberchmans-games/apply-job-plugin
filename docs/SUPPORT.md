@@ -72,6 +72,7 @@ New codes are added in `src/lib/errors.js`. Every code needs a message and a hin
 ## 4. Common patterns
 - **The match badge doesn't appear on a site.** Look for `AJP-JD-NONE` with `data.host`, and check `settings.autoAnalyze`. On Firefox, the user may not have granted site permissions.
 - **Autofill missed fields.** Find the `frame.autofill done` entry (`filled`, `learned`, `unknown`, `questions`, `host`). A high `unknown` count on a common ATS means a new label rule is needed in `form-filler.js`.
+- **Workday fields missed.** Find `Workday fill done` (`step`, `filled`, `unknown`) and `Workday field failed` / `Workday entry field failed` warnings (with `key`). Missing widgets usually mean a different `data-automation-id` on that company's Workday: adjust `SEL` in `src/content/workday.js` and add the case to `tests/fixtures/workday-mock.js`.
 - **An application wasn't marked applied.** Look for `Submit seen` and `Application confirmation detected` / `Application auto-detected as applied`, or `Confirmation ignored (no job context, unknown site)`.
 - **The AI is slow.** Look for `ai.<task> slow` warnings, with `ms`.
 - **Resume tailoring suggested few changes.** Find `Resume enhancement drafted`: `blocked` and `blockedBy` (e.g. `{"JD_NUMBER":2,"NEW_NAME":1}`) show which safety rules fired, and `droppedQuotes` shows how many fake evidence quotes the AI made up. Many blocks usually means a small free model; suggest a larger one.

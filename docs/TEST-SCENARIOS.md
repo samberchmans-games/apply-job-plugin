@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (684). Run them before every merge into `develop`.
+1. **Automated tests** (720). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **360** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **684** tests in headless Chrome. This is the full suite: the 360 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **378** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **720** tests in headless Chrome. This is the full suite: the 378 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -41,6 +41,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
 | PDF resumes | `unit/pdf.test.js` | Rebuilding lines from positioned text (order, spacing, paragraphs, 7 bullet glyphs → "- ", negative numbers kept, columns, uneven baselines); error mapping (locked → AJP-PDF-LOCKED, broken → AJP-RES-PARSE); **real pdf.js on generated PDFs** (resume, ready for tailoring, multi-page, scanned → AJP-PDF-NOTEXT, not-a-PDF, reader fails to load then recovers); Admin upload (text + file saved, bullet count message, scanned PDF message, "Read text from PDF" for older uploads) |
 | The standard (errors / retries / conventions) | `unit/standard.test.js` | Temporary vs permanent codes; retry with backoff and Retry-After; `AJP.http` (JSON, 5xx retried, 4xx not, network, timeout, bad JSON, Retry-After); AI uses it (503 retried, 401 not); `AJP.guard` (coded log + trace, message shown, never throws); panel actions guarded; send/storage recover; **source scan**: no `throw new Error`, no raw fetch, error keys exist and are documented, no silent catch, no console, captureErrors on pages |
+| Workday | `unit/workday.test.js` (+ `fixtures/workday-mock.js`) | Dates ("06/2019", "June 2019", "2019-06"…), Workday wording (TX → Texas, USA → United States of America, B.S. → Bachelor's Degree, decline → "I do not wish to answer"); detection (also on custom domains); against an **emulated Workday form**: text fields, pop-up dropdowns, search prompts with learned answers, unanswerable questions reported, user choices kept, no pop-up left open, **Save and Continue / Submit never clicked**, broken dropdown reported while the rest fills, learning from picked options; My Experience: one entry per job via Add, Month/Year dates, "currently work here", education prompts + degree; existing entries kept; EEO wording; multi-page "Autofill this page" in the panel |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
 
 ### Adding a test
@@ -138,7 +139,11 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 |---|---|---|
 | E1 | Greenhouse application → Autofill form | Name, email, phone, LinkedIn and location filled (green outline); resume attached; work authorization and sponsorship answered |
 | E2 | Lever application | Same as E1 |
-| E3 | Workday application, page 1 | Text fields filled. **Known gap:** Workday's custom dropdowns aren't filled yet. |
+| E3 | Workday application, My Information | Text fields, dropdowns (country, state, phone type, yes/no) and search boxes filled; nothing submitted |
+| E14 | Workday: Save and Continue | The panel offers "⚡ Autofill this page" for the next page |
+| E15 | Workday: My Experience → Autofill this page | One entry per job is added and filled (title, company, Month/Year dates, current job, description); education too |
+| E16 | Workday: Voluntary Disclosures → Autofill this page | EEO answers in Workday's wording; Submit not clicked |
+| E17 | Local Workday emulation (`python3 tests/serve.py` → `/tests/fixtures/workday-sample.html`) | Same as E3, E14–E16 |
 | E4 | Ashby, SmartRecruiters, iCIMS applications | Text fields and native dropdowns filled |
 | E5 | EEO section | Matches your Admin answers. "Decline to self-identify" maps to the site's wording. |
 | E6 | A field you'd already typed into before clicking Autofill | Left unchanged |

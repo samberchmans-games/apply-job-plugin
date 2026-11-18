@@ -60,6 +60,7 @@ src/
   content/                    runs inside job pages (every frame)
     jd-extractor.js           find the job description (JSON-LD → site selectors → heuristic)
     form-filler.js            label detection, profile mapping, filling, learning
+    workday.js                Workday adapter: pop-up dropdowns, search prompts, dates, Add entries, multi-page
     apply-detector.js         notice Submit + confirmation to mark "applied"
     panel.js                  floating Shadow-DOM panel (pure view)
     content.js                per-page controller wiring everything together
@@ -101,7 +102,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | Context | Where it runs | Loaded files (in order) |
 |---|---|---|
 | Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, resume-engine, tracks, issue-report, background |
-| Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, tracks, jd-extractor, form-filler, apply-detector, panel, content |
+| Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, tracks, jd-extractor, form-filler, workday, apply-detector, panel, content |
 | Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, pdf, tracker, resume-engine, tracks, issue-report, diagnostics, tracker-view, enhance-view, tracks-view, admin |
 | Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
@@ -273,7 +274,7 @@ A result needs at least 200 chars. `extract({root, host, url})` can be pointed a
 
   Radio and checkbox groups use their fieldset legend or `role=radiogroup`.
 - **Value:**
-  - `RULES` maps 54 label patterns (name, contact details, location, links, work authorization, sponsorship, EEO, education, salary, …) to profile values
+  - `RULES` maps 55 label patterns (question-style rules such as work authorization are checked before short field rules like country) (name, contact details, location, links, work authorization, sponsorship, EEO, education, salary, …) to profile values
   - if no rule matches, learned answers are checked (exact key, then token Jaccard ≥ 0.75)
   - long-text questions go to the panel for an **AI draft**
 - **Setting values:**
@@ -282,6 +283,27 @@ A result needs at least 200 chars. `extract({root, host, url})` can be pointed a
   - the resume file is attached via `DataTransfer`
 - **Never:** submits, overwrites a field the user filled, or touches password, hidden or disabled fields.
 - **Learning:** a capture-phase `change` listener records user edits. It skips the extension's own fills (a `filling` flag and `data-ajp-value`), AI drafts that haven't been edited, and sensitive labels (SSN, password, card, bank, date of birth).
+
+### 8.3a Workday adapter (`workday.js`)
+Workday widgets aren't native form fields. The generic filler skips the fields the adapter owns; then `AJP.workday.fill` runs.
+
+**Widget types:**
+- **Dropdown:** `button[aria-haspopup=listbox]`. The adapter clicks it, waits for `[role=listbox]`, scores the options and clicks the best one. If nothing matches, it presses Escape.
+- **Search prompt:** `multiSelectContainer`. It types the value, presses Enter, then picks a `promptOption`.
+- **Date:** `dateInputWrapper` with Month/Day/Year spinbuttons. It accepts formats like "06/2019", "2019-06", "June 2019" and "2019". "Present" means no end date.
+- **Entries:** in the Work Experience and Education sections, it clicks **Add** until there is one entry per profile item (max 5), then fills each field by its `formField-<key>`.
+
+**Matching the value to Workday's wording:**
+- the same rules and learned answers as the generic filler
+- Workday's own wording: US state codes become names, USA becomes "United States of America", degree abbreviations become full names, and "decline" becomes "I do not wish to answer"
+
+**Safety and multi-page behavior:**
+- It never overwrites a value the user chose.
+- It never clicks Save and Continue or Submit.
+- A page change (the progress bar's active step) after Autofill triggers the panel's "⚡ Autofill this page" offer.
+- Options the user picks are learned.
+
+**Selectors:** all live in `SEL`. The adapter was built against `tests/fixtures/workday-mock.js`, an emulation using Workday's `data-automation-id` names, and must be verified on real Workday pages. Misses are reported as "not filled", logged, and reportable.
 
 ### 8.4 Application tracker (`tracker.js`, `apply-detector.js`, `tracker-view.js`)
 - **Job identity (`jobKey`):** the same job is recognized across URLs:
@@ -456,15 +478,16 @@ tests/
                           (routes to background vs content listeners like real browsers), scripting,
                           tabs.onCreated/onRemoved, alarms, action badge, contextMenus
   mocks/url-polyfill.js   URL for the macOS JavaScriptCore CLI runner only
-  unit/*.test.js          85 suites: core, matcher, logger, storage, ai, docx, pdf, form-filler, jd-extractor,
+  unit/*.test.js          90 suites: core, matcher, logger, storage, ai, docx, pdf, form-filler, workday, jd-extractor,
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 360 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 684 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 378 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 720 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
+  fixtures/workday-mock.js  emulated Workday widgets (tests, videos); workday-sample.html = multi-page demo
 video/                    tester walkthrough videos: parts.py (scenes per part), stage.js (captions,
                           highlights, scripted actions in the real pages), build.py (Chrome + say + ffmpeg)
 ```
@@ -534,6 +557,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Track applications without email access | Keeps the "all local" promise; email sync stays optional and later |
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
+| 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
 | 2026-11-18 | PDF text via vendored, integrity-verified pdf.js loaded on demand (not a hand-written parser) | Resume PDFs use embedded fonts/CMaps a small parser gets wrong; on-demand loading keeps Admin fast |
 | 2026-11-18 | Problem reports via pre-filled GitHub issues the user submits (option A); acknowledgement by a GitHub Action | No server or token in the extension; the user sees what is posted |
 | 2026-11-18 | Career tracks via an implicit "General" track, not a data migration | No risk to existing data; users without tracks see no change |
@@ -542,7 +566,7 @@ Admin → Applications: filter by track; CSV "Track" column
 ## 17. Known limitations
 
 - **Scanned PDF resumes** (images) have no text: the user pastes it or uploads the .docx (`AJP-PDF-NOTEXT`).
-- **Workday:** custom dropdowns, date pickers and the multi-step experience pages aren't automated yet (step 8).
+- **Workday:** supported (step 9) but built against an emulation; real tenants may differ: report misses.
 - **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 9).
 - **Resume tailoring with a real AI:** not yet tried with live free models; quality depends on the model (the safety rules hold regardless).
 - **Career tracks:** at most 3; the compare view shows the last 15 jobs.

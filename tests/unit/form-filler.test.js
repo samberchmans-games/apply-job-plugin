@@ -31,6 +31,13 @@
     ];
     for (const [label, expected] of cases) it(`"${label}" → ${expected}`, () => eq(key(label), expected));
     it('"Email address" is email, not address', () => eq(key('Email address'), 'email'));
+    it('a work-authorization question mentioning "country" is not the country field (bug fix)', () =>
+      eq(key('Are you legally authorized to work in the country in which the job is located?'), 'workAuth'));
+    it('"Phone Device Type" is the device type, not the phone number (bug fix)', () => {
+      eq(key('Phone Device Type'), 'phoneType');
+      eq(key('Phone type'), 'phoneType');
+      eq(key('Phone'), 'phone');
+    });
     it('"United States" does not trigger the state rule', () => eq(key('Do you live in the United States'), null));
     it('unrelated questions have no rule', () => {
       eq(key('How did you hear about us?'), null);

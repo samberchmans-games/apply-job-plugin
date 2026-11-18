@@ -70,6 +70,7 @@
         "src/lib/tracks.js",
         "src/content/jd-extractor.js",
         "src/content/form-filler.js",
+        "src/content/workday.js",
         "src/content/apply-detector.js",
         "src/content/panel.js",
         "src/content/content.js"

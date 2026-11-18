@@ -33,13 +33,16 @@ PROFILE = {
     'skills': [{'name': n} for n in ['Java', 'Python', 'SQL', 'AWS', 'Docker', 'Spring', 'REST APIs', 'ETL']],
     'salary': {'min': '150000', 'max': '190000', 'currency': 'USD', 'period': 'year'},
     'areas': ['Austin, TX'], 'targetRoles': ['Senior Data Engineer'], 'workTypes': {'remote': True, 'hybrid': False, 'onsite': False},
-    'autoApply': {'workAuthorized': 'Yes', 'requireSponsorship': 'No', 'education': [{'school': 'UT Austin', 'degree': 'B.S.', 'field': 'Computer Science', 'endYear': '2015'}],
-                  'experience': [], 'eeo': {}},
+    'autoApply': {'workAuthorized': 'Yes', 'requireSponsorship': 'No',
+                  'education': [{'school': 'University of Texas at Austin', 'degree': 'B.S.', 'field': 'Computer Science', 'startYear': '2011', 'endYear': '2015', 'gpa': '3.7'}],
+                  'experience': [{'title': 'Senior Engineer', 'company': 'Acme Corp', 'location': 'Austin, TX', 'start': '06/2019', 'end': 'Present', 'description': 'Led data platform migration to AWS.'},
+                                 {'title': 'Engineer', 'company': 'Globex', 'location': 'Dallas, TX', 'start': '01/2015', 'end': '05/2019', 'description': 'Built Python ETL jobs for reporting.'}],
+                  'eeo': {}},
 }
 SETTINGS = {'ai': {'provider': 'groq', 'model': '', 'keys': {'groq': 'gsk_demo_key_for_video_only', 'gemini': '', 'openrouter': ''}, 'ollamaUrl': 'http://localhost:11434'},
             'logLevel': 'info', 'autoAnalyze': True, 'learnAnswers': True, 'tracker': {'autoDetect': True, 'followUpDays': 7}}
 RESUMES = {'activeId': 'r1', 'items': [{'id': 'r1', 'name': 'Main resume', 'text': RESUME, 'createdAt': '2026-11-01T10:00:00Z'}]}
-BASE = {'profile': PROFILE, 'settings': SETTINGS, 'resumes': RESUMES}
+BASE = {'profile': PROFILE, 'settings': SETTINGS, 'resumes': RESUMES, 'answers': {'how did you hear about us': {'label': 'How did you hear about us?', 'value': 'LinkedIn', 'count': 3, 'hosts': ['boards.greenhouse.io']}}}
 
 ANALYSIS = {
     'requirements': [
@@ -86,6 +89,10 @@ LOGS = [
 ]
 
 OPEN_PANEL = "await AJP.send('analyzeTab', { tabId: 1 }); await H.waitFor(() => H.shadow() && H.shadow().querySelector('.badge') && /%/.test(H.shadow().querySelector('.badge').textContent));"
+OPEN_WD = ("await AJP.send('analyzeTab', { tabId: 1, jdText: 'Requirements\\nJava\\nAWS' }); "
+           "await H.waitFor(() => H.shadow() && H.shadow().querySelector('[data-act=\"autofill\"]')); "
+           "H.shadow().querySelector('[data-act=\"autofill\"]').click(); "
+           "await H.waitFor(() => /Filled/.test(H.shadow().textContent), 8000); await H.sleep(400);")
 
 
 def card(title, kicker, say, text='', items=None):
@@ -150,6 +157,12 @@ PARTS = [
          'highlight': 'form', 'budget': 8000, 'say': 'On an application form, click Autofill form. Your details are filled in with green outlines. Check the yes and no answers, and that nothing was submitted.', 'caption': '⚡ Autofill: fields filled from your profile (never submitted)', 'check': '4.1 – 4.8'},
         {'kind': 'job', 'seed': BASE, 'actions': OPEN_PANEL + "\nH.shadow().querySelector('[data-act=\"autofill\"]').click(); await H.waitFor(() => H.shadow().querySelector('[data-act=\"draft\"]'), 6000);",
          'highlight': 'shadow:.q', 'budget': 8000, 'say': 'For free-text questions, click Draft answer with AI. It writes an answer using only facts from your resume. Answers you type yourself are remembered for next time.', 'caption': 'Free-text questions: ✨ Draft answer with AI', 'check': '4.5 – 4.7'},
+        {'kind': 'workday', 'wdPage': 'info', 'seed': BASE, 'actions': OPEN_WD, 'highlight': ['[data-automation-id="formField-countryDropdown"]', '[data-automation-id="formField-addressSection_countryRegion"]', '[data-automation-id="formField-source"]'], 'budget': 12000,
+         'say': 'On Workday, Autofill also picks from Workday\'s own dropdowns and search boxes. Here: country, state, and how you heard about the job, from your profile and your earlier answers.', 'caption': 'Workday: dropdowns and search boxes filled too', 'check': '4.9 – 4.10'},
+        {'kind': 'workday', 'wdPage': 'experience', 'seed': BASE, 'actions': OPEN_WD + " await H.sleep(800);", 'highlight': ['[data-automation-id="workExperience-1"]'], 'budget': 15000,
+         'say': 'On the My Experience page, it clicks Add for each job in your profile, and fills the title, company, dates, and description. Education too.', 'caption': 'Workday My Experience: entries added and filled', 'check': '4.11'},
+        {'kind': 'workday', 'wdPage': 'info', 'seed': BASE, 'actions': OPEN_WD + " document.querySelector('[data-automation-id=\"bottom-navigation-next-button\"]').click(); await H.waitFor(() => /New Workday page/.test(H.shadow().textContent), 4000);", 'highlight': 'shadow:.msg', 'budget': 15000,
+         'say': 'When you click Save and Continue, the panel offers Autofill again for the next page. You always review, and click Save and Continue yourself.', 'caption': 'Next Workday page → "⚡ Autofill this page"', 'check': '4.12'},
         {'kind': 'admin', 'hash': 'applications', 'seed': BASE, 'actions': APPS_JS + "\nawait AJP.trackerView.render(); await H.sleep(200);", 'highlight': '#trkView', 'budget': 7000,
          'say': 'Click Mark applied, or just apply. The confirmation page is detected. In Admin, Applications, drag cards between columns, and see reminders when a follow-up is due.', 'caption': 'Applications board: drag between columns · reminders · Export CSV', 'check': '5.1 – 5.7'},
         {'kind': 'admin', 'hash': 'applications', 'seed': BASE, 'actions': APPS_JS + "\nawait AJP.trackerView.render(); await H.sleep(200); AJP.trackerView.renderDetail('a1'); await H.sleep(200);", 'highlight': '#trkDetail', 'budget': 7000,

@@ -6,22 +6,22 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 8, PDF resumes
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 9, Workday support
 
 ## Summary
 
 | | |
 |---|---|
-| Components built | **32 / 35** |
-| Components not started | **3**: Workday adapter, resume export, CI |
-| Automated tests | **684 / 684 passing** (360 also run without a browser), incl. convention checks |
+| Components built | **33 / 35** |
+| Components not started | **2**: resume export, CI |
+| Automated tests | **720 / 720 passing** (378 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos (~8 min) |
+| Tester material | Tester Guide (8 sessions, 78 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (11 found and fixed so far, each with a test) |
-| Next step | **Step 9: Workday support** (custom dropdowns, date pickers, multi-step "My Experience") |
+| Open bugs | **0 known** (13 found and fixed so far, each with a test) |
+| Next step | **Step 10: attach the tailored resume as a PDF/DOCX file** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -53,13 +53,14 @@ Columns:
 | C32 | **Career tracks UI** (panel tabs, Admin tracks + insights + compare, per-track tailoring/autofill/tracking) | `content.js`, `panel.js`, `src/admin/tracks-view.js` | ✅ | 13 | ⏳ | |
 | C33 | **Issue reporting rules** (pre-filled issue, public-text scrubbing, status mapping, crash-prompt rules) | `src/lib/issue-report.js` | ✅ | 29 | ⏳ | |
 | C35 | **Issue reporting UI** (Report on GitHub, similar reports, My reports + badge, crash prompt/banner, Simulate a problem) | `background.js`, `admin.js`, `panel.js` | ✅ | 21 | ⏳ | Status via public GitHub search |
+| C25 | **Workday adapter** (pop-up dropdowns, search prompts, dates, Add entries, multi-page offer) | `src/content/workday.js`, `tests/fixtures/workday-mock.js` | ✅ | 34 | ⏳ | Built against an emulation: **verify on real Workday (W03b)** |
 | C29 | **Resume enhancement rules engine** | `src/lib/resume-engine.js` | ✅ | 54 | ⏳ | Parsing, strict prompts, validator (no job numbers, no invented numbers/skills/names, no copied job text, evidence required), result-oriented checks, assembly + integrity check |
 
 ### On the job page
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
 |---|---|---|---|---|---|---|
 | C13 | Job description reader | `src/content/jd-extractor.js` | ✅ | 26 | ⏳ | Live LinkedIn, Indeed and Glassdoor selectors are unverified |
-| C14 | Autofill + learning | `src/content/form-filler.js` | ✅ | 102 | ⏳ | 54 field rules. 🟡 Workday custom widgets are not handled (step 8). |
+| C14 | Autofill + learning | `src/content/form-filler.js` | ✅ | 104 | ⏳ | 55 field rules (question rules first) |
 | C15 | Applied-job detector | `src/content/apply-detector.js` | ✅ | 25* | ⏳ | *Shared with C17/C18 (tracker end-to-end flows) |
 | C16 | On-page panel | `src/content/panel.js` | ✅ | 11 | ⏳ | Shadow DOM; escaping tested |
 | C17 | Page controller | `src/content/content.js` | ✅ | 3 + 25* | ⏳ | Covered by the end-to-end tests |
@@ -83,13 +84,12 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
-| C25 | Workday adapter (dropdowns, dates, "My Experience") | 9 | ⬜ | |
 | C26 | Tailored resume as a PDF/DOCX file | 10 | ⬜ | |
 | C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | ⬜ | |
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) = **684**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) = **720**
 
 ---
 
@@ -100,12 +100,13 @@ Columns:
 | W16 | **Resume enhancement v2**: job-requirement analysis, verified evidence, targeted result-oriented edits, hard safety rules (never copy job numbers), review screen | 5 | Claude | ✅ Done | — |
 | W17 | Try resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs and your real resume; judge quality | — | **You** | ⏳ Waiting on you | A free API key |
 | W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | ✅ Done | W16 ✅ |
-| W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos) | — |
+| W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos, Workday emulation) | — |
 | W19 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports | 7 | Claude | ✅ Done | — |
 | W20 | Create the triage labels once in GitHub (`needs-info`, `confirmed`, `in-progress`, `duplicate`, `wont-fix`, `fixed-in:…`) | — | **You** | ⏳ Waiting on you | — |
 | W02 | Read PDF resumes automatically | 8 | Claude | ✅ Done | — |
-| W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | **⬜ Next**, waiting for your go | Ideally W10 first (real Workday pages) |
-| W04 | Attach the tailored resume as PDF/DOCX | 10 | Claude | ⬜ To do | — |
+| W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | ✅ Done (against an emulation) | — |
+| W03b | Try Autofill on 1–2 real Workday applications; report any missed field (page + label) | — | **You** | ⏳ Waiting on you | W03 |
+| W04 | Attach the tailored resume as PDF/DOCX | 10 | Claude | **⬜ Next**, waiting for your go | — |
 | W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ⬜ To do | — |
 | W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ⬜ To do | W10 findings |
 | W07 | Chrome built-in AI provider (no key) | 13 | Claude | ⬜ To do | — |
@@ -134,6 +135,7 @@ Columns:
 | 7 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports, Simulate a problem; Tester Guide Session 8 + video Part 7 | `845b501` | 615 |
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
+| 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | *this commit* | 720 |
 
 ## 4. Bugs found & fixed
 
@@ -150,6 +152,8 @@ Columns:
 | B9 | Resume reader treated `### Role — Company` lines as new sections, losing the role | Automated tests | Step 5 | resume engine › finds the bullets… with their role |
 | B10 | Review screen didn't open when the Admin tab was already open | Automated tests | Step 5 | admin › resume tailoring review |
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
+| B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
+| B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
 
 ## 5. How to update this file
 

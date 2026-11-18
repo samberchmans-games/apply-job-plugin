@@ -1,6 +1,6 @@
 # Project plan: done vs. pending
 
-Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **8, PDF resumes**. Related documents:
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest step: **9, Workday support**. Related documents:
 - [TRACKER.md](TRACKER.md): **current status of every component**
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
@@ -17,13 +17,13 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Admin page | ✅ (incl. PDF resumes) |
 | Job reading & match % | ✅ · ⬜ seniority/years check, synonyms |
 | Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
-| Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
+| Autofill & learning | ✅ incl. Workday (verify on real Workday) · ⬜ per-site adapters |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete · one standard for errors, retries and failure capture across the plugin (enforced by tests) |
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 684 automated + 118 manual scenarios · ⬜ CI |
+| Tests | ✅ 720 automated + 122 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -108,8 +108,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Draft free-text answers with AI from the resume | ✅ | |
 | Never auto-submit (user reviews) | ✅ | By design |
 | Application tracking | ✅ | Full tracker — see section 11 |
-| Workday custom dropdowns, date pickers, multi-step "My Experience" | ⬜ | High priority |
-| Repeatable experience/education entries on forms | ⬜ | |
+| Workday custom dropdowns, date pickers, multi-step "My Experience" | ✅ | Step 9; `src/content/workday.js`; built against an emulation, to verify on real Workday |
+| Repeatable experience/education entries on forms | 🟡 | ✅ Workday (Add + fill); other sites ⬜ |
 | Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ⬜ | |
 | Job-site accounts (username/password) | ⬜ | Plan: use the browser's password manager, not our storage |
 
@@ -146,11 +146,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 684 across 22 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 684) · `./tests/run-tests.sh` (the 360 that need no browser) |
+| Automated tests: 720 across 23 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 720) · `./tests/run-tests.sh` (the 378 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 118 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 122 scenarios, to be run by you later |
 | CI on GitHub (run tests on every PR) | ⬜ | |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | *see change log* |
 | 8 | **PDF resumes** (section 2) + tester checks & video scene | `eacd1a3` |
 | 7 | **Issue reporting, extension side** (section 12) + tester guide session & video | `845b501` |
 | 6 | **Multiple career tracks** (section 10) + tester guide session & video | `2ace0d5` |
@@ -222,7 +223,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 9 | Workday support: custom dropdowns, date pickers, multi-step "My Experience", repeatable experience/education entries | 5 | Large |
 | 10 | Attach the **tailored** resume as a PDF/DOCX file | 4 | Medium |
 | 11 | Smarter matching: years-of-experience & seniority check, skill synonyms | 3 | Medium |
 | 12 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
@@ -233,7 +233,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 118 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 122 scenarios |
 | Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
@@ -256,7 +256,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 |---|---|---|
 | Not yet run in a real browser | Integration issues (permissions, Safari quirks) may appear | Your Chrome pass using TEST-SCENARIOS.md; Claude fixes what you find |
 | Job sites change their HTML (LinkedIn, Indeed, Glassdoor) | The badge may not appear (`AJP-JD-NONE`) | JSON-LD and the heuristic are fallbacks; selectors are in one place (`jd-extractor.js` `SITES`); issue reports include the host |
-| Workday forms use custom widgets | Lower fill rate on Workday | Roadmap step 7 |
+| Workday markup differs between companies | Some Workday fields missed | Adapter built against an emulation with Workday's automation ids; selectors in one place (`workday.js` SEL); misses are reported; verify on real pages (W03b) |
 | Free AI tiers have rate limits | `AJP-AI-429` during heavy use (tailoring makes 2 calls) | Clear message + hint; switching providers is one click; matching works without AI |
 | Firefox requires manual site permission | Badge missing on Firefox until granted | Documented in the README; consider an in-Admin prompt |
 | Detecting "applied" depends on confirmation wording | Some sites may be missed | "Did you submit?" prompt as a fallback; manual "Mark applied"; patterns tested |
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | *this commit* | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |
 | 2026-11-18 | `eacd1a3` | **Step 8: PDF resumes** (pdf.js, Read text from PDF, AJP-PDF-* codes) + tester checks + videos re-rendered; 684 tests |
 | 2026-11-18 | `3fb5ee3` | THE STANDARD for errors, failure capture and retries: AJP.retry / AJP.http / AJP.guard applied everywhere, convention tests; 658 tests |
 | 2026-11-18 | `845b501` | **Step 7: issue reporting, extension side** + tester Session 8 + video Part 7; 615 tests |

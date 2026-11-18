@@ -10,7 +10,7 @@ A browser extension that runs in Chrome, Edge, Firefox and Safari. For any job p
    - It **never copies the job's numbers** ("10TB", "20+ APIs", "<5% defects"), never invents numbers, skills or employers, and never changes names, titles or dates.
    - These rules are checked in code, not just requested in the prompt.
    - You review every change and add your real results before anything is created.
-4. **Autofills application forms** (Greenhouse, Lever, Workday, Ashby, …) from your profile, attaches your resume, and uses AI to draft answers to free-text questions such as "Why do you want to work here?".
+4. **Autofills application forms** (Greenhouse, Lever, Workday incl. its dropdowns, dates and multi-page experience entries, Ashby, …) from your profile, attaches your resume, and uses AI to draft answers to free-text questions such as "Why do you want to work here?".
 5. **Learns** from what you type into forms, so the same question gets filled automatically next time.
 6. **Career tracks:** looking in two or three directions (e.g. AWS Cloud Architect and Java Architect)? Every job is scored against each track, the best one is picked automatically, and tailoring, autofill and applications use that track's skills and resume.
 7. **Tracks your applications.** It notices when you submit, keeps a copy of each job description, and gives you a pipeline board, follow-up reminders, stats, and CSV export.
@@ -108,7 +108,8 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (684) in headless Chrome. `./tests/run-tests.sh` runs the 360 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (720) in headless Chrome. `./tests/run-tests.sh` runs the 378 that need no browser.
+- **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.
 - **Manual check:** run `python3 tests/serve.py`, open `http://127.0.0.1:8765/tests/fixtures/sample-job.html`, click the extension icon, then **Analyze**, then **Autofill**.
 - Branching: `develop` is the integration branch. New work goes on `feature/<name>`, which is merged into `develop` through a PR.

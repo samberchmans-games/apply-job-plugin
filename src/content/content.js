@@ -216,6 +216,8 @@
         return fail(r);
       }
       tr.end();
+      state.autofillUsed = true;
+      if (AJP.workday && AJP.workday.applies()) state.wdStep = AJP.workday.currentStep();
       AJP.send('recordApplication', appPayload({ status: 'in progress', auto: true }), tr);
     },
 
@@ -368,6 +370,17 @@
     setTimeout(auto, 1200);
     // SPA navigation (LinkedIn, Workday): re-run when the URL changes.
     setInterval(() => {
+      // Workday: a multi-page application in one URL. After Autofill was used, offer it again on each new page.
+      if (state.autofillUsed && AJP.workday && AJP.workday.applies()) {
+        const step = AJP.workday.currentStep();
+        if (step && state.wdStep && step !== state.wdStep) {
+          state.wdStep = step;
+          state.autofill = null;
+          state.minimized = false;
+          log.info('Workday page changed', { step });
+          say(`New Workday page: <b>${AJP.panel.esc(step)}</b>. <a data-act="autofill">⚡ Autofill this page</a> <span class="muted">(you still review and click Save and Continue yourself)</span>`);
+        }
+      }
       if (location.href === lastUrl) return;
       lastUrl = location.href;
       state.autofill = null;

@@ -19,7 +19,7 @@
   const CONFIRM_SEL = [
     'h1', 'h2', 'h3', 'h4', '[role="alert"]', '[role="status"]', '[role="dialog"] h2', '[role="dialog"] h3',
     '[class*="confirm" i]', '[class*="success" i]', '[class*="thank" i]', '[id*="confirm" i]',
-    '[data-automation-id*="confirm" i]', '[data-test*="success" i]', '.artdeco-modal h2', '.artdeco-modal h3',
+    '[data-automation-id*="confirm" i]', '[data-automation-id*="congratulation" i]', '[data-automation-id*="submitted" i]', '[data-test*="success" i]', '.artdeco-modal h2', '.artdeco-modal h3',
   ].join(',');
   const FIELD_SEL = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=search]), select, textarea';
 
