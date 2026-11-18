@@ -1,84 +1,417 @@
 # Architecture
 
-## Goals → design decisions
+Technical reference for **Apply Job Assistant**, the browser extension in this repo.
+
+Last updated: 2026-11-18 · Version 0.1.0 · Branch `develop`. Related documents:
+- [PLAN.md](PLAN.md): status and roadmap
+- [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
+- [SUPPORT.md](SUPPORT.md): logs and error codes
+
+---
+
+## 1. What the system does
+
+For any job posting the extension:
+1. reads the job description
+2. scores it against the user's skills, showing a match %, matching skills and gaps
+3. checks fit on work type, salary and location
+4. optionally uses a free AI to tailor the resume or draft answers to application questions
+5. autofills the application form, and learns from what the user types
+6. detects that the application was submitted and tracks it on a pipeline board with reminders
+
+Everything is stored locally in the browser. There is no server, database or account.
+
+## 2. Goals → design decisions
 
 | Goal | Decision |
 |---|---|
-| Runs in Chrome, Edge, Firefox and Safari | A single Manifest V3 extension built on standard WebExtension APIs. `background` declares both `service_worker` (Chrome/Edge) and `scripts` (Firefox/Safari). `AJP.api` picks `browser` or `chrome`. |
-| Fast | No framework and no build step. The matcher is pure regex over a precompiled dictionary and takes a few ms per job description. Storage reads go through an in-memory cache that `storage.onChanged` invalidates. The panel uses Shadow DOM and renders once per state change. |
-| No database; data stays local | `storage.local` with `unlimitedStorage`. Each top-level key is one document: `profile`, `settings`, `resumes`, `answers`, `applications`, `logs`. Backup and restore use a JSON export. |
-| Free AI | Gemini, Groq and OpenRouter free tiers, or local Ollama. AI is optional, and matching works offline. |
-| Learns about the user | `answers` maps a normalized question to the user's answer. It is written when the user changes a form field on a page where they used Autofill. Lookup tries an exact key first, then token Jaccard similarity ≥ 0.75. |
-| Logs users can share | Every context logs through `AJP.logger(module)`. Entries are redacted, batched, and sent to the background, which is the single writer of a 3,000-entry ring buffer. Admin → Logs lets the user view, filter and download them. |
+| Runs in Chrome, Edge, Firefox and Safari | One **Manifest V3** extension built only on standard WebExtension APIs. `background` declares both `service_worker` (Chrome/Edge) and `scripts` (Firefox/Safari). `AJP.api` picks `browser` or `chrome`; both return promises. |
+| Fast | No framework and **no build step**: plain ES2020, loaded as-is. The matcher is precompiled regex and takes a few ms per job description. Reads go through an in-memory cache that `storage.onChanged` invalidates. The panel uses Shadow DOM and renders on state change. Apply detection only watches the page for 2 minutes after a Submit. |
+| No database; data stays local | `storage.local` with `unlimitedStorage`. Each top-level key is one "document" (§5). Backup and restore use a JSON export. |
+| Free AI | Gemini, Groq and OpenRouter free tiers, or local Ollama. AI is **optional**: matching, autofill and tracking all work offline. |
+| Learns about the user | Answers the user types are remembered per question and reused. Applications are tracked automatically. |
+| Supportable | Every failure has an error code. Every user action has a trace id. A one-click issue report carries no personal data (§10). |
+| Safe by default | Never submits a form. API keys stay in the background. EEO answers never go to the AI. Logs are redacted. Job-site passwords are not stored. |
 
-## Contexts and data flow
+## 3. Repository layout
 
 ```
- ┌────────────── web page (each frame) ──────────────┐
- │ jd-extractor → matcher → panel (top frame only)   │
- │ form-filler (fills, learns)                       │
- └──────────────┬────────────────────────────────────┘
-                │ runtime messages
- ┌──────────────▼──────────────┐      ┌───────────────────────────┐
- │ background                  │─────▶│ AI provider (HTTPS/local) │
- │  message router             │      └───────────────────────────┘
- │  AI tasks (keys stay here)  │
- │  writes: logs, answers,     │
- │    applications, tailored   │
- │    resumes                  │
- └──────────────┬──────────────┘
-                │ storage.local
- ┌──────────────▼──────────────┐
- │ Admin page / popup          │  writes: profile, settings, resumes
- └─────────────────────────────┘
+manifest.json                 MV3 manifest (permissions, background, content scripts, popup, options)
+icons/                        16/32/48/128 px PNGs
+src/
+  lib/                        shared modules, loaded in several contexts (namespace globalThis.AJP)
+    core.js                   AJP namespace, browser API shim, helpers, AJP.send (messaging)
+    logger.js                 structured logging, redaction, sessions, traces, flight recorder
+    errors.js                 error catalog (AJP-… codes), AppError, toAppError
+    storage.js                local "database": defaults, cache, versioned reads, backup/restore
+    skills-dictionary.js      canonical skills + aliases
+    matcher.js                offline match score, gaps, fit checks
+    ai.js                     free AI providers + prompts (background only)
+    tracker.js                application tracker logic (job identity, merge rules, reminders, stats, CSV)
+    diagnostics.js            "Report an issue" bundle; captureErrors for extension pages
+    docx.js                   .docx → text with zero dependencies (DecompressionStream)
+  background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
+  content/                    runs inside job pages (every frame)
+    jd-extractor.js           find the job description (JSON-LD → site selectors → heuristic)
+    form-filler.js            label detection, profile mapping, filling, learning
+    apply-detector.js         notice Submit + confirmation to mark "applied"
+    panel.js                  floating Shadow-DOM panel (pure view)
+    content.js                per-page controller wiring everything together
+  admin/                      Admin page (options page, opens in a tab)
+    admin.html / .css / .js   profile, skills, preferences, resumes, auto-apply, AI, answers, logs, backup
+    tracker-view.js           Applications: stats, board, table, detail dialog, CSV export
+    resume-view.html / .js    printable resume ("Save as PDF")
+  popup/                      toolbar popup (analyze, autofill, open Admin, report a problem)
+tests/                        automated tests (see §12)
+docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-Single-writer rule: to avoid lost updates, every key has one owner. The background serializes its writes with `AJP.serial()`.
+**Module pattern.** Every `src` file is an IIFE that attaches to `globalThis.AJP` and returns early if it's already loaded. This lets the same files load as content scripts, background scripts and `<script>` tags with no bundler, and makes re-injection safe.
 
-## Match score
+## 4. Runtime contexts
 
-Each skill mentioned in the job description gets a weight based on where it appears:
+```
+ ┌──────────────── Job page (every frame) ─────────────────┐     ┌──────── Extension pages ────────┐
+ │ content.js  controller                                   │     │ Admin page  (admin.js,          │
+ │  ├ jd-extractor  → matcher  → panel (top frame only)     │     │              tracker-view.js)   │
+ │  ├ form-filler   (fill + learn)                          │     │ Popup       (popup.js)          │
+ │  └ apply-detector (submit + confirmation)                │     │ Resume view (resume-view.js)    │
+ └───────────────┬─────────────────────────────▲────────────┘     └──────┬───────────────▲──────────┘
+     runtime.sendMessage                 tabs.sendMessage          runtime.sendMessage   │ storage.local
+                 │                             │                         │               │ (direct reads,
+ ┌───────────────▼─────────────────────────────┴─────────────────────────▼──────┐        │  own-key writes)
+ │ Background (service worker on Chrome/Edge · event page on Firefox/Safari)    │        │
+ │  router · AI tasks (keys here only) · logs writer · answers · applications   │        │
+ │  tab job memory · follow-up badge (alarms) · context menu · injection        │        │
+ └───────────────┬───────────────────────────────────────────┬─────────────────┘        │
+                 │ fetch (HTTPS / localhost)                 │ storage.local ───────────┘
+        ┌────────▼─────────┐                         ┌───────▼────────┐
+        │ AI provider      │                         │ storage.local  │  (the only database)
+        └──────────────────┘                         └────────────────┘
+```
 
-- **required** section: 3
-- unlabeled: 2
-- **preferred** or "nice to have": 1
+| Context | Where it runs | Loaded files (in order) |
+|---|---|---|
+| Background | Service worker (`importScripts`) or background scripts (manifest list) | core, logger, errors, storage, skills-dictionary, matcher, ai, tracker, background |
+| Content | Declared on 12 job-site patterns (`all_frames`); injected on demand elsewhere via `activeTab` + `scripting` | core, logger, errors, storage, skills-dictionary, matcher, tracker, jd-extractor, form-filler, apply-detector, panel, content |
+| Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, tracker, diagnostics, tracker-view, admin |
+| Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
-A skill mentioned repeatedly gets a bonus of up to +0.5.
+**Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
 
-The user's skill set is the union of the skills in their profile and the skills detected in their active resume.
+## 5. Data model (`storage.local`)
 
-`score = round(100 × Σ weight(matched) / Σ weight(all JD skills))`
+| Key | Shape | Written by | Notes |
+|---|---|---|---|
+| `profile` | `{ personal{…}, skills[{name,level,years}], targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
+| `settings` | `{ ai{provider,model,keys{gemini,groq,openrouter},ollamaUrl}, logLevel, autoAnalyze, learnAnswers, tracker{autoDetect,followUpDays} }` | Admin | Keys are never exported by default |
+| `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
+| `answers` | `{ [normKey]: {label,value,kind,count,lastUsed,hosts[≤10]} }` | Background | Values ≤ 5,000 chars |
+| `applications` | `[{ id, jobKey, url, title, company, location, score, status, date, appliedAt, updatedAt, statusHistory[≤30], snapshot{jd≤20k,salary,workTypes,location,source,savedAt}, resumeId, resumeName, notes, recruiter, interviewAt, nextStep, lastFollowUpAt, detectedBy, host }]` | Background (saves); Admin (edits) | Max 2,000; newest first |
+| `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
+| `tabJobs` | `{ [tabId]: { url, title, company, location, score, jobKey, snapshot, submittedAt?, appliedAt?, at } }` | Background only | **Internal**, never exported; at most 30 tabs |
 
-AI deep analysis adds the required and preferred skills the AI extracts, then re-scores.
+**Write ownership.** Each key has one writer per change type, and the background serializes its writes with `AJP.serial()`. This avoids lost updates when many tabs act at once (a test sends 20 simultaneous saves).
 
-## Job description extraction order
+**Cache correctness.** `storage.js` versions every key. A read that started before a write never caches the stale value. This was a real race, found by the test suite.
 
-1. schema.org `JobPosting` JSON-LD. This is the most reliable source and is present on most applicant tracking system (ATS) pages.
-2. Site-specific selectors, listed in `jd-extractor.js` under `SITES`. On LinkedIn these are tried first, because it is a single-page app (SPA).
-3. A heuristic: the visible container with the highest density of job-description keywords.
-4. Manual fallback: the user selects the text, right-clicks, and chooses **analyze selection**.
+**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers` and `applications`. `logs` and `tabJobs` are internal and are never imported.
 
-## Autofill
+## 6. Messages
 
-- Each field gets a label, taken in this order: `label[for]`, then `aria-labelledby` or `aria-label`, then a nearby label or legend, then the placeholder or name.
-- `RULES` in `form-filler.js` maps label patterns to profile values. If no rule matches, the learned answers are checked. Long-text questions are sent to the panel, where the user can ask the AI to draft an answer.
-- Values are set with the native value setter plus `input`, `change` and `blur` events, so React and Vue forms register them.
-- Selects and radio buttons use fuzzy option scoring. This includes matching "decline to self-identify" equivalents.
-- The resume file is attached through `DataTransfer`.
-- **Never** submits the form, never overwrites a value the user typed, and never learns passwords, SSNs, bank details or dates of birth.
+All messages are `{ type, …payload, _tid? }`. A reply is `{ ok: true, tid, … }` or `{ ok: false, tid, error, hint, code }`.
 
-## Security & privacy notes
+### Page / extension pages → background (`runtime.sendMessage`)
+| Type | Purpose |
+|---|---|
+| `log` | Persist a batch of log entries (max 200 per message) |
+| `ping` | Health check: version, session id, uptime, log level |
+| `analyzeTab` | Inject content scripts if needed, then open the panel (popup, context menu) |
+| `autofillTab` | Inject, then send `doAutofill` to all frames, carrying the trace id |
+| `autofillReport` | A frame finished filling → forward to the top frame |
+| `fillQuestion` | Put an AI-drafted answer into a specific field (any frame) |
+| `ai.extractSkills` / `ai.tailorResume` / `ai.draftAnswer` / `ai.test` | AI tasks (§9) |
+| `learnAnswer` | Remember a question → answer pair |
+| `setTabJob` | "This tab is looking at job X" (used for apply detection and snapshots) |
+| `recordApplication` | Insert or update an application (merge rules in §8.4) |
+| `undoStatus` | Revert the last status change, or remove a just-added entry |
+| `applicationSignal` | `submit` / `confirm` / `check` from the apply detector |
+| `askApplied` | Ask the user in the top frame: "Did you submit?" |
+| `openAdmin` | Open the Admin page at a section (`#applications?due=1`, `#logs?report=1`) |
 
-- API keys are used only in the background context and are never exposed to page scripts.
-- EEO answers are used only to fill EEO fields. They are never sent to the AI and are redacted from logs.
-- Job-site passwords are deliberately **not** stored. The browser's password manager should handle them.
+### Background → page (`tabs.sendMessage`)
+| Type | Target | Purpose |
+|---|---|---|
+| `openPanel` | top frame | Analyze the page, or the selected text (`jdText`) |
+| `doAutofill` | all frames | Fill the forms in this frame and report back |
+| `autofillReport` | top frame | Combined fill report for the panel |
+| `fillQuestion` | all frames | The frame that owns the field fills it |
+| `appliedDetected` | top frame | Show "detected and saved as applied" with Undo |
+| `askApplied` | top frame | Show the "Did you submit?" prompt |
 
-## Roadmap (next feature branches)
+## 7. Key flows
 
-1. `feature/pdf-text`: vendor pdf.js so text is extracted from PDF resumes automatically.
-2. `feature/workday-widgets`: support Workday's custom dropdowns, date pickers, and the multi-page "My Experience" step (repeatable experience and education entries).
-3. `feature/resume-export`: generate DOCX and PDF files from tailored resumes, so the tailored file is what gets attached.
-4. `feature/site-adapters`: per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) for higher fill accuracy.
-5. `feature/chrome-builtin-ai`: Chrome's on-device Gemini Nano (Prompt API) as a zero-key, private provider.
-6. `feature/match-v2`: skill synonyms and embeddings, seniority and years-of-experience checks.
-7. Packaging: store builds (Chrome Web Store, AMO, Edge Add-ons, Safari App Store) and CI that runs the tests.
+### 7.1 Analyze a job page
+```
+content (top)                       background                  storage
+ auto() on known site / openPanel
+ jd.extract()  JSON-LD→site→heuristic
+ matcher.analyze(profile, resume)  ─────────────────────────────▶ read profile/resumes (cache)
+ tracker.findDuplicate(applications)
+ send setTabJob {job, score, snapshot} ──▶ tabJobs[tabId] = job ─▶ write tabJobs
+ panel.render(score, chips, fit, duplicate warning)
+```
+
+### 7.2 Autofill (multi-frame)
+```
+panel "Autofill" → startTrace(panel.autofill) → send autofillTab(_tid)
+background: ensureInjected (probe → inject all frames) → tabs.sendMessage doAutofill {tid} → every frame
+each frame: filler.fill() → startLearning() → send autofillReport ──▶ background ──▶ top frame panel (merged)
+content (top): recordApplication {status:'in progress', auto:true}
+```
+
+### 7.3 AI task (e.g. draft an answer)
+```
+panel → startTrace → send ai.draftAnswer(_tid) → background router (same tid)
+  → aiContext(profile, active resume) → ai.complete(startTrace ai.draftAnswer, same tid)
+  → fetchJson (timeout 90 s) → provider → parse → reply {text}
+  → panel → send fillQuestion → owning frame sets value (marked as "AI draft", not learned until edited)
+Errors at any hop become AppError codes (AJP-AI-401/429/…); one tid connects all log lines.
+```
+
+### 7.4 Detecting a submitted application
+```
+apply-detector (any frame)
+  Submit on an application-like form (file input or ≥ 4 fields; not newsletters)
+    → applicationSignal submit → tabJobs[tab].submittedAt
+    → start watching the DOM for 120 s;  in 30 s: applicationSignal check → if not applied → askApplied
+  Confirmation seen (short heading/alert/dialog text, or /confirmation|/thanks URL on a job site)
+    → applicationSignal confirm
+background: requires job context (tab job) OR a known job site; otherwise ignored
+  → saveApplication {status:'applied', auto:true, detectedBy, snapshot, resume used}
+  → tabs.sendMessage appliedDetected → panel "✅ … saved as applied · Undo"
+New tab opened from a job tab (LinkedIn "Apply" → company ATS): tabs.onCreated copies the opener's job context.
+```
+
+### 7.5 Follow-up reminders
+`alarms` fires hourly. Applications change → `refreshBadge` (debounced) → `tracker.dueFollowUps(days)` → toolbar badge count. The popup shows "🔔 N follow-ups due", linking to `#applications?due=1`.
+
+### 7.6 Report an issue
+Admin (or the popup link → `#logs?report=1`) → `diagnostics.collect()`:
+1. flush logs
+2. read data → summarize as **counts only**
+3. `ping` the background, check storage health
+4. build the error summary and session list
+5. take the last 2,000 log entries
+6. `finalScrub` (mask emails, phone numbers, keys anywhere)
+7. download `apply-job-report-R-YYYYMMDD-XXXXX.json` and/or copy the summary text
+
+## 8. Subsystems
+
+### 8.1 Job description extraction (`jd-extractor.js`)
+1. **schema.org `JobPosting` JSON-LD**, including `@graph` and array `@type`. Gives title, company and location. This is the most reliable source.
+2. **Site selectors** (`SITES`) for LinkedIn, Indeed, Greenhouse, Lever, Workday, Glassdoor, ZipRecruiter, Ashby and SmartRecruiters. These are tried *first* on LinkedIn, because it's a single-page app and its JSON-LD can be stale.
+3. **Heuristic:** the visible container (400–25,000 chars) with the highest density of job-description keywords.
+4. **Manual:** select the text → context menu.
+
+A result needs at least 200 chars. `extract({root, host, url})` can be pointed at any DOM, which is how the tests run it.
+
+### 8.2 Matching (`matcher.js`)
+- **Dictionary:** 199 canonical skills with aliases. Short tokens (`Go`, `R`, `C`, `js`) are case-sensitive, and boundaries respect `+ # .`, so `C++`, `C#`, `.NET` and `Node.js` work.
+- **Sections:** each line is classified as *required* (weight 3), *unlabeled* (2) or *preferred* (1), from headings and inline phrases ("is a plus", "(preferred)"). A mention like "our preferred vendors" doesn't count.
+- **User skills** = profile skills (canonicalized) ∪ skills detected in the active resume. Custom skills the dictionary doesn't know are matched too.
+- **Score** = `round(100 × Σ weight(matched) / Σ weight(all JD skills))`. Repeated mentions add up to +0.5. AI-extracted skills can be merged in.
+- **Fit checks:**
+  - work type: remote / hybrid / on-site, with negations
+  - salary: annual and hourly ranges compared with the user's range
+  - location: the user's areas, or remote
+
+### 8.3 Autofill and learning (`form-filler.js`)
+- **Label** for each field, taken in this order:
+  1. `label[for]`
+  2. `aria-labelledby` / `aria-label`
+  3. a nearby label or legend (including Workday `data-automation-id` labels)
+  4. placeholder, then name
+
+  Radio and checkbox groups use their fieldset legend or `role=radiogroup`.
+- **Value:**
+  - `RULES` maps 54 label patterns (name, contact details, location, links, work authorization, sponsorship, EEO, education, salary, …) to profile values
+  - if no rule matches, learned answers are checked (exact key, then token Jaccard ≥ 0.75)
+  - long-text questions go to the panel for an **AI draft**
+- **Setting values:**
+  - the native value setter plus `input`/`change`/`blur` events, so React and Vue forms register them
+  - fuzzy option scoring for selects and radio buttons, including "decline to self-identify" equivalents
+  - the resume file is attached via `DataTransfer`
+- **Never:** submits, overwrites a field the user filled, or touches password, hidden or disabled fields.
+- **Learning:** a capture-phase `change` listener records user edits. It skips the extension's own fills (a `filling` flag and `data-ajp-value`), AI drafts that haven't been edited, and sensitive labels (SSN, password, card, bank, date of birth).
+
+### 8.4 Application tracker (`tracker.js`, `apply-detector.js`, `tracker-view.js`)
+- **Job identity (`jobKey`):** the same job is recognized across URLs:
+  - LinkedIn: `currentJobId`, `/jobs/view/<id>`
+  - Indeed: `jk`/`vjk`
+  - Greenhouse: `gh_jid`, `/jobs/<id>`
+  - Lever and Ashby: UUID
+  - Workday: `_R12345`
+  - SmartRecruiters and Glassdoor: their job IDs
+  - anything else: host + path, without query, hash or `/apply`
+- **Merge rules (`upsert`):**
+  - *automatic* updates never move status backwards (status rank: started < applied < interviewing < offer/rejected/withdrawn)
+  - empty values never wipe saved data
+  - the status history is appended on each change
+  - `appliedAt` is set once
+  - the snapshot is kept
+- **Undo:** reverts the last status change. If the entry was created by that change, Undo removes it.
+- **Detection safety:**
+  - Confirmation text is checked only in short headings, alerts and dialogs (< 300 chars).
+  - Instructional text such as "Once your application has been submitted…" is rejected.
+  - On unknown sites, detection needs job context from the tab.
+- **Duplicate warning:** the same `jobKey`, or the same normalized company + title similarity ≥ 0.8.
+- **Reminders:** status `applied` with no activity for N days (default 7, and "I followed up" resets it), or an interview within 48 h.
+- **Stats:** tracked, applied, per week (8 weeks), response rate, interview rate (counts jobs that reached interviews even if later rejected), and average match % of interviewed vs. other jobs.
+- **CSV:** UTF-8 BOM, RFC-4180 quoting, and a `'` prefix on cells starting with `= + - @` (blocks formula injection).
+
+### 8.5 AI (`ai.js`)
+| Provider | Endpoint | Auth | Default model |
+|---|---|---|---|
+| Gemini | `generativelanguage.googleapis.com/v1beta/models/{m}:generateContent` | `x-goog-api-key` header (never in the URL) | `gemini-2.5-flash` |
+| Groq | `api.groq.com/openai/v1/chat/completions` | Bearer | `llama-3.3-70b-versatile` |
+| OpenRouter | `openrouter.ai/api/v1/chat/completions` | Bearer | `meta-llama/llama-3.3-70b-instruct:free` |
+| Ollama | `{ollamaUrl}/api/chat` | none (local) | `llama3.1` |
+
+**Tasks:**
+- `extractSkills` (JSON)
+- `tailorResume`: Markdown plus a `---GAPS---` section. Saved as a **new** resume version; the original is untouched.
+- `draftAnswer`
+- `test`
+
+**Prompt rules:**
+- never invent employers, dates, degrees, certifications or skills
+- use placeholders for missing facts
+- inputs are clipped (job description 6–14k chars, resume 12–15k)
+- **EEO data is never included**, and a test enforces this
+
+Every call is traced. HTTP status, timeout, network and parse failures map to `AJP-AI-*` codes.
+
+### 8.6 Panel (`panel.js`)
+- A custom element with an **open Shadow DOM**, so page CSS can't affect it.
+- All page-derived text is escaped, so job pages can't inject HTML.
+- It's draggable and can be minimized.
+- It's a pure view: `content.js` owns the state and passes callbacks via `data-act` attributes.
+
+## 9. Logging, errors and diagnostics
+
+| Piece | Design |
+|---|---|
+| Entry | `{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }` |
+| Session (`sid`) | One id per page or background lifetime |
+| Trace (`tid`) | One id per user action. `AJP.startTrace(name)` creates it; `AJP.send(type, payload, trace)` carries it as `_tid`; the background router and `ai.complete` reuse it. The result is a single id across page → background → AI → page. |
+| Timing | `trace.end()` logs `ms`. Above `slowMs` it logs a `… slow` warning instead. |
+| Flight recorder | The last 60 entries below the log level are held in memory and written only if an error follows (`pre: true`) |
+| Errors | `errors.js`: 19 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
+| Redaction | By **key** (`apiKey`, `token`, `password`, `email`, `phone`, `eeo`, `race`, `veteran`, `disability`, `gender`, `dataUrl`, …) and by **value pattern** (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, Bearer tokens, `?key=`, phone numbers, SSNs). Applied to messages, data and error stacks. |
+| Transport | Contexts batch entries (700 ms; 50 ms after an error) → `log` message → the background writes the ring buffer (3,000 entries) |
+| Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
+| Report | `diagnostics.collect()`: §7.6; contents described in [SUPPORT.md](SUPPORT.md) |
+
+## 10. Security & privacy
+
+| Risk | Mitigation |
+|---|---|
+| API key leakage | Keys are used only in the background. The Gemini key goes in a header. Keys are redacted from logs by key and by pattern. They're excluded from backups by default and never included in issue reports (`hasKey: true/false` only). |
+| Sensitive personal data | EEO answers are used only to fill EEO fields; they're never sent to the AI, never logged, and never in reports. Reports contain counts, not content. |
+| Script injection from job pages | All page text is escaped in the panel and Admin. The panel uses Shadow DOM. CSV cells are protected against formula injection. |
+| Unwanted actions | The extension never submits forms or clicks Submit. Automatic tracker updates only move status forward. Undo is always offered. |
+| Credentials | Job-site passwords are not stored (the browser's password manager handles them). Password, SSN, bank and date-of-birth fields are never learned. |
+| Over-broad access | Content scripts are declared only on job sites; elsewhere they run only after a user gesture (`activeTab`). Host permissions are limited to the AI endpoints. |
+| Third-party chat sites | Not automated (terms of service and reliability). Free official APIs are used instead. |
+
+## 11. Performance budgets
+
+| Operation | Budget | How |
+|---|---|---|
+| Match a job description | < 50 ms (typically 2–10 ms) | Precompiled regex; a test enforces < 150 ms on a 40× job description |
+| Badge after page load | ~1.5 s | A deliberate 1.2 s delay for late-rendered pages |
+| Autofill a 30-field form | < 1 s | A single DOM pass |
+| Storage reads | ~0 ms (cached) | Versioned in-memory cache |
+| Apply detection cost | 0 when idle | MutationObserver active only for 120 s after Submit |
+| Log writes | Batched | 700 ms batching; one writer |
+
+## 12. Testing architecture
+
+```
+tests/
+  harness.js              tiny framework: describe/it/eq/…; runSync (CLI) and run (browser)
+  mocks/browser-mock.js   in-memory WebExtension APIs: storage + onChanged, runtime/tabs messaging
+                          (routes to background vs content listeners like real browsers), scripting,
+                          tabs.onCreated/onRemoved, alarms, action badge, contextMenus
+  mocks/url-polyfill.js   URL for the macOS JavaScriptCore CLI runner only
+  unit/*.test.js          50 suites: core, matcher, logger, storage, ai, docx, form-filler, jd-extractor,
+                          panel, background, tracker, tracker-flow, admin, errors-logging
+  test-runner.html        loads the REAL extension code + mock + suites; shows results
+  run-tests.sh            CLI: 241 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 449 tests; results POSTed to serve.py
+  serve.py                dev server (no-cache; accepts POST /__results)
+  fixtures/sample-job.html  manual test page (JSON-LD job + application form)
+```
+
+- **End-to-end tests** run the real `background.js` and `content.js` together. Messages flow content → background → content through the mock.
+- **Admin tests** load the real `admin.html` in an iframe with its own mock, and drive the UI (drag & drop, dialogs, downloads).
+- **Rule:** every bug fix comes with a test that fails without it. Manual browser scenarios live in [TEST-SCENARIOS.md](TEST-SCENARIOS.md).
+
+## 13. Cross-browser notes
+
+| Topic | Chrome / Edge | Firefox | Safari |
+|---|---|---|---|
+| Background | Service worker (`importScripts`) | Event page (`scripts`) | Event page (`scripts`) |
+| Host permissions | Granted at install | **Opt-in**: the user must allow job sites in the add-on's Permissions tab | Prompted per site |
+| Install for development | Load unpacked | `about:debugging` → temporary add-on | `xcrun safari-web-extension-converter` → Xcode |
+| `getBytesInUse` | ✅ | ❌ (the report omits it) | ❌ |
+| `DecompressionStream('deflate-raw')` (.docx) | 103+ | 113+ | 16.4+ |
+| Minimum versions | MV3 | 121 (`strict_min_version`) | 16.4+ recommended |
+
+## 14. Extending the system
+
+| Task | Where | Steps |
+|---|---|---|
+| Support a new job site's description | `jd-extractor.js` `SITES` | Add `{name, host, jd[], title[], company[]}`; add a test in `jd-extractor.test.js`; add the host to `manifest.json` content-script matches and to `tracker.js` `JOB_HOSTS` |
+| Recognize a site's job ids | `tracker.js` `jobKey` | Add a branch; add "same job, different URLs" tests |
+| Fill a new kind of field | `form-filler.js` `RULES` | Add `{key, re, v}` in priority order; add label→key cases in `form-filler.test.js` |
+| Add an AI provider | `ai.js` `PROVIDERS` + `CALLERS` | Add the endpoint to `host_permissions`; add request-format tests in `ai.test.js` |
+| Add an error | `errors.js` `ERRORS` | `[code, message, hint]`; throw with `AJP.err(KEY, details)`; add it to the table in `SUPPORT.md` |
+| Add a message type | `background.js` `handlers` | Handlers receive `(msg, sender, {tid, log})`; list it in §6 |
+| Add a stored key | `storage.js` `DEFAULTS` | Add a default; mark it `INTERNAL` if it must not be exported |
+
+## 15. Planned architecture: multiple career tracks (roadmap step 5)
+
+The design is agreed in [PLAN.md §10](PLAN.md); it isn't built yet.
+
+```
+profile.tracks: [ { id, name, targetTitles[], skills[], resumeId, salary?, areas?, workTypes? } ]  (max 3)
+profile.coreSkills: [...]                               shared by every track
+migration: existing skills/targetRoles/salary/resume → tracks[0]  (one-time, on first read)
+matcher.analyzeAll(jd, profile) → [{ trackId, score, matched, missing, fit }]
+best track = max(score + titleSimilarity(jobTitle, track.targetTitles) bonus); user can switch
+application.trackId; evaluations: ring buffer of 300 {jobKey, title, company, url, scores{trackId:score}, gaps}
+insights per track: evaluated, avg score, applied, top recurring gaps
+```
+
+## 16. Decision log
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-11-18 | No build step, IIFE modules on `globalThis.AJP` | Fast iteration; the same files run in every context and in tests |
+| 2026-11-18 | Free AI via official APIs, not chat-site automation | Terms of service, reliability, security |
+| 2026-11-18 | Never auto-submit applications | The user stays in control; avoids wrong submissions |
+| 2026-11-18 | Don't store job-site passwords | The browser's password manager is safer |
+| 2026-11-18 | Background is the single writer for shared keys; versioned cache | Prevents lost updates and stale reads (both found by tests) |
+| 2026-11-18 | Track applications without email access | Keeps the "all local" promise; email sync stays optional and later |
+| 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
+| 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
+
+## 17. Known limitations
+
+- **PDF resumes:** text isn't extracted yet; the user pastes it (roadmap step 6).
+- **Workday:** custom dropdowns, date pickers and the multi-step experience pages aren't automated yet (step 7).
+- **Tailored resume file:** autofill attaches the uploaded file, not the tailored text (step 8).
+- **Real-browser testing:** not done yet (on the user's side). Site selectors for LinkedIn, Indeed and Glassdoor may need updates.
+- **Firefox:** job-site permissions must be granted manually after install.

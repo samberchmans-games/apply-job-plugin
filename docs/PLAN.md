@@ -1,8 +1,38 @@
 # Project plan: done vs. pending
 
-Last updated: 2026-11-18 · Version 0.1.0 (+ test suite) · Branch `develop`
+Last updated: **2026-11-18** · Version **0.1.0** · Branch **`develop`** · Latest feature commit `ab79d58`. Related documents:
+- [ARCHITECTURE.md](ARCHITECTURE.md): how it works
+- [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
+- [SUPPORT.md](SUPPORT.md): logs and error codes
 
-Legend: ✅ done · 🟡 partial · ⬜ pending
+Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
+
+## At a glance
+
+| Area | Status |
+|---|---|
+| Platform (Chrome / Edge / Firefox / Safari, local-only storage) | ✅ built · ⬜ real-browser verification (your side) |
+| Admin page | ✅ · ⬜ PDF text extraction |
+| Job reading & match % | ✅ · ⬜ seniority/years check, synonyms |
+| Resume tailoring | ✅ · ⬜ attach the tailored file |
+| Autofill & learning | ✅ · ⬜ Workday widgets, per-site adapters |
+| Application tracker | ✅ complete |
+| Logging & support | ✅ complete |
+| Multiple career tracks | ⬜ next (step 5) |
+| Tests | ✅ 449 automated + 89 manual scenarios · ⬜ CI |
+
+**Code size:** about 3,800 lines of JavaScript in 20 files (plus HTML/CSS), plus 14 test files. No dependencies, no build step.
+
+## How we work
+
+- **Branches:** `develop` is the integration branch, and everything currently goes there. Larger features may use `feature/<name>` → PR → `develop`. `main` is kept for releases.
+- **One step at a time:** Claude builds a step with its tests, pushes to `develop`, and reports. You review before the next step starts.
+- **Definition of done for each step:**
+  - code is in place
+  - automated tests are added, and all of them pass (`./tests/run-tests.sh` + `./tests/run-browser-tests.sh`)
+  - manual scenarios are added to TEST-SCENARIOS.md
+  - this plan and ARCHITECTURE.md are updated
+- **Bugs:** every fix comes with a test that fails without it.
 
 ## 1. Platform & foundation
 | Item | Status | Notes / where |
@@ -123,6 +153,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | Compare view: pick 2–3 saved jobs and see their scores across tracks side by side | ⬜ | Helps decide where to apply first |
 | Tests for multi-track scoring, best-track choice, migration and insights | ⬜ | Added to the automated suite |
 
+Technical sketch: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-planned-architecture-multiple-career-tracks-roadmap-step-5).
+
 ## 11. Application tracker (no email needed) — ✅ done 2026-11-18
 | Item | Status | Notes |
 |---|---|---|
@@ -180,3 +212,29 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 |---|---|
 | Logging into free ChatGPT / Claude / Gemini chat websites | Breaks their terms, unreliable; free API keys instead |
 | Storing job-site passwords | The browser's password manager handles this more safely |
+
+## Risks & open questions
+
+| Risk / question | Impact | Mitigation / next action |
+|---|---|---|
+| Not yet run in a real browser | Integration issues (permissions, Safari quirks) may appear | Your Chrome pass using TEST-SCENARIOS.md; Claude fixes what you find |
+| Job sites change their HTML (LinkedIn, Indeed, Glassdoor) | The badge may not appear (`AJP-JD-NONE`) | JSON-LD and the heuristic are fallbacks; selectors are in one place (`jd-extractor.js` `SITES`); issue reports include the host |
+| Workday forms use custom widgets | Lower fill rate on Workday | Roadmap step 7 |
+| Free AI tiers have rate limits | `AJP-AI-429` during heavy use | Clear message + hint; switching providers is one click; matching works without AI |
+| Firefox requires manual site permission | Badge missing on Firefox until granted | Documented in the README; consider an in-Admin prompt |
+| Detecting "applied" depends on confirmation wording | Some sites may be missed | "Did you submit?" prompt as a fallback; manual "Mark applied"; patterns tested |
+| Publishing to stores | Store review needs a privacy policy and a description of permissions | Plan once real-browser testing is done |
+
+## Change log
+
+| Date | Commit | Change |
+|---|---|---|
+| 2026-11-18 | `cb1ac98` | v0.1 foundation: MV3 extension, Admin page, matcher, job-page reading, autofill + learning, AI providers, logging |
+| 2026-11-18 | `c6f67d8` | Plan document |
+| 2026-11-18 | `3609410` | Automated test suite (279), manual scenarios; fixed a stale-cache race and "preferred" misdetection |
+| 2026-11-18 | `8e6fb46` | Plan: multiple career tracks (section 10) |
+| 2026-11-18 | `15fbc3c` | Application tracker (section 11); fixed the Autofill status downgrade, lost dialog edits, interview-date timezone |
+| 2026-11-18 | `ab79d58` | Support logging: error codes, trace ids, flight recorder, Report an issue, SUPPORT.md |
+| 2026-11-18 | `5d78eb1` | Consolidated roadmap |
+| 2026-11-18 | *this commit* | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
+
