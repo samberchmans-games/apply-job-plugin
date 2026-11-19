@@ -26,8 +26,13 @@
   // Bullet markers: - * • · – ▪ ◦ ‣ ● ○ ■ □ ➢ ➤ ► ✓ ✔ → ❖ ◆, Word's symbol-font bullets ( ), and "1." / "1)".
   const BULLET_RE = /^(\s*)([-*•·–▪◦‣●○■□➢➤►✓✔→❖◆\uf0b7\uf0a7\uf076\uf0d8\uf0fc]|\d{1,2}[.)])\s+(.*\S)\s*$/;
 
+  const EXP_LIKE = /^((professional|work|relevant|career|employment|industry|technical|project)\s+)?(experience|employment|work history|career history|professional background)(\s+(summary|details|highlights|history|overview))?$/i;
+  const SECTION_HINT = /\b(experience|employment|history|background|education|academic|skills?|expertise|competenc|technolog|tools|projects?|certifications?|licen|summary|profile|objective|accomplishments|achievements|highlights|awards|publications|volunteer|languages|interests|training|qualifications)/i;
+
   function sectionKind(name) {
     const n = AJP.norm(name);
+    // "Experience Summary" is experience, not the summary.
+    if (/experience|employment|work history|career history|professional background/.test(n)) return 'experience';
     if (/summary|profile|about|objective/.test(n)) return 'summary';
     if (/skill|competenc|technolog|tools/.test(n)) return 'skills';
     if (/experience|employment|work history/.test(n)) return 'experience';
@@ -43,6 +48,11 @@
     if (m) return { level: m[1].length, name: m[2].replace(/[*_]/g, '').trim(), md: true };
     const plain = t.replace(/[*_]/g, '').replace(/:$/, '').trim();
     if (plain.length && plain.length < 45 && SECTION_WORDS.test(plain)) return { level: 2, name: plain, md: false };
+    // "Experience Summary", "Professional Experience Highlights", "Career History", "Employment Details"…
+    if (plain.length < 45 && EXP_LIKE.test(plain)) return { level: 2, name: plain, md: false };
+    // An ALL-CAPS short line with a section word ("ACCOMPLISHMENTS", "TECHNICAL EXPERTISE"). A company name in
+    // capitals ("ACME CORPORATION") has no section word, so it is never taken as a heading.
+    if (plain.length >= 4 && plain.length < 45 && /^[A-Z][A-Z &/-]+$/.test(plain) && plain.split(/\s+/).length <= 5 && SECTION_HINT.test(plain)) return { level: 2, name: plain, md: false };
     return null;
   }
 
@@ -101,7 +111,7 @@
         blocks.push({ line: i, kind: 'skills', section, text: b ? b[3] : t, prefix: b ? b[1] + b[2] + ' ' : '', editable: true });
       } else if (b && (kind === 'experience' || kind === 'projects' || kind === 'other')) {
         blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: b[1] + b[2] + ' ', text: b[3], editable: true });
-      } else if (opts.loose && (kind === 'experience' || kind === 'projects') && looksLikeAchievement(t)) {
+      } else if (opts.loose && (kind === 'experience' || kind === 'projects' || kind === 'other') && looksLikeAchievement(t)) {
         // No bullet characters in this resume (e.g. a Word file pasted without its list formatting): a line that
         // reads like an achievement is used as one. The line is rewritten without adding a marker.
         blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true });

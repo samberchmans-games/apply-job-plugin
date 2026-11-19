@@ -52,6 +52,18 @@
       const out = AJP.docx.markLists(xml).replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '');
       eq(out, '- Built pipelines\n- Led a team\nSenior Engineer\n');
     });
+    for (const head of ['EXPERIENCE SUMMARY', 'Experience Summary', 'Professional Experience Highlights', 'CAREER HISTORY', 'Employment Details:', 'WORK EXPERIENCE']) {
+      it(`"${head}" is the Experience section; achievements under it are found`, () => {
+        const text = ['SAM B', 'PROFESSIONAL SUMMARY', 'Data architect with many years of experience in cloud data platforms, leading teams.', head,
+          'ACME CORPORATION', 'Senior Data Architect | Jan 2019 – Till Date', 'Designed the enterprise data lake on AWS for 40 business units',
+          'Led a team of 6 engineers delivering Snowflake pipelines', 'EDUCATION', 'B.Tech, Anna University 2005 – 2009'].join('\n');
+        const d = E.parse(text);
+        eq(d.bullets.map((b) => b.text.slice(0, 12)), ['Designed the', 'Led a team o']);
+        ok(d.bullets.every((b) => b.section === head.replace(/:$/, '')), d.bullets.map((b) => b.section).join());
+      });
+    }
+    it('a company name in capitals is not a heading', () => eq(E.parse('## Experience\nACME CORPORATION\n- Built things').bullets[0].section, 'Experience'));
+    it('the summary stays the summary ("Professional Summary")', () => eq(E.parse('PROFESSIONAL SUMMARY\nData architect.\nEXPERIENCE\nAcme 2019 - 2020\n- Built x').summary.length, 1));
     it('the years reader understands the same resume (dates on their own line)', () => {
       const c = AJP.experience.candidate({}, PLAIN);
       eq(c.roles.length, 2);
