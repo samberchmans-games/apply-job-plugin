@@ -105,13 +105,29 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     const all = await AJP.store.get('tabJobs');
     return all[tabId] || null;
   }
+  // An application is held in its tab for 1 hour after the last activity (each page of the site's steps counts).
+  // Past that it is dropped and the user is told; once applied it is offboarded (only an "applied" marker stays,
+  // so the "Did you submit?" question isn't asked twice). Applications keep the record.
+  const HOLD_MS = 60 * 60 * 1000;
+  async function offboardJob(jobKey) {
+    if (!jobKey) return;
+    await serialData(() =>
+      AJP.store.update('tabJobs', (all) => {
+        for (const [id, j] of Object.entries(all)) if (j && j.jobKey === jobKey && id !== '__pending') all[id] = { jobKey, appliedAt: j.appliedAt || Date.now(), at: Date.now() };
+        if (all.__pending && all.__pending.job && all.__pending.job.jobKey === jobKey) delete all.__pending;
+      })
+    );
+    log.info('Applied: job tracking offboarded from tab memory');
+  }
+  // "Apply" clicked on a job page: a tab opened in the next 20 s without an opener link still gets the job.
+  const PENDING_MS = 20 * 1000;
 
   function setTabJob(tabId, job) {
     if (tabId == null) return Promise.resolve();
     return serialData(() =>
       AJP.store.update('tabJobs', (all) => {
         all[tabId] = { ...job, at: Date.now() };
-        const ids = Object.keys(all).sort((a, b) => all[b].at - all[a].at);
+        const ids = Object.keys(all).filter((k) => k !== '__pending').sort((a, b) => all[b].at - all[a].at);
         for (const id of ids.slice(MAX_TAB_JOBS)) delete all[id];
       })
     );
@@ -136,6 +152,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     log.info(result.created ? 'Application added' : 'Application updated', {
       status: result.app.status, changed: result.changed, auto: !!app.auto, key: result.app.jobKey,
     });
+    if (result.app.status === 'applied') await offboardJob(result.app.jobKey);
     return result.app;
   }
 
@@ -166,6 +183,34 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   }
   AJP.refreshBadge = refreshBadge;
   const refreshBadgeSoon = AJP.debounce(refreshBadge, 500);
+  // History retention (Admin → Backup & privacy): applications (by their LAST change, so an application still moving
+  // is kept), job history, tailoring drafts and logs older than N days are removed. Default 30; 0 = keep everything.
+  async function pruneHistory() {
+    const settings = await AJP.store.get('settings');
+    const days = Number(settings.retentionDays);
+    if (!(days > 0)) return { removed: 0 };
+    const cut = Date.now() - days * 86400000;
+    const old = (iso) => iso && Date.parse(iso) < cut;
+    let removed = 0;
+    const keep = (list, when) => list.filter((x) => (old(when(x)) ? (removed++, false) : true));
+    await serialData(async () => {
+      await AJP.store.update('applications', (l) => keep(l, (a) => a.updatedAt || a.appliedAt || a.date));
+      await AJP.store.update('evaluations', (l) => keep(l, (e) => e.at));
+      await AJP.store.update('enhancements', (l) => keep(l, (d) => d.createdAt));
+    });
+    await AJP.store.update('logs', (l) => l.filter((e) => !old(e.t)));
+    if (removed) log.info('Old history removed', { days, removed });
+    return { removed };
+  }
+  pruneHistory().catch((e) => log.warn('History cleanup failed', { error: e.message }));
+  if (api.alarms) {
+    try {
+      api.alarms.create('ajp-retention', { periodInMinutes: 24 * 60 });
+      api.alarms.onAlarm.addListener((a) => a.name === 'ajp-retention' && pruneHistory());
+    } catch (e) {
+      log.warn('Retention alarm unavailable', { error: e.message });
+    }
+  }
   if (api.alarms) {
     try {
       api.alarms.create('ajp-followups', { periodInMinutes: 60 });
@@ -190,7 +235,16 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   // A job opened in a new tab (e.g. LinkedIn "Apply" -> company Workday) keeps its context.
   if (api.tabs.onCreated) {
     api.tabs.onCreated.addListener(async (tab) => {
-      if (tab.openerTabId == null) return;
+      if (tab.openerTabId == null) {
+        const all = await AJP.store.get('tabJobs');
+        const p = all.__pending;
+        if (p && Date.now() - p.at < PENDING_MS) {
+          await setTabJob(tab.id, { ...p.job, submittedAt: undefined, appliedAt: undefined });
+          await serialData(() => AJP.store.update('tabJobs', (x) => void delete x.__pending));
+          log.info('Job context passed to new tab (Apply click, no opener)', { to: tab.id });
+        }
+        return;
+      }
       const parent = await getTabJob(tab.openerTabId);
       if (parent) {
         await setTabJob(tab.id, { ...parent, submittedAt: undefined, appliedAt: undefined });
@@ -552,6 +606,45 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return res || { app: null, removed: false };
     },
 
+    // The job held for this tab (application on another page: sign-up, login, form), if still fresh.
+    async 'tabJob.get'(msg, sender) {
+      const tabId = sender && sender.tab ? sender.tab.id : null;
+      let tj = await getTabJob(tabId);
+      // The same job opened in another tab (no Apply click, no link back): recognise it by its job identity.
+      if (!tj && tabId != null) {
+        const key = AJP.tracker.jobKey((msg && msg.url) || (sender.tab && sender.tab.url) || '');
+        const all = await AJP.store.get('tabJobs');
+        const same = Object.entries(all).find(([id, j]) => id !== '__pending' && j && j.title && !j.appliedAt && j.jobKey === key && Date.now() - (j.at || 0) < HOLD_MS);
+        if (same) {
+          tj = same[1];
+          log.info('Same job recognised in a new tab', { from: same[0], to: tabId });
+        }
+      }
+      if (!tj || tj.appliedAt || !tj.title) return { job: null };
+      if (Date.now() - (tj.at || 0) >= HOLD_MS) {
+        await serialData(() => AJP.store.update('tabJobs', (all) => void delete all[tabId]));
+        log.info('Held application expired (over 1 hour without activity)');
+        return { job: null, expired: { title: tj.title, company: tj.company } };
+      }
+      await setTabJob(tabId, tj); // activity: the hold lasts another hour
+      return { job: tj };
+    },
+    async 'tabJob.forget'(msg, sender) {
+      if (sender && sender.tab) await serialData(() => AJP.store.update('tabJobs', (all) => void delete all[sender.tab.id]));
+      log.info('Held application dropped by the user');
+      return {};
+    },
+    // The user clicked an Apply button on a job page: remember the job briefly for a tab that opens without a link back.
+    async applyClicked({ job }, sender) {
+      if (!job) return {};
+      await serialData(() => AJP.store.update('tabJobs', (all) => void (all.__pending = { job: { ...job, jobKey: AJP.tracker.jobKey(job.url) }, at: Date.now() })));
+      return {};
+    },
+
+    async pruneHistory() {
+      return pruneHistory();
+    },
+
     // Content (top frame) tells us which job this tab is looking at.
     async setTabJob({ job }, sender) {
       if (!sender.tab || !job) return {};
@@ -582,7 +675,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         }
         const job = tj || { url, title, jobKey: AJP.tracker.jobKey(url) };
         const app = await saveApplication({ ...pickJob(job), status: 'applied', auto: true, detectedBy: how, host }, job);
-        await setTabJob(tabId, { ...job, appliedAt: now });
+        await setTabJob(tabId, { jobKey: job.jobKey, appliedAt: now }); // offboarded: only the "applied" marker stays
         log.info('Application auto-detected as applied', { how, host, confidence: recentSubmit ? 'high' : 'medium', company: app.company });
         api.tabs.sendMessage(tabId, { type: 'appliedDetected', app }, { frameId: 0 }).catch(() => {});
         return { app };

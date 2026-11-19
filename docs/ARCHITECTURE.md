@@ -335,6 +335,11 @@ For sites other than Workday. A section = a heading ("Employment", "Experience",
 - `profileSuggest.list(profile, answers, dismissed)`: each learned answer whose label maps to a profile field (email, phone, links, address, current company/title, years, minimum salary, notice period, start date, relocate, sponsorship, work authorization) and whose normalised value differs from the profile. Empty field → suggested after one answer; a different existing value → after two. One suggestion per field (most used, then most recent). **Never** EEO, names, education/experience lists or cover letters.
 - Admin → Learned answers shows the box (Save to profile / Dismiss / Save all) and a count in the menu; the popup shows "💡 N profile suggestions". Saving writes Admin's in-memory profile first (so later edits can't undo it), then storage. Dismissals are stored per value in `suggestions.dismissed`.
 
+### 8.3e Holding an application across pages
+`tabJobs[tabId]` keeps the job a tab is applying for. It reaches a new tab by `openerTabId`, by an **Apply click** (`applyClicked` stores `__pending` for 20 s; a tab created without an opener in that window adopts it), or by **job identity** (`tabJob.get` with the page URL finds the same `jobKey` held in another tab). On a page without a job description the panel shows the held job and follows the step (`applyPhase`: login / sign-up = password fields around a "create account" text; form = a file input or 3+ fields; else waiting): Autofill is off on login/sign-up and on when the form appears; tracking, Autofill's tailored resume and apply detection use the held job. Each visit is activity; **1 hour** without activity → dropped, and the panel shows a closable "Tracking of this job was lost". **Applied** (Mark applied, detection, Admin) → `offboardJob` removes the job details from tab memory (an `appliedAt` marker stays so "Did you submit?" isn't asked twice); Applications keeps the record. Passwords are never read or stored.
+
+**Retention:** `pruneHistory` (on start + daily alarm) removes applications whose last change is older than `settings.retentionDays` (default 30; 0 = keep), and job history, tailoring drafts and logs older than that.
+
 ### 8.4 Application tracker (`tracker.js`, `apply-detector.js`, `tracker-view.js`)
 - **Job identity (`jobKey`):** the same job is recognized across URLs:
   - LinkedIn: `currentJobId`, `/jobs/view/<id>`
@@ -530,7 +535,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1059 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1079 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

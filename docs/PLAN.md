@@ -112,6 +112,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Workday custom dropdowns, date pickers, multi-step "My Experience" | ✅ | Step 9; `src/content/workday.js`; built against an emulation, to verify on real Workday |
 | Repeatable experience/education entries on forms | ✅ | Workday (its adapter) + any other site (`entries.js`, step 17): Add another per item, dates in the site's format, your own entries kept |
 | Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ✅ | Step 12; `ats.js`: site field names, searchable dropdowns, location autocompletes, Yes/No buttons, hidden selects, Lever resume-first, iCIMS sign-in note. Built against emulations: verify on real sites |
+| Applications that go through sign-up / login (new tab) | ✅ | The job is held in the tab and shown while you create your account / log in; Autofill turns on when the form appears |
 | Job-site accounts (username/password) | ✅ by design | Not stored by the extension, ever: the browser's password manager handles logins; iCIMS-style sign-in pages get a note |
 
 ## 6. Learning about the user
@@ -147,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1059) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1079) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -282,6 +283,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-19 | _h_ | **Application hold** across tabs and sign-up/login pages (1 h after last activity, alert when lost, offboarded when applied, same job recognised in a new tab); **history retention** 30 days default (applications by last change, job history, drafts, logs), Admin setting; 1079 tests |
 | 2026-11-19 | `c391f3a` | Tailored flow: one tailored resume per job (replaced on re-tailoring), grouped in Admin; panel re-scores with it live and downloads it; file name has company + job title; review stays open with Download; skills ceiling is a warning (4 skills hard); wrapped lines joined (parser + PDF), PDF styles for plain-text resumes, "Additional skills:" line, evidence ⇒ not "not in resume"; B23–B25; 1059 tests |
 | 2026-11-19 | `f1dce41` | Sections decided by content too (a "Career Profile" with dated jobs is Experience); bullets belong to the job line (title / company / dates), not sub-headings or intros; job labels without dates; fixed B22; 1044 tests |
 | 2026-11-19 | `c741498` | Resume sections: "Experience Summary", "Career History", "Employment Details", ALL-CAPS headings with a section word; fixed B21; 1040 tests |

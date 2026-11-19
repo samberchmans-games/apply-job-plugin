@@ -57,6 +57,7 @@
       autoAnalyze: true, // show match badge automatically on known job sites
       learnAnswers: true,
       tracker: { autoDetect: true, followUpDays: 7 },
+      retentionDays: 30, // applications, job history, drafts and logs older than this are removed (0 = keep)
       support: { crashPrompt: true }, // ask to report unnoticed failures (never sends without a click)
       // Resume tailoring is for CLOSE matches: small honest lift, never a rewrite (see resume-engine.js, "Limits").
       tailoring: { minMatch: 70, maxLift: 15, maxEdits: 6, maxSkills: 4 },

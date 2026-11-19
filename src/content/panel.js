@@ -125,7 +125,7 @@
     handlers = cbs || handlers;
     const a = state.analysis;
     const job = state.job || {};
-    const s = a ? a.score : null;
+    const s = a ? a.score : state.held && state.held.score != null ? state.held.score : null;
     const busy = state.busy || '';
     const dis = (k) => (busy ? 'disabled' : '') + (busy === k ? ' title="Working…"' : '');
 
@@ -166,6 +166,24 @@
           <button class="b" data-act="tailor" ${dis('tailor')}>📝 Tailor resume</button>
           <button class="b p" data-act="autofill" ${dis('autofill')}>⚡ Autofill form</button>
           <button class="b" data-act="applied">✔ Mark applied</button>
+        </div>`;
+    } else if (state.held) {
+      // An application held across pages (Apply → sign up / log in → form).
+      const h = state.held;
+      const ph = state.heldPhase;
+      const steps = {
+        signup: `⏸ <b>Application on hold.</b> Create your account on this site (the extension never reads or saves passwords). When the application form appears, Autofill is ready.`,
+        login: `⏸ <b>Application on hold.</b> Sign in on this site (the extension never reads or saves passwords). When the application form appears, Autofill is ready.`,
+        form: `▶ <b>Ready to fill your application</b>${h.tailored ? ' (your resume tailored for this job will be uploaded)' : ''}.`,
+        waiting: `⏸ Holding your application for this job while you go through the site's steps.`,
+      };
+      body = `<div class="job"><b>${esc(h.title || 'Job')}</b>${h.company ? ' · ' + esc(h.company) : ''}${h.score != null ? ` · ${esc(h.score)}% match` : ''}</div>
+        <div class="msg held ${esc(ph)}">${steps[ph] || steps.waiting}</div>
+        ${h.tailored ? `<div class="muted">📝 ${esc(h.tailored)}</div>` : ''}
+        <div class="btns">
+          <button class="b p" data-act="autofill" ${ph === 'login' || ph === 'signup' || busy ? 'disabled' : ''}>⚡ Autofill form</button>
+          <button class="b" data-act="applied">✔ Mark applied</button>
+          <button class="b" data-act="forgetHeld" title="Stop holding this job in this tab">Not this job</button>
         </div>`;
     } else if (!state.message && !state.ask && !state.crash) {
       body = `<div class="muted">Reading the page…</div>`;

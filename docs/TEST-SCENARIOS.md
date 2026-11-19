@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1059). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1079). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1059** tests in headless Chrome. This is the full suite: the 557 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1079** tests in headless Chrome. This is the full suite: the 557 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -181,6 +181,8 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | E8 | Type answers into unknown questions, then open another application with the same question → Autofill | Filled from learned answers (purple outline). Admin → Learned answers shows it. |
 | E24 | Type the same notice period / GitHub link into two forms (empty in Admin), then open Admin → Learned answers | 💡 box with the suggestion, count in the menu, popup line; Save to profile fills Profile / Auto-apply; Dismiss keeps it away; EEO answers never suggested |
 | E25 | An application with Employment and Education sections with "Add another" (Greenhouse, SmartRecruiters, company sites) → Autofill | One block per job / school added and filled (dates, current job, degree); a block you filled yourself is kept |
+| E26 | Apply from a job page → new tab → sign up / log in → form | The panel holds the job on the sign-up / login pages (Autofill off), turns Autofill on at the form, uploads the job's tailored resume; same job opened in another tab is recognised; after applying the hold ends; after 1 h idle a closable "tracking lost" alert |
+| E27 | Admin → Backup & privacy → history period | Default 30 days; applications older than that (by last change), job history and logs are removed; 0 keeps everything |
 | E9 | Type into a password or SSN field | It does **not** appear in Learned answers |
 | E10 | After Autofill, check the page | **Nothing was submitted.** The panel says "Review everything, then submit yourself". |
 | E11 | Click Mark applied | Admin → Applications shows the job with status "applied" and its score |

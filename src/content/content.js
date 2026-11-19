@@ -60,6 +60,7 @@
     if (jdText !== job.text) state.trackPicked = null;
     jdText = job.text;
     state.job = job;
+    state.held = null;
     const [profile0, resumes0] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
     // A resume tailored for THIS job is what you'd send, so the match uses it (and the panel says so).
     const key = AJP.tracker.jobKey(job.url || location.href);
@@ -99,11 +100,13 @@
   // The career track to use for tailoring/autofill/tracking (null for the implicit "General" track).
   const trackRef = () => {
     const s = selected();
+    if (!s && state.held && state.held.trackId) return { trackId: state.held.trackId, trackName: state.held.trackName };
     return s && !s.track.implicit ? { trackId: s.track.id, trackName: s.track.name } : {};
   };
 
   function jobMeta() {
-    const j = state.job || {};
+    // On a sign-up / login / application page, the job is the one held for this tab.
+    const j = state.job || state.held || {};
     return { title: j.title, company: j.company, url: j.url || location.href, location: j.location };
   }
 
@@ -120,7 +123,7 @@
     };
   }
 
-  const appPayload = (extra) => ({ app: { ...jobMeta(), ...trackRef(), score: state.analysis && state.analysis.score, snapshot: jdText ? snapshot() : undefined, ...extra } });
+  const appPayload = (extra) => ({ app: { ...jobMeta(), ...trackRef(), score: state.analysis ? state.analysis.score : state.held && state.held.score, snapshot: jdText ? snapshot() : undefined, ...extra } });
 
   const callbacks = {
     // Switch career track for this job (panel tabs).
@@ -241,6 +244,13 @@
       log.info('Tailored resume downloaded from the panel');
     },
 
+    // "Not this job": stop holding the application in this tab.
+    async forgetHeld() {
+      await AJP.send('tabJob.forget');
+      state.held = null;
+      AJP.panel.remove();
+    },
+
     openEnhance(id) {
       AJP.send('openAdmin', { hash: 'resumes?enh=' + id });
     },
@@ -293,6 +303,7 @@
       const r = await AJP.send('recordApplication', appPayload({ status: 'applied', detectedBy: 'manual' }));
       if (r.ok) state.lastApp = r.app;
       if (!r.ok) return fail(r);
+      state.held = null; // applied: the job's tracking is offboarded from tab memory (it lives on in Applications)
       say('Marked as applied. <a data-act="undoApplied">Undo</a> · <a data-act="openApps">Open tracker</a>');
     },
 
@@ -313,6 +324,7 @@
       const r = await AJP.send('recordApplication', { app: { ...pickJob(job), status: 'applied', detectedBy: 'confirmed by you' } });
       if (r.ok) state.lastApp = r.app;
       if (!r.ok) return fail(r);
+      state.held = null; // applied: the job's tracking is offboarded from tab memory (it lives on in Applications)
       say('Saved as applied. <a data-act="undoApplied">Undo</a>');
     },
 
@@ -359,7 +371,8 @@
     if (!msg || !msg.type) return;
     if (msg.type === 'openPanel' && isTop) {
       state.minimized = false;
-      analyze({ text: msg.jdText });
+      // No job description here (sign-up / login / form page)? Show the application held for this tab instead.
+      analyze({ text: msg.jdText }).then((a) => !a && !msg.jdText && holdIfApplying());
     } else if (msg.type === 'doAutofill') {
       (async () => {
         // Use the chosen career track's profile and resume (file) for this application.
@@ -388,6 +401,7 @@
       state.message = '';
       render();
     } else if (msg.type === 'appliedDetected' && isTop) {
+      state.held = null; // applied: offboarded
       state.lastApp = msg.app;
       state.ask = null;
       state.minimized = false;
@@ -419,14 +433,67 @@
     if (tailoredSig(changes.resumes.newValue && changes.resumes.newValue.items, key) !== (state.tailoredSig || '')) rescore();
   });
 
+  // ---- Holding an application across pages (Apply → new tab → sign up / log in → form) ----------------------------
+  // What kind of page is this, for a held application?
+  function applyPhase() {
+    const shown = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const pw = [...document.querySelectorAll('input[type="password"]')].filter(shown);
+    if (pw.length) {
+      // Look around the password box (its form, or a few levels up) and at the page title, not the whole page.
+      const box = pw[0].closest('form') || (pw[0].parentElement && pw[0].parentElement.parentElement) || document.body;
+      const around = `${document.title} ${(box.innerText || box.textContent || '').slice(0, 3000)}`;
+      return pw.length >= 2 || /create (an |your )?account|sign ?up|register|new user|join now/i.test(around) ? 'signup' : 'login';
+    }
+    const fields = [...document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=search]), select, textarea')].filter(shown);
+    if (document.querySelector('input[type="file"]') || fields.length >= 3) return 'form';
+    return 'waiting';
+  }
+  // No job description on this page: if this tab holds an application, keep it on screen and follow the steps.
+  async function holdIfApplying() {
+    const r = await AJP.send('tabJob.get', { url: location.href });
+    const job = r && r.ok !== false ? r.job : null;
+    if (!job && r && r.expired) {
+      heldLost(r.expired);
+      return true;
+    }
+    if (!job) return false;
+    const resumes = await AJP.store.get('resumes');
+    const t = resumes.items.find((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === job.jobKey);
+    state.held = { ...job, tailored: t ? t.name : null };
+    state.error = '';
+    state.heldPhase = applyPhase();
+    state.minimized = false;
+    log.info('Application held across pages', { phase: state.heldPhase, host: location.hostname });
+    render();
+    return true;
+  }
+
+  // The hold ran out (over an hour without activity): tell the user, once; they can close it.
+  function heldLost(job) {
+    state.held = null;
+    state.minimized = false;
+    state.error = '';
+    log.info('Held application lost (expired)');
+    say(`⚠️ <b>Tracking of this job was lost</b>${job && job.title ? ` (${AJP.panel.esc(job.title)}${job.company ? ' · ' + AJP.panel.esc(job.company) : ''})` : ''}: more than an hour passed without activity. Open the job page again to track it. <a data-act="close">Close</a>`);
+  }
+
   async function auto() {
     const settings = await AJP.store.get('settings');
     if (!settings.autoAnalyze || !AJP.jd.isKnownJobSite()) return;
     if (/linkedin\.com$/.test(location.hostname) && !location.pathname.startsWith('/jobs')) return;
     state.minimized = true;
     const a = await analyze();
-    if (!a) AJP.panel.remove(); // stay invisible when there's no JD
+    if (a) return;
+    if (!(await holdIfApplying())) AJP.panel.remove(); // stay invisible when there's no JD and nothing held
   }
+
+  // Apply buttons on a job page: remember the job for a tab that opens without a link back to this one.
+  const APPLY_RE = /^\s*(easy apply|apply( now| for this (job|position|role))?|apply on (company|employer) (site|website)|start (your )?application|i'?m interested)\s*$/i;
+  document.addEventListener('click', (e) => {
+    const el = e.target instanceof Element && e.target.closest('a, button, [role="button"]');
+    if (!el || !state.analysis || !APPLY_RE.test(el.textContent || '')) return;
+    AJP.send('applyClicked', { job: { ...jobMeta(), ...trackRef(), score: state.analysis.score } });
+  }, true);
 
   if (isTop) {
     window.addEventListener('error', (e) => {
@@ -446,6 +513,17 @@
           say(`New Workday page: <b>${AJP.panel.esc(step)}</b>. <a data-act="autofill">⚡ Autofill this page</a> <span class="muted">(you still review and click Save and Continue yourself)</span>`);
         }
       }
+      // A held application: follow the steps (sign up → log in → form) as the page changes; drop it after an hour idle.
+      if (state.held && !state.analysis && Date.now() - (state.held.at || Date.now()) >= 60 * 60 * 1000) heldLost(state.held);
+      if (state.held && !state.analysis) {
+        const ph = applyPhase();
+        if (ph !== state.heldPhase) {
+          state.heldPhase = ph;
+          if (ph === 'form') state.minimized = false;
+          log.info('Held application: next step', { phase: ph });
+          render();
+        }
+      }
       if (location.href === lastUrl) return;
       lastUrl = location.href;
       state.autofill = null;
@@ -453,5 +531,6 @@
       setTimeout(auto, 1200);
     }, 1000);
   }
+  AJP.contentHooks = { holdIfApplying, applyPhase, state }; // for tests only
   log.debug('Content ready', { host: location.hostname, top: isTop });
 })();
