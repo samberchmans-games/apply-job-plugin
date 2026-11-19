@@ -46,6 +46,7 @@
       AJP.send('github.status', {}).then(renderReports); // throttled to every 10 min per report
     }
     if (id === 'answers') renderAnswers();
+    if (id === 'skills') refreshEstimates();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
     if (id === 'tracks') AJP.tracksView.render();
@@ -120,6 +121,29 @@
     }
     return n;
   }
+
+  // Fill empty years/levels from the active resume whenever Admin or the Skills tab opens, and say what was found
+  // (so a resume whose dates aren't recognised is easy to spot).
+  const refreshEstimates = AJP.guard('admin.estimateSkills', async () => {
+    const note = $('#skillYearsNote');
+    const r = await AJP.store.activeResume();
+    if (!r || !(r.text || '').trim()) {
+      if (note) note.textContent = '';
+      return;
+    }
+    const jobs = AJP.experience ? AJP.experience.candidate(profile, r.text).roles.length : 0;
+    const n = estimateSkills(r.text);
+    if (n) {
+      renderSkills();
+      await AJP.store.set('profile', profile);
+      log.info('Skill years estimated on open', { estimated: n, jobs });
+    }
+    if (note) {
+      note.textContent = jobs
+        ? `Years and level come from ${jobs} dated job${jobs > 1 ? 's' : ''} in “${r.name}”${n ? ` (just filled ${n})` : ''}. Skills not mentioned in a dated job stay empty.`
+        : `No dated jobs found in “${r.name}”, so years can't be estimated. Put dates on each job line, e.g. “Senior Engineer — Acme (Jan 2019 – Present)” or “2015 – 2019”, under an Experience heading.`;
+    }
+  }, { mod: 'admin' });
 
   // Skills from a resume, added automatically (upload, paste, edit). Skills the user removed are remembered in
   // suggestions.ignoredSkills and never re-added automatically (the "Detect skills" button still adds them).
@@ -853,6 +877,7 @@
     initLogs();
     initBackup();
     route();
+    refreshEstimates(); // fill empty skill years/levels from the active resume (no click needed)
     log.info('Admin opened');
   })().catch((e) => {
     log.error('Admin failed to load', { error: e.message, stack: e.stack });

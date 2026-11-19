@@ -221,6 +221,17 @@
       input.dispatchEvent(new w.Event('input', { bubbles: true }));
       await waitFor(async () => { const j = await skill('Java'); return j.years === '5' && !j.estYears; }, { msg: 'your value' });
     });
+    it('opening Admin fills empty years from the active resume (no click) and says how many dated jobs it found', async () => {
+      await load('admin.html', { profile: profile({ skills: [{ name: 'Java' }, { name: 'Python' }] }), resumes: { activeId: 'r1', items: [{ id: 'r1', name: 'Main', text: DATED }] } });
+      await waitFor(async () => (await skill('Python')).years === '8', { msg: 'filled on open' });
+      w.location.hash = 'skills';
+      await waitFor(() => /from 2 dated jobs in “Main”/.test($('#skillYearsNote').textContent), { msg: 'status' });
+    });
+    it('a resume without dates → the Skills tab says why years are empty', async () => {
+      await load('admin.html', { profile: profile({ skills: [{ name: 'Java' }] }), resumes: { activeId: 'r1', items: [{ id: 'r1', name: 'Plain', text: '# Ana\n## Experience\nEngineer at Acme\n- Java services' }] } }, { hash: 'skills' });
+      await waitFor(() => /No dated jobs found in “Plain”/.test($('#skillYearsNote').textContent), { msg: 'explained' });
+      eq((await skill('Java')).years || '', '');
+    });
     it('the Learned answers badge is hidden when there is nothing to suggest (no "0")', async () => {
       await load('admin.html', {});
       await new Promise((r) => setTimeout(r, 200));

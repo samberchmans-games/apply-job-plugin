@@ -108,6 +108,14 @@
       ok(c.years >= 3 && c.years < 4, String(c.years));
     });
     it('a resume without headings: all date ranges count', () => eq(X.resumeRoles('Dev, Co 2010-2012\n- stuff').length, 1));
+    for (const [line, months] of [
+      ['Senior Engineer, Acme  06-2019 – 03-2021', 22], ['Engineer | Globex | Jan 2019 - Dec 2020', 24], ['Dev at Hooli, January 2018 – December 2018', 12],
+      ['Analyst — Initech (2015 - 2016)', 24], ['Digital Marketing, Initech 2019 – 2020', 24], ['Data Engineer, Sept. 2021 – Present', null], ['Lead, Umbrella  01/2020 to 06/2020', 6], ['Intern, Stark 2014–2014', 12],
+    ]) it(`date range in "${line}"`, () => {
+      const m = X.totalMonths(X.resumeRoles(`## Experience\n${line}\n- Java`));
+      if (months == null) ok(m > 12, String(m)); // "Present": up to today
+      else eq(m, months);
+    });
     it('plain headings from PDF text ("Professional Experience", "Education:") are understood', () => {
       const t = 'Ana Silva\nProfessional Experience\nSenior Engineer, Acme  Jan 2019 – Dec 2022\n• Built Kafka pipelines\nEducation:\nBS Computer Science 2011 - 2015';
       const roles = X.resumeRoles(t);

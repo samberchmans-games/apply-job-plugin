@@ -116,7 +116,9 @@
     if ((m = t.match(/^(\d{4})$/))) return +m[1] * 12 + (end ? 11 : 0);
     return null;
   }
-  const DATE = '(?:(?:[a-z]{3,9}\\.?,?\\s+)?(?:\\d{1,2}[/.])?(?:19|20)\\d{2}(?:[/.-]\\d{1,2})?)';
+  // Only REAL month names before a year ("Jan 2019", "September 2019") — never a company name ("Acme 2019").
+  const MON = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\b';
+  const DATE = '(?:(?:\\b' + MON + '\\.?,?\\s+)?(?:\\d{1,2}[/.-])?(?:19|20)\\d{2}(?:[/.-]\\d{1,2})?)';
   const RANGE_RE = new RegExp('(' + DATE + ')\\s*(?:-|–|—|to|until)\\s*(' + DATE + '|present|current|currently|now|today|date|ongoing)', 'i');
   function rangeIn(line) {
     const m = String(line).match(RANGE_RE);
