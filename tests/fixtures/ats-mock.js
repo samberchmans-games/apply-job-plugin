@@ -99,6 +99,31 @@
   // ---- Pages ------------------------------------------------------------------------------------------------
   const text = (id, label, type = 'text', name = id) => `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" name="${name}" type="${type}"></div>`;
 
+  // ---- Repeatable entries: Greenhouse education/employment blocks, SmartRecruiters "+ Add" forms -------------
+  const SCHOOLS = ['Texas A&M University', 'University of Texas at Austin', 'University of Washington'];
+  const DEGREES = ["Associate's Degree", "Bachelor's Degree", "Master's Degree", 'Doctor of Philosophy (Ph.D.)'];
+  const FIELDS = ['Computer Engineering', 'Computer Science', 'Data Science'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthSel = (id, label) => `<div class="field"><label for="${id}">${label}</label><select id="${id}"><option value="">Month</option>${MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></div>`;
+  const ghEdu = (i) => `<div class="education--form" style="border:1px solid #ddd;padding:6px;margin:6px 0">
+      ${reactSelect(`school--${i}`, 'School', SCHOOLS)}${reactSelect(`degree--${i}`, 'Degree', DEGREES)}${reactSelect(`discipline--${i}`, 'Discipline', FIELDS)}
+      ${monthSel(`edu-start-month--${i}`, 'Start date month')}${text(`edu-start-year--${i}`, 'Start date year')}
+      ${monthSel(`edu-end-month--${i}`, 'End date month')}${text(`edu-end-year--${i}`, 'End date year')}</div>`;
+  const ghJob = (i) => `<div class="employment--form" style="border:1px solid #ddd;padding:6px;margin:6px 0">
+      ${text(`company-name--${i}`, 'Company name')}${text(`job-title--${i}`, 'Title')}
+      ${monthSel(`job-start-month--${i}`, 'Start date month')}${text(`job-start-year--${i}`, 'Start date year')}
+      ${monthSel(`job-end-month--${i}`, 'End date month')}${text(`job-end-year--${i}`, 'End date year')}
+      <div class="field"><label><input type="checkbox" id="current-role--${i}"> Current role</label></div></div>`;
+  const srExp = (i) => `<div class="entry" style="border:1px solid #ddd;padding:6px;margin:6px 0">
+      ${text(`sr-title-${i}`, 'Title')}${text(`sr-company-${i}`, 'Company')}${text(`sr-location-${i}`, 'Office location')}
+      <div class="field"><label for="sr-desc-${i}">Description</label><textarea id="sr-desc-${i}" rows="2"></textarea></div>
+      <div class="field"><label><input type="checkbox" id="sr-current-${i}"> I currently work here</label></div>
+      ${text(`sr-from-${i}`, 'From', 'month')}${text(`sr-to-${i}`, 'To', 'month')}</div>`;
+  const srEdu = (i) => `<div class="entry" style="border:1px solid #ddd;padding:6px;margin:6px 0">
+      ${text(`sr-school-${i}`, 'Institution')}${text(`sr-major-${i}`, 'Major')}
+      <div class="field"><label for="sr-degree-${i}">Degree</label><select id="sr-degree-${i}"><option value="">Select</option><option>Associate</option><option>Bachelor's Degree</option><option>Master's Degree</option><option>Doctorate</option></select></div>
+      ${text(`sr-efrom-${i}`, 'From', 'month')}${text(`sr-eto-${i}`, 'To', 'month')}</div>`;
+
   const PAGES = {
     greenhouse: () => `<div id="grnhse_app" data-ats="greenhouse"><h2>Apply for this job</h2><form id="application-form">
       ${text('first_name', 'First Name')}${text('last_name', 'Last Name')}${text('email', 'Email', 'email')}${text('phone', 'Phone', 'tel')}
@@ -181,6 +206,18 @@
         ${dd('rcf3048', 'rcf3048', 'Are you at least 18 years of age?', ['Yes', 'No'])}
         <input type="submit" value="Submit"></form></div></div>`;
     },
+
+    'greenhouse-entries': () => `<div id="grnhse_app" data-ats="greenhouse"><h2>Apply for this job</h2><form id="application-form">
+      ${text('first_name', 'First Name')}${text('last_name', 'Last Name')}${text('email', 'Email', 'email')}
+      <div class="education--container"><h3>Education</h3><div class="forms">${ghEdu(0)}</div><button type="button" class="add-another-button">+ Add another</button></div>
+      <div class="employment--container"><h3>Employment</h3><div class="forms">${ghJob(0)}</div><button type="button" class="add-another-button">+ Add another</button></div>
+      <button type="submit">Submit application</button></form></div>`,
+
+    smartrecruiters: () => `<div class="sr-application" data-ats="smartrecruiters"><form>
+      ${text('sr-first', 'First name')}${text('sr-last', 'Last name')}${text('sr-email', 'Email', 'email')}
+      <section class="sr-section" data-kind="exp"><h2>Experience</h2><div class="entries"></div><button type="button">+ Add</button></section>
+      <section class="sr-section" data-kind="edu"><h2>Education</h2><div class="entries"></div><button type="button">+ Add</button></section>
+      <button type="submit">Submit</button></form></div>`,
 
     'icims-login': () => `<div class="iCIMS_MainWrapper" data-ats="icims"><form action="https://careers-initech.icims.com/jobs/login">
       ${text('email', 'Email Address', 'email')}<div class="field"><label for="pw">Password</label><input id="pw" name="password" type="password"></div>
@@ -265,10 +302,30 @@
     });
   }
 
+  function wireEntries(root) {
+    let n = 10;
+    root.querySelectorAll('.education--container, .employment--container').forEach((c) => {
+      const make = c.classList.contains('education--container') ? ghEdu : ghJob;
+      c.querySelector('.add-another-button').addEventListener('click', () => {
+        const el = h(make(++n));
+        c.querySelector('.forms').appendChild(el);
+        el.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+      });
+    });
+    root.querySelectorAll('.sr-section').forEach((sec) => {
+      const make = sec.dataset.kind === 'exp' ? srExp : srEdu;
+      sec.querySelector(':scope > button').addEventListener('click', () => {
+        // SmartRecruiters opens the new entry form a moment later.
+        setTimeout(() => sec.querySelector('.entries').appendChild(h(make(++n))), 30);
+      });
+    });
+  }
+
   function mount(container, site) {
     uid++;
     container.innerHTML = PAGES[site]();
-    if (site === 'greenhouse') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+    if (site === 'greenhouse' || site === 'greenhouse-entries') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+    if (site === 'greenhouse-entries' || site === 'smartrecruiters') wireEntries(container);
     if (site === 'greenhouse-classic') wireSelect2(container);
     if (site === 'lever') wireLever(container);
     if (site === 'ashby') wireAshby(container);

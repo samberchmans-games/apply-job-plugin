@@ -242,8 +242,10 @@
       const key = site && AJP.ats.ruleKey(el, site);
       return (key && ruleByKey(key)) || ruleFor(label);
     };
+    // Repeatable Work experience / Education blocks are filled by entries.js (one block per profile item).
+    const entrySecs = !workday && AJP.entries ? AJP.entries.sections(root) : [];
     const fields = [...root.querySelectorAll(FIELD_SEL)]
-      .filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el) && !(workday && AJP.workday.owns(el)) && !(AJP.ats && AJP.ats.owns(el)) && !(site && site.location && el.matches(site.location.input)))
+      .filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el) && !(workday && AJP.workday.owns(el)) && !(AJP.ats && AJP.ats.owns(el)) && !(site && site.location && el.matches(site.location.input)) && !(AJP.entries && AJP.entries.owns(el, entrySecs)))
       // Files first: some sites (Lever) read the uploaded resume and fill fields themselves.
       .sort((a, b) => (b.type === 'file') - (a.type === 'file'));
     let snap = null;
@@ -346,6 +348,17 @@
         const x = AJP.toAppError(e);
         log.error('Site widgets autofill failed', { code: x.code, error: x.message, details: x.details }, { code: x.code });
         report.skipped.push(`Dropdowns and buttons (${x.code})`);
+      }
+    }
+
+    // Work experience / Education entries (not Workday: its adapter does them).
+    if (entrySecs.length) {
+      try {
+        await AJP.entries.fill({ profile, root, report });
+      } catch (e) {
+        const x = AJP.toAppError(e);
+        log.error('Entries autofill failed', { code: x.code, error: x.message, details: x.details }, { code: x.code });
+        report.skipped.push(`Work / education entries (${x.code})`);
       }
     }
 

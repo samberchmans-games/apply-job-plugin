@@ -65,6 +65,7 @@ src/
     jd-extractor.js           find the job description (JSON-LD → site selectors → heuristic)
     form-filler.js            label detection, profile mapping, filling, learning
     workday.js                Workday adapter: pop-up dropdowns, search prompts, dates, Add entries, multi-page
+    entries.js                repeatable Work experience / Education blocks on any site (Add another, dates, current job)
     ats.js                    Greenhouse / Lever / Ashby / iCIMS adapters + searchable dropdowns, Yes/No buttons, hidden selects
     apply-detector.js         notice Submit + confirmation to mark "applied"
     panel.js                  floating Shadow-DOM panel (pure view)
@@ -325,6 +326,9 @@ Workday widgets aren't native form fields. The generic filler skips the fields t
 
 **Selectors:** all live in `SEL`. The adapter was built against `tests/fixtures/workday-mock.js`, an emulation using Workday's `data-automation-id` names, and must be verified on real Workday pages. Misses are reported as "not filled", logged, and reportable.
 
+### 8.3d Repeatable entries (`entries.js`)
+For sites other than Workday. A section = a heading ("Employment", "Experience", "Work history", "Education"…) whose block (≤ 3 levels up) holds an **anchor** field (Company / Employer; School / University, never "Current company") or an Add button, and **no** name/email/phone fields (so a job post's "Experience" heading next to a form is never a section). One entry per anchor. Entries that already have a value are kept, and profile items they already cover are skipped. "Add another" / "+ Add" is clicked until there is one entry per remaining item (max 5, waiting for the new block). Fields are matched by label within each entry (description and the "current" checkbox before title; dates into month selects / year boxes / `type=month` / "MM/YYYY"; searchable school/degree via `ats.pickCombo`; degree wording via the shared candidates). The generic loop and the widgets pass skip fields inside entry sections. Each field is isolated; a section failure is logged with its code and listed.
+
 ### 8.3c Profile suggestions (`profile-suggest.js`, `field-rules.js`)
 - The label → profile rules moved to `field-rules.js` so Autofill (content scripts) and Admin read a question the same way.
 - `profileSuggest.list(profile, answers, dismissed)`: each learned answer whose label maps to a profile field (email, phone, links, address, current company/title, years, minimum salary, notice period, start date, relocate, sponsorship, work authorization) and whose normalised value differs from the profile. Empty field → suggested after one answer; a different existing value → after two. One suggestion per field (most used, then most recent). **Never** EEO, names, education/experience lists or cover letters.
@@ -516,8 +520,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 494 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 915 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 498 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 932 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

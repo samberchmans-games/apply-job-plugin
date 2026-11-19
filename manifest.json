@@ -77,6 +77,7 @@
         "src/content/form-filler.js",
         "src/content/workday.js",
         "src/content/ats.js",
+        "src/content/entries.js",
         "src/content/apply-detector.js",
         "src/content/panel.js",
         "src/content/content.js"

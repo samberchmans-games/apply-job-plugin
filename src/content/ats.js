@@ -306,8 +306,10 @@
       }
     }
 
-    // 2) Comboboxes.
-    for (const input of [...root.querySelectorAll(SEL.combobox)].filter((i) => shown(i) && !i.disabled && !(site && site.location && i.matches(site.location.input)))) {
+    // 2) Comboboxes (not inside Work experience / Education entries: entries.js fills those per entry).
+    const entrySecs = AJP.entries ? AJP.entries.sections(root) : [];
+    const inEntries = (el) => entrySecs.some((s) => s.el.contains(el));
+    for (const input of [...root.querySelectorAll(SEL.combobox)].filter((i) => shown(i) && !i.disabled && !inEntries(i) && !(site && site.location && i.matches(site.location.input)))) {
       if (AJP.workday && AJP.workday.owns && AJP.workday.owns(input)) continue;
       const label = AJP.filler.labelFor(input);
       if (!label) continue;
@@ -341,7 +343,7 @@
     }
 
     // 4) Hidden selects behind custom dropdowns.
-    for (const sel of proxiedSelects(root)) {
+    for (const sel of proxiedSelects(root).filter((x) => !inEntries(x))) {
       const label = AJP.filler.labelFor(sel);
       await each(report, label, async () => {
         const v = valueFor({ el: sel, label, profile, answers, site });
@@ -415,5 +417,5 @@
     );
   }
 
-  AJP.ats = { SITES, SEL, CONFIG, detect, ruleKey, owns, fill, snapshot, siteFilled, learnFromClicks, scoreOption };
+  AJP.ats = { SITES, SEL, CONFIG, detect, ruleKey, owns, fill, snapshot, siteFilled, learnFromClicks, scoreOption, pickCombo };
 })();

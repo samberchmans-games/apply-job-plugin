@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(ROOT, 'video'))
 from parts import PARTS  # noqa: E402
 
 LIBS = ['core', 'logger', 'errors', 'storage', 'skills-dictionary', 'matcher', 'experience', 'ai', 'docx', 'tracker', 'resume-engine', 'tracks', 'issue-report', 'pdf-writer', 'field-rules', 'profile-suggest', 'diagnostics']
-CONTENT = ['jd-extractor.js', 'form-filler.js', 'workday.js', 'ats.js', 'apply-detector.js', 'panel.js', 'content.js']
+CONTENT = ['jd-extractor.js', 'form-filler.js', 'workday.js', 'ats.js', 'entries.js', 'apply-detector.js', 'panel.js', 'content.js']
 
 
 def scene_html(kind, cfg):

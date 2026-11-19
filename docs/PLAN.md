@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 915 automated + 122 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 932 automated + 122 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -109,7 +109,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Never auto-submit (user reviews) | ✅ | By design |
 | Application tracking | ✅ | Full tracker — see section 11 |
 | Workday custom dropdowns, date pickers, multi-step "My Experience" | ✅ | Step 9; `src/content/workday.js`; built against an emulation, to verify on real Workday |
-| Repeatable experience/education entries on forms | 🟡 | ✅ Workday (Add + fill); other sites ⬜ |
+| Repeatable experience/education entries on forms | ✅ | Workday (its adapter) + any other site (`entries.js`, step 17): Add another per item, dates in the site's format, your own entries kept |
 | Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ✅ | Step 12; `ats.js`: site field names, searchable dropdowns, location autocompletes, Yes/No buttons, hidden selects, Lever resume-first, iCIMS sign-in note. Built against emulations: verify on real sites |
 | Job-site accounts (username/password) | ⬜ | Plan: use the browser's password manager, not our storage |
 
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 915 across 28 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 915) · `./tests/run-tests.sh` (the 494 that need no browser) |
+| Automated tests: 932 across 29 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 932) · `./tests/run-tests.sh` (the 498 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 17 | **Work experience / education entries on any site** (section 5) + tester checks & video scene | _pending_ |
 | 16 | **Store packaging** (Chrome, Edge, Firefox, Safari) + listing, privacy policy, screenshots | `3794ddc` |
 | 14 | **Profile suggestions from learned answers** (section 6) + tester checks & video scene | `4561e39` |
 | 15 | **CI on GitHub** (section 9) | `db02377` |
@@ -278,6 +279,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 17: work experience / education entries on any site** (entries.js); 932 tests |
 | 2026-11-18 | `3794ddc` | **Step 16: store packaging**: per-store zips, Safari project build, CI package job, store listing / privacy policy / screenshots |
 | 2026-11-18 | `4561e39` | **Step 14: profile suggestions from learned answers**; shared field rules; 915 tests |
 | 2026-11-18 | `db02377` | **Step 15: CI on GitHub** (checks, CLI tests, browser tests on every push / PR) |
