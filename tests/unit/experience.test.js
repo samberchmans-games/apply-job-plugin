@@ -116,6 +116,19 @@
       if (months == null) ok(m > 12, String(m)); // "Present": up to today
       else eq(m, months);
     });
+    for (const [line, months] of [
+      ['Data Architect, Acme  Jun 2018 – Jun 2019', 13], ['Engineer | Globex | Jun-2016 to May-2019', 36], ['Lead, Hooli  Jan’14 – Dec’15', 24],
+      ['Dev, Co  Feb, 2012 - Jan, 2014', 24],
+    ]) it(`more date styles: "${line}"`, () => eq(X.totalMonths(X.resumeRoles(`## Experience\n${line}\n- Java`)), months));
+    for (const line of ['Data Architect, Acme  Jun 2019 – Till Date', 'Consultant  2010 - Till Now', 'Engineer, Initech  Jan 2020 to date']) {
+      it(`"Present" spelled differently: "${line}"`, () => ok(X.totalMonths(X.resumeRoles(`## Experience\n${line}\n- Java`)) > 12));
+    }
+    it('no recognisable Experience heading (e.g. "EXPERIENCE SUMMARY") → dated lines anywhere, education skipped', () => {
+      const t = 'SAM B\nSUMMARY\nData architect\nTECHNICAL SKILLS\nPython, Java\nEXPERIENCE SUMMARY\nAcme Corp — Data Architect  Jan 2019 – Dec 2022\n- Built Kafka pipelines in Python\nGlobex — Engineer  Jun 2015 – Dec 2018\n- Java services\nEDUCATION\nB.Tech Computer Science, Anna University  2005 – 2009\n- Python projects';
+      const c = X.candidate({}, t);
+      eq(c.roles.length, 2);
+      eq([c.skillYears('Python'), c.skillYears('Java'), c.skillYears('Kafka')], [4, 3.6, 4]);
+    });
     it('plain headings from PDF text ("Professional Experience", "Education:") are understood', () => {
       const t = 'Ana Silva\nProfessional Experience\nSenior Engineer, Acme  Jan 2019 – Dec 2022\n• Built Kafka pipelines\nEducation:\nBS Computer Science 2011 - 2015';
       const roles = X.resumeRoles(t);

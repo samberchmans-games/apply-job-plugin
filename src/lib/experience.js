@@ -96,7 +96,9 @@
 
   // ---- Dates --------------------------------------------------------------------------------------
   const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-  const PRESENT = /^(present|current|currently|now|today|date|ongoing)$/i;
+  // "Present" and its many spellings ("Till date" / "To date" are common in Indian and UK resumes).
+  const PRESENT_WORDS = 'present|current|currently|now|today|ongoing|till date|till now|tilldate|to date|todate|to present|date';
+  const PRESENT = new RegExp(`^(${PRESENT_WORDS})$`, 'i');
   const now = () => {
     const d = new Date();
     return d.getFullYear() * 12 + d.getMonth();
@@ -109,17 +111,24 @@
     let m;
     if ((m = t.match(/^(\d{1,2})[/.-](\d{4})$/))) return +m[2] * 12 + Math.min(11, Math.max(0, +m[1] - 1));
     if ((m = t.match(/^(\d{4})[/.-](\d{1,2})(?:[/.-]\d{1,2})?$/))) return +m[1] * 12 + Math.min(11, Math.max(0, +m[2] - 1));
-    if ((m = t.match(/^([a-z]{3,9})\.?,?\s+(\d{4})$/i))) {
+    if ((m = t.match(/^([a-z]{3,9})\.?,?[\s'’-]*(\d{4})$/i))) {
       const mi = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase());
       if (mi >= 0) return +m[2] * 12 + mi;
+    }
+    // "Jun'19" / "Jun ’19"
+    if ((m = t.match(/^([a-z]{3,9})\.?\s*['’](\d{2})$/i))) {
+      const mi = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase());
+      const yy = +m[2];
+      if (mi >= 0) return (yy > 50 ? 1900 + yy : 2000 + yy) * 12 + mi;
     }
     if ((m = t.match(/^(\d{4})$/))) return +m[1] * 12 + (end ? 11 : 0);
     return null;
   }
   // Only REAL month names before a year ("Jan 2019", "September 2019") — never a company name ("Acme 2019").
   const MON = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\b';
-  const DATE = '(?:(?:\\b' + MON + '\\.?,?\\s+)?(?:\\d{1,2}[/.-])?(?:19|20)\\d{2}(?:[/.-]\\d{1,2})?)';
-  const RANGE_RE = new RegExp('(' + DATE + ')\\s*(?:-|–|—|to|until)\\s*(' + DATE + '|present|current|currently|now|today|date|ongoing)', 'i');
+  // "Jan 2019", "January, 2019", "Jun-2019", "06/2019", "06-2019", "2019-06", "2019", "Jun'19"
+  const DATE = '(?:\\b' + MON + '\\.?\\s*[\'’]\\d{2}\\b|(?:\\b' + MON + '\\.?,?[\\s-]+)?(?:\\d{1,2}[/.-])?(?:19|20)\\d{2}(?:[/.-]\\d{1,2})?)';
+  const RANGE_RE = new RegExp('(' + DATE + ')\\s*(?:-|–|—|to|until|till)\\s*(' + DATE + '|' + PRESENT_WORDS.replace(/ /g, '\\s+') + ')', 'i');
   function rangeIn(line) {
     const m = String(line).match(RANGE_RE);
     if (!m) return null;
@@ -177,6 +186,28 @@
         cur = { ...r, text: (prev && !/^[-*•]/.test(prev) ? prev + '\n' : '') + line };
         roles.push(cur);
       } else if (cur) cur.text += '\n' + line;
+      prev = line;
+    }
+    if (!roles.length && hasHeads) return datedLinesAnywhere(lines);
+    return roles;
+  }
+
+  // Fallback when no Experience heading was recognised (unusual headings, two-column PDFs): every dated line starts
+  // a job, except education lines (a degree, school or GPA on the same or the previous line).
+  const EDU_LINE = /\b(university|college|school|institute|academy|bachelor|master|b\.?\s?s\.?c?|m\.?\s?s\.?c?|b\.?\s?tech|m\.?\s?tech|b\.?\s?e\.?|mba|ph\.?\s?d|degree|diploma|gpa|cgpa|graduat)/i;
+  function datedLinesAnywhere(lines) {
+    const roles = [];
+    let cur = null;
+    let prev = '';
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      const r = rangeIn(line);
+      if (r && !EDU_LINE.test(line) && !EDU_LINE.test(prev)) {
+        cur = { ...r, text: (prev && !/^[-*•]/.test(prev) ? prev + '\n' : '') + line };
+        roles.push(cur);
+      } else if (r) cur = null; // an education entry: its lines are not job text
+      else if (cur) cur.text += '\n' + line;
       prev = line;
     }
     return roles;
