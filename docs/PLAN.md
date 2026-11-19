@@ -282,7 +282,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-19 | _s_ | Resume sections: "Experience Summary", "Career History", "Employment Details", ALL-CAPS headings with a section word; fixed B21; 1040 tests |
+| 2026-11-19 | `c741498` | Resume sections: "Experience Summary", "Career History", "Employment Details", ALL-CAPS headings with a section word; fixed B21; 1040 tests |
 | 2026-11-19 | `b4614d3` | Resumes without bullets: Word list paragraphs read as "- ", more bullet symbols, achievement lines used without markers, Admin "Mark achievement lines as bullets"; fixed B20; 1032 tests |
 | 2026-11-19 | `e7c56ce` | Job dates: "Till date" / "To date", "Jun-2019", "Jun’19", "Feb, 2019"; resumes without a recognisable Experience heading (dated lines anywhere, education skipped); 1016 tests |
 | 2026-11-19 | `88c2c14` | Skill years filled when Admin / Skills opens (no click), status line with the number of dated jobs found; fixed B19 (job dates next to company names); 1008 tests |
