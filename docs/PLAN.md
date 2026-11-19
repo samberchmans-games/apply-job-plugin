@@ -215,7 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
-| 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | _pending_ |
+| 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | `02b032c` |
 | 11 | **Smarter matching** (section 3) + tester checks & video scene | `29a3e2a` |
 | 10 | **One resume format (PDF)** (section 4) + tester checks & video scenes | `b7b2522` |
 | 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | `fd1b226` |
@@ -277,7 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-18 | _pending_ | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
+| 2026-11-18 | `02b032c` | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
 | 2026-11-18 | `29a3e2a` | **Step 11: smarter matching**: years (overall + per skill), seniority, implied/similar skills, B14 fix; 812 tests |
 | 2026-11-18 | `b7b2522` | **Step 10: one resume format (PDF)**: PDF writer, tailored PDFs, Autofill uploads the job's tailored PDF, Download / View PDF; 749 tests |
 | 2026-11-18 | `fd1b226` | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |
