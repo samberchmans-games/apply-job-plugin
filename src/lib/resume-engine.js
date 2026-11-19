@@ -29,6 +29,30 @@
   const EXP_LIKE = /^((professional|work|relevant|career|employment|industry|technical|project)\s+)?(experience|employment|work history|career history|professional background)(\s+(summary|details|highlights|history|overview))?$/i;
   const SECTION_HINT = /\b(experience|employment|history|background|education|academic|skills?|expertise|competenc|technolog|tools|projects?|certifications?|licen|summary|profile|objective|accomplishments|achievements|highlights|awards|publications|volunteer|languages|interests|training|qualifications)/i;
 
+  // A date range on a job line: "Dec 2022 – Present", "2015 – 2019", "Jun 2011 – Dec 2011", "06/2019 - Till date".
+  const RANGE_LINE = /\b(?:(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\b\s*(?:[-–—]|to|till)\s*(?:\b[a-z]{3,9}\.?\s*)?(?:(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|date|till date|to date|ongoing)\b/i;
+  const DATE_ONLY = /^\(?\s*(?:[a-z]{3,9}\.?\s*)?(?:\d{1,2}[/.-])?(?:19|20)\d{2}\s*(?:[-–—]|to|till)\s*(?:[a-z]{3,9}\.?\s*)?(?:(?:\d{1,2}[/.-])?(?:19|20)\d{2}|present|current|now|till date|to date|date|ongoing)\s*\)?$/i;
+  // A section named like a summary ("Career Profile", "Career Summary") that lists dated jobs is really Experience.
+  function datedSection(lines, from) {
+    for (let j = from + 1; j < Math.min(lines.length, from + 80); j++) {
+      const t = lines[j].trim();
+      if (t && headingOf(lines[j])) return false;
+      if (RANGE_LINE.test(t)) return true;
+    }
+    return false;
+  }
+  // The line that names the job: has dates or a "Title | Company" / "Title — Company" / "Title at Company" shape.
+  // Sub-headings ("Architecture"), job intros and "Tools:" lines are not.
+  const isRoleLine = (t) => RANGE_LINE.test(t) || /\b(19|20)\d{2}\b/.test(t) || /\s[|—–]\s|\s-\s.+|\sat\s[A-Z]/.test(t);
+  // A short label for a job: title and company, without the dates.
+  const roleLabel = (role) =>
+    String(role || '')
+      .replace(/\s*\((?:[^)]*\d{4}[^)]*)\)\s*$/, '')
+      .replace(new RegExp('\\s*(?:\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*)?' + RANGE_LINE.source + '.*$', 'i'), '')
+      .replace(/\s*[|,–—-]\s*$/, '')
+      .trim()
+      .slice(0, 80);
+
   function sectionKind(name) {
     const n = AJP.norm(name);
     // "Experience Summary" is experience, not the summary.
@@ -82,6 +106,7 @@
     let section = 'header';
     let kind = 'header';
     let role = '';
+    let lastText = '';
     let n = 0;
     let mdHeadings = false;
     let firstSectionLine = -1;
@@ -94,6 +119,7 @@
       if (h && !(h.level === 1 && kind === 'header' && !SECTION_WORDS.test(h.name))) {
         section = h.name;
         kind = sectionKind(h.name);
+        if ((kind === 'summary' || kind === 'other') && datedSection(lines, i)) kind = 'experience';
         role = '';
         if (h.md) mdHeadings = true;
         if (firstSectionLine < 0) firstSectionLine = i;
@@ -116,8 +142,14 @@
         // reads like an achievement is used as one. The line is rewritten without adding a marker.
         blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true });
       } else {
-        // Role headers, company/title/date lines, education, contact info: protected.
-        if (kind === 'experience' || kind === 'projects') role = t.replace(/[*_#]/g, '').trim().slice(0, 120);
+        // Role headers, company/title/date lines, education, contact info: protected. Only a JOB line (dates, or
+        // "Title | Company") changes the job the following bullets belong to; a date line on its own joins the line above.
+        if (kind === 'experience' || kind === 'projects') {
+          const clean = t.replace(/[*_#]/g, '').trim();
+          if (DATE_ONLY.test(clean) && lastText) role = (lastText + ' ' + clean).slice(0, 160);
+          else if (isRoleLine(clean) || !role) role = clean.slice(0, 160);
+          lastText = clean;
+        }
         blocks.push({ line: i, kind: kind === 'header' ? 'header' : 'text', section, text: raw, editable: false });
       }
     }
@@ -550,7 +582,7 @@
     for (const b of doc.bullets) {
       if (!b.role) continue;
       let r = out.find((x) => x.key === b.role);
-      if (!r) out.push((r = { key: b.role, label: b.role.replace(/\s*\(.*$/, '').slice(0, 80), bulletIds: [] }));
+      if (!r) out.push((r = { key: b.role, label: roleLabel(b.role), bulletIds: [] }));
       r.bulletIds.push(b.id);
     }
     return out;
@@ -590,7 +622,7 @@
   }
 
   AJP.resumeEngine = {
-    looksLikeAchievement, addBulletMarkers,
+    looksLikeAchievement, addBulletMarkers, roleLabel,
     DEFAULT_LIMITS, limits, limitEdits, liftCeiling, roles, placeSkill, weaveFallback, weavePrompt,
     parse, numbersIn, hasNumber, hasResult, quoteExists, verifyRequirements, evidenceCoverage, keywordCoverage,
     validateEdit, allowedSkills, assemble, verifyIntegrity, analyzePrompt, editsPrompt, splitSkills,

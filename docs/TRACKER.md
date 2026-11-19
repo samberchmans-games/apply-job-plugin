@@ -15,7 +15,7 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 40** (5 Job Finder components added as planned) |
 | Components not started | **2**: resume export, CI · **+5 planned**: Job Finder C40–C44 |
-| Automated tests | **1040 / 1040 passing** (544 also run without a browser), incl. convention checks |
+| Automated tests | **1044 / 1044 passing** (548 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 105 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
@@ -23,7 +23,7 @@ This is the single page for **where every component stands right now**. The othe
 | Pending testing | **17 test areas × 4 browsers** to tick off, incl. retests of B18/B19: see [§2a Pending testing](#2a-pending-testing-your-side) |
 | Job Finder (Job Radar) | **Designed, not started**: 39 build tasks in [§2b](#2b-job-finder-build-tasks-step-19); architecture in [JOB-FINDER.md](JOB-FINDER.md) |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (21 found and fixed so far, each with a test) |
+| Open bugs | **0 known** (22 found and fixed so far, each with a test) |
 | Next step | **Step 19, Job Finder**: starts after your 6 decisions (J01). Alongside: real-world testing (your side, §2a), store submission (your side), and fixes from tester reports |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
@@ -104,7 +104,7 @@ Columns:
 | C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ⬜ | — | — | Tasks J14–J20 |
 | C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ⬜ | — | — | Tasks J21–J26, J36 |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **24** (resumes without bullets, section names) = **1040**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **28** (resumes without bullets, section names, job lines) = **1044**
 
 ---
 
@@ -260,6 +260,7 @@ Status: ⬜ not started · 🔨 in progress · ✅ done · ⏳ waiting on you ·
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B22 | "CAREER PROFILE" (jobs) was read as a summary because of the word "profile", and job intros / sub-headings ("Architecture", "General Responsibilities") replaced the job a bullet belongs to | Your real resume | After step 18 | bullets › "CAREER PROFILE" with dated jobs… / each bullet belongs to its JOB line… |
 | B21 | Tailoring still found no achievements when the Experience heading was unusual ("EXPERIENCE SUMMARY", "Career History"): jobs were read as part of the Summary | You (testing) | After step 18 | bullets › "EXPERIENCE SUMMARY" is the Experience section… |
 | B20 | Tailoring failed with AJP-RES-STRUCT on Word resumes: Word bullets are list formatting, so the extracted text had no "-"; only a few bullet symbols were known | You (testing) | After step 18 | bullets › … |
 | B19 | Job dates next to a company name ("Acme 06-2019 – 03-2021", "Umbrella 01/2020 to 06/2020", "Stark 2014–2014") were not read: any word was taken as a month name, and "06-2019" wasn't accepted in ranges, so skill years stayed empty | You (years not updating) | After step 18 | experience › date range in … |
