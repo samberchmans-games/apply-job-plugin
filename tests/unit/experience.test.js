@@ -108,6 +108,12 @@
       ok(c.years >= 3 && c.years < 4, String(c.years));
     });
     it('a resume without headings: all date ranges count', () => eq(X.resumeRoles('Dev, Co 2010-2012\n- stuff').length, 1));
+    it('plain headings from PDF text ("Professional Experience", "Education:") are understood', () => {
+      const t = 'Ana Silva\nProfessional Experience\nSenior Engineer, Acme  Jan 2019 – Dec 2022\n• Built Kafka pipelines\nEducation:\nBS Computer Science 2011 - 2015';
+      const roles = X.resumeRoles(t);
+      eq(roles.length, 1);
+      includes(roles[0].text, 'Kafka');
+    });
   });
 
   describe('experience › seniority', () => {

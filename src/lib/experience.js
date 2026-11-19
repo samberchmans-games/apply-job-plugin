@@ -149,14 +149,20 @@
   // Roles with date ranges from the resume's Experience section (all text when the resume has no headings).
   function resumeRoles(text) {
     const lines = String(text || '').split(/\r?\n/);
-    const hasHeads = lines.some((l) => /^#{1,2}\s/.test(l.trim()) || /^[A-Z][A-Z &/]{3,40}$/.test(l.trim()));
+    // Headings: "## Experience", "EXPERIENCE", or a short plain line like "Professional Experience" / "Education:".
+    const plainHead = (l) => {
+      const t = l.replace(/:$/, '').trim();
+      return t.length <= 40 && t.split(/\s+/).length <= 4 && !/[\d.,;|•]/.test(t) && !/^[-*]/.test(t) && (EXP_HEAD.test(t) || OTHER_HEAD.test(t));
+    };
+    const headOf = (l) => (l.match(/^#{1,2}\s+(.+)/) || [])[1] || (/^[A-Z][A-Z &/]{3,40}$/.test(l) ? l : plainHead(l) ? l.replace(/:$/, '') : null);
+    const hasHeads = lines.some((l) => headOf(l.trim()));
     let inExp = !hasHeads;
     const roles = [];
     let cur = null;
     let prev = '';
     for (const raw of lines) {
       const line = raw.trim();
-      const head = (line.match(/^#{1,2}\s+(.+)/) || [])[1] || (/^[A-Z][A-Z &/]{3,40}$/.test(line) ? line : null);
+      const head = headOf(line);
       if (head) {
         inExp = EXP_HEAD.test(head) && !OTHER_HEAD.test(head.replace(/experience/i, ''));
         cur = null;

@@ -46,7 +46,7 @@ Quick test of a package: Firefox → `about:debugging` → This Firefox → **Lo
 1. **Profile**: name, contact details, links, current role.
 2. **Skills**: add your key skills, with an optional level and years. Aliases are normalized, so `k8s` becomes Kubernetes.
 3. **Job preferences**: target positions, salary range, locations, and remote/hybrid/on-site.
-4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. The text is read automatically; check it in the box (scanned, image-only PDFs need the text pasted). Your skills are picked up from it automatically (check them in **Skills**; anything you remove is not added back). Applications always get a **PDF**: your own PDF as uploaded, or a clean PDF made from the text (⬇ Download PDF / 👁 View PDF). Tailored resumes get their own PDF, and Autofill uploads the one tailored for the job you're on.
+4. **Resumes**: upload a `.pdf`, `.docx`, `.txt` or `.md` file. The text is read automatically; check it in the box (scanned, image-only PDFs need the text pasted). Your skills are picked up from it automatically, with years and level estimated from your job dates (check them in **Skills**; anything you remove is not added back, anything you set yourself is kept). Applications always get a **PDF**: your own PDF as uploaded, or a clean PDF made from the text (⬇ Download PDF / 👁 View PDF). Tailored resumes get their own PDF, and Autofill uploads the one tailored for the job you're on.
 5. **Auto-apply details**: work authorization, sponsorship, education, experience, optional EEO answers, and a cover letter template.
 6. **AI settings** (optional): pick a free provider and click **Test connection**.
 
@@ -120,7 +120,7 @@ docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md
 ```
 
 - **Checks:** `sh tests/check.sh` (manifest, files, syntax). **CI** runs checks + all tests on every push (badge above).
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (993) in headless Chrome. `./tests/run-tests.sh` runs the 505 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (998) in headless Chrome. `./tests/run-tests.sh` runs the 506 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.

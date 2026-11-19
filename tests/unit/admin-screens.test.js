@@ -184,6 +184,43 @@
       $('#skillForm').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
       await waitFor(async () => !((await stored('suggestions')).ignoredSkills || []).includes('Terraform'), { msg: 'no longer ignored' });
     });
+    const DATED = '# Ana\n## Experience\n### Senior Engineer — Acme (Jan 2019 – Dec 2022)\n- Built Java and Python services on AWS\n### Engineer — Globex (2015 – 2018)\n- Wrote Python ETL jobs\n## Skills\nKafka';
+    const skill = async (n) => (await stored('profile')).skills.find((x) => x.name === n) || {};
+    it('years and level are estimated from the job dates where each skill appears', async () => {
+      await load('admin.html', {}, { hash: 'resumes' });
+      upload(DATED);
+      await waitFor(async () => (await skill('Python')).years, { msg: 'estimated' });
+      eq([(await skill('Java')).years, (await skill('Java')).level], ['4', 'advanced']);
+      eq([(await skill('Python')).years, (await skill('Python')).level], ['8', 'expert'], 'Acme 2019–2022 + Globex 2015–2018');
+      eq((await skill('AWS')).years, '4');
+      await waitFor(() => /Years and level estimated for/.test($('#toast').textContent), { msg: 'toast' });
+    });
+    it('a skill only in the Skills list (no dated job) is left empty', async () => {
+      await load('admin.html', {}, { hash: 'resumes' });
+      upload(DATED);
+      await waitFor(async () => (await skill('Kafka')).name, { msg: 'kafka added' });
+      await waitFor(async () => (await skill('Java')).years, { msg: 'saved' });
+      eq([(await skill('Kafka')).years || '', (await skill('Kafka')).level || ''], ['', '']);
+    });
+    it('what you set yourself is never changed; only empty fields are filled', async () => {
+      await load('admin.html', { profile: profile({ skills: [{ name: 'Java', level: 'beginner', years: '' }, { name: 'Python', level: '', years: '12' }] }) }, { hash: 'resumes' });
+      upload(DATED);
+      await waitFor(async () => (await skill('Java')).years, { msg: 'filled' });
+      eq([(await skill('Java')).years, (await skill('Java')).level], ['4', 'beginner']);
+      eq([(await skill('Python')).years, (await skill('Python')).level], ['12', 'expert'], 'level from YOUR years');
+    });
+    it('estimates are marked "≈ from your job dates" until you edit them', async () => {
+      await load('admin.html', {}, { hash: 'resumes' });
+      upload(DATED);
+      await waitFor(async () => (await skill('Java')).years);
+      w.location.hash = 'skills';
+      await waitFor(() => $('#skills').classList.contains('on') && /from your job dates/.test($('#skillRows').textContent), { msg: 'marker' });
+      const i = (await stored('profile')).skills.findIndex((x) => x.name === 'Java');
+      const input = $(`#skillRows input[data-i="${i}"][data-k="years"]`);
+      input.value = '5';
+      input.dispatchEvent(new w.Event('input', { bubbles: true }));
+      await waitFor(async () => { const j = await skill('Java'); return j.years === '5' && !j.estYears; }, { msg: 'your value' });
+    });
     it('the Learned answers badge is hidden when there is nothing to suggest (no "0")', async () => {
       await load('admin.html', {});
       await new Promise((r) => setTimeout(r, 200));

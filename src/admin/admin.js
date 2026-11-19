@@ -77,8 +77,8 @@
       .map(
         (s, i) => `<tr>
         <td><b>${esc(s.name)}</b></td>
-        <td><select data-i="${i}" data-k="level">${['', 'expert', 'advanced', 'intermediate', 'beginner'].map((l) => `<option ${s.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td><input type="number" min="0" step="0.5" data-i="${i}" data-k="years" value="${esc(s.years || '')}"></td>
+        <td><select data-i="${i}" data-k="level">${['', 'expert', 'advanced', 'intermediate', 'beginner'].map((l) => `<option ${s.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select>${s.estLevel ? '<div class="hint est">≈ from your resume</div>' : ''}</td>
+        <td><input type="number" min="0" step="0.5" data-i="${i}" data-k="years" value="${esc(s.years || '')}">${s.estYears ? '<div class="hint est">≈ from your job dates</div>' : ''}</td>
         <td><button class="small danger" data-del="${i}">Remove</button></td></tr>`
       )
       .join('');
@@ -93,6 +93,34 @@
     return true;
   }
 
+  // Years and level for skills, estimated from the resume's dated jobs (experience.js: the merged dates of the jobs
+  // whose lines mention the skill, or a skill that implies it). Only EMPTY fields are filled; anything the user set
+  // stays. Estimated values are marked until the user edits them.
+  const levelFor = (y) => (y >= 6 ? 'expert' : y >= 3 ? 'advanced' : y >= 1 ? 'intermediate' : 'beginner');
+  function estimateSkills(text) {
+    if (!AJP.experience || !(text || '').trim()) return 0;
+    const me = AJP.experience.candidate(profile, text);
+    let n = 0;
+    for (const sk of profile.skills) {
+      const y = me.skillYears(sk.name);
+      if (y == null || y <= 0) continue;
+      const years = String(Math.max(0.5, Math.round(y * 2) / 2));
+      let changed = false;
+      if (!String(sk.years || '').trim()) {
+        sk.years = years;
+        sk.estYears = true;
+        changed = true;
+      }
+      if (!sk.level) {
+        sk.level = levelFor(parseFloat(sk.years));
+        sk.estLevel = true;
+        changed = true;
+      }
+      if (changed) n++;
+    }
+    return n;
+  }
+
   // Skills from a resume, added automatically (upload, paste, edit). Skills the user removed are remembered in
   // suggestions.ignoredSkills and never re-added automatically (the "Detect skills" button still adds them).
   async function autoSkillsFrom(text) {
@@ -101,13 +129,17 @@
     const ignored = new Set((sug.ignoredSkills || []).map((n) => AJP.norm(n)));
     const found = [...AJP.matcher.findSkills(text).keys()].filter((n) => !ignored.has(AJP.norm(n)));
     const added = found.filter((n) => addSkill(n));
-    if (!added.length) return [];
+    const estimated = estimateSkills(text);
+    if (!added.length && !estimated) return [];
     renderSkills();
     await AJP.store.set('profile', profile);
-    log.info('Skills added from resume', { added: added.length, total: profile.skills.length });
+    log.info('Skills added from resume', { added: added.length, estimated, total: profile.skills.length });
+    added.estimated = estimated;
     return added;
   }
-  const skillsNote = (added) => (added.length ? ` Added ${added.length} skill${added.length > 1 ? 's' : ''} from it: ${added.slice(0, 6).join(', ')}${added.length > 6 ? '…' : ''} (see Skills).` : '');
+  const skillsNote = (added) =>
+    (added.length ? ` Added ${added.length} skill${added.length > 1 ? 's' : ''} from it: ${added.slice(0, 6).join(', ')}${added.length > 6 ? '…' : ''} (see Skills).` : '') +
+    (added.estimated ? ` Years and level estimated for ${added.estimated} skill${added.estimated > 1 ? 's' : ''} from your job dates.` : '');
   async function ignoreSkill(name, on) {
     await AJP.store.update('suggestions', (x) => {
       const list = (x.ignoredSkills || []).filter((n) => AJP.norm(n) !== AJP.norm(name));
@@ -131,7 +163,16 @@
       const { i, k } = e.target.dataset;
       if (i == null) return;
       profile.skills[i][k] = e.target.value;
+      delete profile.skills[i][k === 'years' ? 'estYears' : 'estLevel']; // the user's own value now
       saveProfile();
+    });
+    $('#skillRows').addEventListener('change', (e) => {
+      const { i, k } = e.target.dataset;
+      if (i == null || !k || !profile.skills[i]) return;
+      profile.skills[i][k] = e.target.value;
+      delete profile.skills[i][k === 'years' ? 'estYears' : 'estLevel'];
+      saveProfile();
+      renderSkills();
     });
     $('#skillRows').addEventListener('click', (e) => {
       const i = e.target.dataset.del;
@@ -146,9 +187,11 @@
       if (!r || !r.text) return ($('#detectOut').textContent = 'No resume text yet — add one in Resumes.');
       const found = [...AJP.matcher.findSkills(r.text).keys()];
       const added = found.filter((n) => addSkill(n));
+      const estimated = estimateSkills(r.text);
       renderSkills();
       saveProfile();
-      $('#detectOut').textContent = added.length ? `Added ${added.length}: ${added.join(', ')}` : `Found ${found.length} skills; all already in your list.`;
+      $('#detectOut').textContent = (added.length ? `Added ${added.length}: ${added.join(', ')}.` : `Found ${found.length} skills; all already in your list.`) +
+        (estimated ? ` Years and level estimated for ${estimated} from your job dates (change any of them).` : '');
     });
     renderSkills();
   }
@@ -368,7 +411,7 @@
     // Skills from the text: after a paste, and when the user leaves the box (not on every keystroke).
     const skillsFromEditor = AJP.guard('admin.autoSkills', async () => {
       const added = await autoSkillsFrom($('#resumeText').value);
-      if (added.length) toast(skillsNote(added).trim(), 6000);
+      if (added.length || added.estimated) toast(skillsNote(added).trim(), 6000);
     }, { mod: 'admin' });
     $('#resumeText').addEventListener('change', skillsFromEditor);
     $('#resumeText').addEventListener('paste', () => setTimeout(skillsFromEditor, 50));
