@@ -56,6 +56,8 @@ src/
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
     pdf.js                    PDF → text via Mozilla pdf.js (loaded on demand): lines, bullets → "- ", paragraphs
     experience.js             years of experience (asked vs. yours, per skill) and seniority level → fit rows
+    field-rules.js            form question → profile value rules (shared by Autofill and profile suggestions)
+    profile-suggest.js        learned answers → suggested profile updates
     pdf-writer.js             resume text → ATS-readable PDF (Helvetica, WinAnsi, Letter); the one file format we upload
   vendor/pdfjs/               pdf.js 4.10.38 legacy build (Apache-2.0), integrity-verified; see its README
   background/background.js    message router, AI calls, persistence, tab job memory, badge, context menu
@@ -323,6 +325,11 @@ Workday widgets aren't native form fields. The generic filler skips the fields t
 
 **Selectors:** all live in `SEL`. The adapter was built against `tests/fixtures/workday-mock.js`, an emulation using Workday's `data-automation-id` names, and must be verified on real Workday pages. Misses are reported as "not filled", logged, and reportable.
 
+### 8.3c Profile suggestions (`profile-suggest.js`, `field-rules.js`)
+- The label → profile rules moved to `field-rules.js` so Autofill (content scripts) and Admin read a question the same way.
+- `profileSuggest.list(profile, answers, dismissed)`: each learned answer whose label maps to a profile field (email, phone, links, address, current company/title, years, minimum salary, notice period, start date, relocate, sponsorship, work authorization) and whose normalised value differs from the profile. Empty field → suggested after one answer; a different existing value → after two. One suggestion per field (most used, then most recent). **Never** EEO, names, education/experience lists or cover letters.
+- Admin → Learned answers shows the box (Save to profile / Dismiss / Save all) and a count in the menu; the popup shows "💡 N profile suggestions". Saving writes Admin's in-memory profile first (so later edits can't undo it), then storage. Dismissals are stored per value in `suggestions.dismissed`.
+
 ### 8.4 Application tracker (`tracker.js`, `apply-detector.js`, `tracker-view.js`)
 - **Job identity (`jobKey`):** the same job is recognized across URLs:
   - LinkedIn: `currentJobId`, `/jobs/view/<id>`
@@ -509,8 +516,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 482 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 896 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 494 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 915 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

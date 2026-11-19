@@ -65,6 +65,7 @@
     enhancements: [], // resume enhancement drafts awaiting review (max 20)
     evaluations: [], // last 300 analyzed jobs with a score per track (track insights)
     reports: [], // problem reports opened on GitHub: [{reportId, createdAt, codes, title, status, number, url, version, checkedAt, seen}]
+    suggestions: { dismissed: {} }, // profile suggestions from learned answers: { dismissed: { [id]: isoDate } }
     promptState: {}, // internal: crash-prompt bookkeeping {recent, last, never, pending}
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }

@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 15, CI on GitHub
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 14, profile suggestions from learned answers
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **896 / 896 passing** (482 also run without a browser), incl. convention checks |
+| Automated tests | **915 / 915 passing** (494 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 95 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
+| Tester material | Tester Guide (8 sessions, 97 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (15 found and fixed so far, each with a test) |
-| Next step | **Step 14: suggest profile updates from learned answers**, then store packaging |
+| Next step | **Store packaging** (Chrome Web Store, Firefox Add-ons, Edge), then work/education entries on other sites, Admin/popup UI tests, Safari packaging |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -86,10 +86,11 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
+| C37 | **Profile suggestions** (learned answers → profile) + shared field rules | `src/lib/profile-suggest.js`, `src/lib/field-rules.js`, `admin.js`, `popup.js` | ✅ | 19 | ⏳ | |
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) = **896**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) = **915**
 
 ---
 
@@ -112,7 +113,7 @@ Columns:
 | W06b | Try Autofill on 1–2 real Greenhouse, Lever, Ashby and iCIMS applications (Tester Guide 4.15–4.19); report any missed field (site + label) | — | **You** | ⏳ Waiting on you | W06 |
 | W07 | Chrome built-in AI provider (no key) | 13 | Claude | ✅ Done (against a simulated Prompt API) | — |
 | W07b | Try Chrome built-in AI on a real desktop Chrome 138+: download, Test connection, AI deep analysis, Draft answer, Tailor resume (Tester Guide 1.16–1.18); note speed and quality | — | **You** | ⏳ Waiting on you | W07 |
-| W08 | Suggest profile updates from learned answers | 14 | Claude | ⬜ To do | — |
+| W08 | Suggest profile updates from learned answers | 14 | Claude | ✅ Done | — |
 | W09 | CI on GitHub | 15 | Claude | ✅ Done | — |
 | W10 | Load in Chrome and run the manual scenarios | — | **You** | ⏳ Waiting on you | — |
 | W11 | Verify in Firefox, Edge and Safari | — | **You** | ⏳ Waiting on you | W10 |
@@ -138,7 +139,8 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
-| 15 | **CI on GitHub**: checks (manifest, files, syntax, debug code), CLI tests (Node), full browser suite (headless Chrome) on every push / PR; `tests/check.sh` | _pending_ | 896 |
+| 14 | **Profile suggestions from learned answers**: shared field rules (`field-rules.js`), suggestion rules (empty field / typed twice, most used wins, EEO never), Admin box with Save / Dismiss / Save all + menu count, popup line; Tester Guide 4.20–4.21 + video Part 4 scene | _pending_ | 915 |
+| 15 | **CI on GitHub**: checks (manifest, files, syntax, debug code), CLI tests (Node), full browser suite (headless Chrome) on every push / PR; `tests/check.sh` | `db02377` | 896 |
 | 13 | **Chrome built-in AI** (on-device, no key): new provider, Admin status + one-time download + "Use it" banner, prompt fitting, 4 new error codes; Tester Guide 1.16–1.18 + video Part 1 scene | `be4de6f` | 896 |
 | 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** + generic searchable dropdowns, Yes/No buttons, hidden selects, "TX → Texas" for every native dropdown; fixed B15; emulations + local sample page; Tester Guide 4.15–4.19 + video Part 4 scenes | `02b032c` | 867 |
 | 11 | **Smarter matching**: years of experience (overall + per skill, from profile / work history / resume dates), seniority level, implied and similar skills; fixed B14; Tester Guide 2.10–2.13 + video Part 2 scene | `29a3e2a` | 812 |

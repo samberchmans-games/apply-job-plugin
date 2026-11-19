@@ -191,6 +191,9 @@ PARTS = [
          'say': 'Click Mark applied, or just apply. The confirmation page is detected. In Admin, Applications, drag cards between columns, and see reminders when a follow-up is due.', 'caption': 'Applications board: drag between columns · reminders · Export CSV', 'check': '5.1 – 5.7'},
         {'kind': 'admin', 'hash': 'applications', 'seed': BASE, 'actions': APPS_JS + "\nawait AJP.trackerView.render(); await H.sleep(200); AJP.trackerView.renderDetail('a1'); await H.sleep(200);", 'highlight': '#trkDetail', 'budget': 7000,
          'say': 'Open a card to add notes, a recruiter and an interview date, and to reread the saved job description.', 'caption': 'Card details: notes, interview date, saved job description', 'check': '5.5 – 5.6'},
+        {'kind': 'admin', 'hash': 'answers', 'seed': {**BASE, 'answers': {**BASE['answers'], 'what is your notice period': {'label': 'What is your notice period?', 'value': '2 weeks', 'count': 3, 'hosts': ['jobs.lever.co', 'boards.greenhouse.io']}, 'github profile': {'label': 'GitHub profile', 'value': 'https://github.com/ana-example', 'count': 2, 'hosts': ['jobs.ashbyhq.com']}}},
+         'highlight': ['#suggestBox', 'a[href="#answers"]'], 'budget': 8000,
+         'say': 'Answers you keep typing into forms become suggestions. In Admin, Learned answers, click Save to profile, and Autofill fills them on every site from now on. EEO answers are never suggested.', 'caption': '💡 Answers you keep typing → Save to profile', 'check': '4.20 – 4.21'},
         card('Part 4 done', 'Next: Part 5 · Support & reporting', 'Mark the checks in sessions four and five. Last, part five: reporting problems.'),
     ]},
     {'title': 'Support and reporting', 'scenes': [

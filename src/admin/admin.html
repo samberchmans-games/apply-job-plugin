@@ -18,7 +18,7 @@
     <a href="#resumes">📄 Resumes</a>
     <a href="#autoapply">⚡ Auto-apply details</a>
     <a href="#ai">✨ AI settings</a>
-    <a href="#answers">🧩 Learned answers</a>
+    <a href="#answers">🧩 Learned answers <span id="sugCount" class="count" hidden></span></a>
     <a href="#applications">📋 Applications</a>
     <a href="#logs">🪵 Logs</a>
     <a href="#backup">💾 Backup &amp; privacy</a>
@@ -195,6 +195,12 @@
     <section id="answers">
       <h1>Learned answers</h1>
       <p class="hint">Answers remembered from forms you filled. Reused automatically when the same question appears again. Edit or delete any of them.</p>
+      <div id="suggestBox" class="card" hidden>
+        <h3 style="margin-top:0">💡 Suggested profile updates</h3>
+        <p class="hint">You typed these into application forms. Save them to your profile and Autofill fills them on every site. EEO answers are never suggested.</p>
+        <div id="suggestRows"></div>
+        <div class="row"><button id="suggestAll" class="primary" hidden>Save all to profile</button></div>
+      </div>
       <input id="answerSearch" placeholder="Search questions…">
       <table class="tbl"><thead><tr><th>Question</th><th>Answer</th><th>Used</th><th>Sites</th><th></th></tr></thead><tbody id="answerRows"></tbody></table>
     </section>
@@ -298,6 +304,8 @@
 <script src="../lib/tracks.js"></script>
 <script src="../lib/issue-report.js"></script>
 <script src="../lib/diagnostics.js"></script>
+<script src="../lib/field-rules.js"></script>
+<script src="../lib/profile-suggest.js"></script>
 <script src="tracker-view.js"></script>
 <script src="enhance-view.js"></script>
 <script src="tracks-view.js"></script>

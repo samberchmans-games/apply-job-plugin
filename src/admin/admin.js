@@ -453,7 +453,53 @@
   }, { mod: 'admin', onError: (d) => ($('#aiLocalState').textContent = `${d.message} (${d.code})`) });
 
   // ---- Learned answers ------------------------------------------------------------------------------
+  // ---- Profile suggestions from learned answers --------------------------------------------------------
+  let suggestions = [];
+  const renderSuggestions = AJP.guard('admin.renderSuggestions', async () => {
+    const [answers, sug] = await Promise.all([AJP.store.get('answers'), AJP.store.get('suggestions')]);
+    suggestions = AJP.profileSuggest.list(profile, answers, sug.dismissed);
+    $('#sugCount').hidden = !suggestions.length;
+    $('#sugCount').textContent = suggestions.length;
+    $('#suggestBox').hidden = !suggestions.length;
+    $('#suggestAll').hidden = suggestions.length < 2;
+    $('#suggestRows').innerHTML = suggestions.map((s) => `<div class="sug" data-sug="${esc(s.id)}">
+        <b>${esc(s.field)}</b>: <span class="hint">${s.empty ? 'empty in your profile' : `profile says “${esc(s.current)}”`}</span> → <b class="val">${esc(s.proposed)}</b>
+        <span class="hint">(typed ${s.count}× for “${esc(s.label.slice(0, 60))}”${s.hosts.length ? ' on ' + esc(s.hosts.slice(0, 3).join(', ')) : ''})</span>
+        <button class="small" data-sug-save="${esc(s.id)}">Save to profile</button> <button class="small" data-sug-dismiss="${esc(s.id)}">Dismiss</button></div>`).join('');
+  }, { mod: 'admin' });
+
+  async function saveSuggestion(s) {
+    AJP.profileSuggest.apply(profile, s);
+    await AJP.store.set('profile', profile);
+    for (const el of document.querySelectorAll(`[data-path="${s.path}"]`)) el.value = s.proposed; // the Profile / Auto-apply fields on screen
+    log.info('Profile suggestion saved', { key: s.key, path: s.path });
+  }
+  function initSuggestions() {
+    $('#suggestRows').addEventListener('click', AJP.guard('admin.suggestion', async (e) => {
+      const save = e.target.dataset.sugSave;
+      const dismiss = e.target.dataset.sugDismiss;
+      const s = suggestions.find((x) => x.id === (save || dismiss));
+      if (!s) return;
+      if (save) {
+        await saveSuggestion(s);
+        toast(`Saved to your profile: ${s.field}`);
+      } else {
+        await AJP.store.update('suggestions', (x) => void (x.dismissed[s.id] = new Date().toISOString()));
+        log.info('Profile suggestion dismissed', { key: s.key });
+      }
+      renderSuggestions();
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
+    $('#suggestAll').addEventListener('click', AJP.guard('admin.suggestionsAll', async () => {
+      const all = suggestions.slice();
+      for (const s of all) await saveSuggestion(s);
+      toast(`Saved ${all.length} profile updates`);
+      renderSuggestions();
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
+    renderSuggestions();
+  }
+
   async function renderAnswers() {
+    renderSuggestions();
     const answers = await AJP.store.get('answers');
     const q = AJP.norm($('#answerSearch').value);
     const rows = Object.entries(answers)
@@ -711,6 +757,7 @@
     initCards();
     initResumes();
     initAnswers();
+    initSuggestions();
     AJP.trackerView.init({ toast, download });
     AJP.tracksView.init({ toast });
     AJP.enhanceView.init({

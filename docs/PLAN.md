@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 896 automated + 122 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 915 automated + 122 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -119,7 +119,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Remember answers the user types and reuse them | ✅ | Exact + fuzzy question match |
 | View / edit / delete learned answers | ✅ | Admin → Learned answers |
 | Never learn passwords, SSNs, bank details, date of birth | ✅ | |
-| Suggest profile updates from learned answers | ⬜ | |
+| Suggest profile updates from learned answers | ✅ | Step 14; Admin → Learned answers box (Save / Dismiss / Save all), menu count, popup line; EEO never suggested |
 
 ## 7. AI (free)
 | Item | Status | Notes |
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 896 across 27 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 896) · `./tests/run-tests.sh` (the 482 that need no browser) |
+| Automated tests: 915 across 28 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 915) · `./tests/run-tests.sh` (the 494 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -215,7 +215,8 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
-| 15 | **CI on GitHub** (section 9) | _pending_ |
+| 14 | **Profile suggestions from learned answers** (section 6) + tester checks & video scene | _pending_ |
+| 15 | **CI on GitHub** (section 9) | `db02377` |
 | 13 | **Chrome built-in AI** (section 7) + tester checks & video scene | `be4de6f` |
 | 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | `02b032c` |
 | 11 | **Smarter matching** (section 3) + tester checks & video scene | `29a3e2a` |
@@ -228,7 +229,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 14 | Suggest profile updates from learned answers | 6 | Small |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
@@ -277,7 +277,8 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-18 | _pending_ | **Step 15: CI on GitHub** (checks, CLI tests, browser tests on every push / PR) |
+| 2026-11-18 | _pending14_ | **Step 14: profile suggestions from learned answers**; shared field rules; 915 tests |
+| 2026-11-18 | `db02377` | **Step 15: CI on GitHub** (checks, CLI tests, browser tests on every push / PR) |
 | 2026-11-18 | `be4de6f` | **Step 13: Chrome built-in AI** (on-device, no key), Admin download + status, prompt fitting, AJP-AI-LOCAL-* codes; 896 tests |
 | 2026-11-18 | `02b032c` | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
 | 2026-11-18 | `29a3e2a` | **Step 11: smarter matching**: years (overall + per skill), seniority, implied/similar skills, B14 fix; 812 tests |

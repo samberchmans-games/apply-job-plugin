@@ -33,7 +33,8 @@
   };
 
   (async () => {
-    const { profile, settings, resumes, applications } = await AJP.store.getMany(['profile', 'settings', 'resumes', 'applications']);
+    const { profile, settings, resumes, applications, answers, suggestions } = await AJP.store.getMany(['profile', 'settings', 'resumes', 'applications', 'answers', 'suggestions']);
+    const sug = AJP.profileSuggest.list(profile, answers, suggestions.dismissed).length;
     const due = AJP.tracker.dueFollowUps(applications, Date.now(), Number(settings.tracker.followUpDays) || 7);
     const warn = [];
     if (!profile.personal.firstName || !profile.personal.email) warn.push('Profile incomplete');
@@ -43,7 +44,13 @@
     $('status').innerHTML =
       `${profile.skills.length} skills · ${resumes.items.length} resume(s) · ${ai}` +
       (warn.length ? `<br><span class="warn">⚠ ${warn.join(' · ')}</span>` : '') +
-      (due.length ? `<br><a href="#" id="due" class="warn">🔔 ${due.length} follow-up${due.length > 1 ? 's' : ''} due</a>` : '');
+      (due.length ? `<br><a href="#" id="due" class="warn">🔔 ${due.length} follow-up${due.length > 1 ? 's' : ''} due</a>` : '') +
+      (sug ? `<br><a href="#" id="sug">💡 ${sug} profile suggestion${sug > 1 ? 's' : ''} from your answers</a>` : '');
+    const sugLink = $('sug');
+    if (sugLink) sugLink.onclick = (e) => {
+      e.preventDefault();
+      AJP.send('openAdmin', { hash: 'answers' }).then(() => window.close());
+    };
     const dueLink = $('due');
     if (dueLink) dueLink.onclick = (e) => {
       e.preventDefault();

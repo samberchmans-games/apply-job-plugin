@@ -73,6 +73,7 @@
         "src/lib/tracks.js",
         "src/lib/pdf-writer.js",
         "src/content/jd-extractor.js",
+        "src/lib/field-rules.js",
         "src/content/form-filler.js",
         "src/content/workday.js",
         "src/content/ats.js",
