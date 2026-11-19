@@ -16,14 +16,14 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Platform (Chrome / Edge / Firefox / Safari, local-only storage) | ✅ built · ⬜ real-browser verification (your side) |
 | Admin page | ✅ (incl. PDF resumes, one PDF per resume) |
 | Job reading & match % | ✅ (incl. years, seniority, synonyms) |
-| Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
+| Resume tailoring (v2: evidence-checked, result-oriented) | ✅ incl. the tailored PDF attached by Autofill · ⏳ real-AI quality check (your side) |
 | Autofill & learning | ✅ incl. Workday, Greenhouse, Lever, Ashby, iCIMS (verify on real sites) |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete · one standard for errors, retries and failure capture across the plugin (enforced by tests) |
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 896 automated + 122 manual scenarios · ⬜ CI |
+| Tests | ✅ 896 automated + 122 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -151,7 +151,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
 | Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 122 scenarios, to be run by you later |
-| CI on GitHub (run tests on every PR) | ⬜ | |
+| CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
 
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 15 | **CI on GitHub** (section 9) | _pending_ |
 | 13 | **Chrome built-in AI** (section 7) + tester checks & video scene | `be4de6f` |
 | 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | `02b032c` |
 | 11 | **Smarter matching** (section 3) + tester checks & video scene | `29a3e2a` |
@@ -228,7 +229,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | # | Step | Section | Size |
 |---|---|---|---|
 | 14 | Suggest profile updates from learned answers | 6 | Small |
-| 15 | CI on GitHub: run the tests on every push/PR | 9 | Small |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 15: CI on GitHub** (checks, CLI tests, browser tests on every push / PR) |
 | 2026-11-18 | `be4de6f` | **Step 13: Chrome built-in AI** (on-device, no key), Admin download + status, prompt fitting, AJP-AI-LOCAL-* codes; 896 tests |
 | 2026-11-18 | `02b032c` | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
 | 2026-11-18 | `29a3e2a` | **Step 11: smarter matching**: years (overall + per skill), seniority, implied/similar skills, B14 fix; 812 tests |

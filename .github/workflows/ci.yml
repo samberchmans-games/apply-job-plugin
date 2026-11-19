@@ -1,0 +1,54 @@
+# CI: runs every automated test on each push and pull request.
+#   checks         manifest valid, referenced files exist, every script parses, no debug code
+#   cli-tests      the tests that need no browser (Node)
+#   browser-tests  the FULL suite in headless Chrome (real forms, storage, background, end-to-end)
+# A red X on a commit or PR means a test failed: open the run, the failing test names are printed.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sh tests/check.sh
+
+  cli-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sh tests/run-tests.sh | tail -n 40
+
+  browser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the full suite in headless Chrome
+        env:
+          CHROME: /usr/bin/google-chrome
+          CHROME_FLAGS: --no-sandbox --disable-dev-shm-usage
+          TIMEOUT: '420'
+          BY_SUITE: --by-suite
+        run: sh tests/run-browser-tests.sh

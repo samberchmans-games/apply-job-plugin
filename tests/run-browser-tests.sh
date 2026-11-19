@@ -13,12 +13,13 @@ PORT="${PORT:-8765}"
 python3 tests/serve.py "$PORT" --results-file "$TMP/results.json" >/dev/null 2>&1 &
 SERVER=$!
 sleep 1
-"$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check --user-data-dir="$TMP/profile" \
+# CHROME_FLAGS: extra flags for CI machines (e.g. --no-sandbox in containers).
+"$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check $CHROME_FLAGS --user-data-dir="$TMP/profile" \
   "http://127.0.0.1:$PORT/tests/test-runner.html?report=1&grep=$1" >/dev/null 2>&1 &
 BROWSER=$!
 
 i=0
-while [ ! -s "$TMP/results.json" ] && [ $i -lt 180 ]; do sleep 1; i=$((i + 1)); done
+while [ ! -s "$TMP/results.json" ] && [ $i -lt "${TIMEOUT:-180}" ]; do sleep 1; i=$((i + 1)); done
 kill $BROWSER $SERVER 2>/dev/null
 wait $BROWSER $SERVER 2>/dev/null
 

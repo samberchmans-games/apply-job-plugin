@@ -1,5 +1,7 @@
 # Apply Job Assistant (apply-job-plugin)
 
+[![CI](https://github.com/samberchmans-games/apply-job-plugin/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/samberchmans-games/apply-job-plugin/actions/workflows/ci.yml)
+
 A browser extension that runs in Chrome, Edge, Firefox and Safari. For any job posting it:
 
 1. **Reads the job description** and calculates a **match % (0–100)** against your skills. Related skills count too: Next.js counts as React, and Azure gives half credit for AWS.
@@ -110,6 +112,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
+- **Checks:** `sh tests/check.sh` (manifest, files, syntax). **CI** runs checks + all tests on every push (badge above).
 - **Tests:** `./tests/run-browser-tests.sh` runs the full suite (896) in headless Chrome. `./tests/run-tests.sh` runs the 482 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.

@@ -524,6 +524,13 @@ video/                    tester walkthrough videos: parts.py (scenes per part),
 - **Adversarial AI tests:** resume enhancement is tested with a fake AI that deliberately cheats. It copies the job's numbers, invents a client and a skill, fakes evidence, targets a protected line and duplicates an edit. The tests prove the code blocks each attempt.
 - **Rule:** every bug fix comes with a test that fails without it. Manual browser scenarios live in [TEST-SCENARIOS.md](TEST-SCENARIOS.md).
 
+### CI (GitHub Actions)
+`.github/workflows/ci.yml` runs on every push and pull request to `develop` / `main` (and on demand):
+- **checks** — `tests/check.sh`: manifest is valid JSON with an x.y.z version, every file it names (and every `importScripts` / injected file in the background) exists, every script parses (`node --check`), no `debugger` / `console.log` left in `src/`.
+- **cli-tests** — `tests/run-tests.sh` with Node.
+- **browser-tests** — `tests/run-browser-tests.sh` in the runner's Google Chrome (`CHROME_FLAGS=--no-sandbox`), per-suite counts printed.
+Run all three locally before pushing: `sh tests/check.sh && sh tests/run-tests.sh && sh tests/run-browser-tests.sh`.
+
 ## 13. Cross-browser notes
 
 | Topic | Chrome / Edge | Firefox | Safari |
