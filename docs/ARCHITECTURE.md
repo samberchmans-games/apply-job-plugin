@@ -355,6 +355,15 @@ Workday widgets aren't native form fields. The generic filler skips the fields t
 | Groq | `api.groq.com/openai/v1/chat/completions` | Bearer | `llama-3.3-70b-versatile` |
 | OpenRouter | `openrouter.ai/api/v1/chat/completions` | Bearer | `meta-llama/llama-3.3-70b-instruct:free` |
 | Ollama | `{ollamaUrl}/api/chat` | none (local) | `llama3.1` |
+| Chrome built-in AI | Prompt API in the browser (`LanguageModel`, or older `ai.languageModel`); no network | none | on-device (Gemini Nano in Chrome) |
+
+**Chrome built-in AI** (`provider: 'chrome'`):
+- Runs in the background service worker, like the other providers (Chrome exposes `LanguageModel` to extension workers).
+- `availability()` decides: `available` → `create({ initialPrompts: [system], expectedInputs/Outputs: en })` → `prompt(text, { responseConstraint: {type:'object'} for JSON, signal })` → `destroy()`. `downloadable`/`downloading` → `AJP-AI-LOCAL-DL`; `unavailable` → `AJP-AI-LOCAL-OFF`; no API → `AJP-AI-LOCAL-NONE`.
+- **Download** needs a user gesture, so it runs in the Admin page (`AJP.ai.local.download(onProgress)`, from a click), with a progress bar. Admin shows the background's view of the status (where AI runs) and offers "Use it" when the model is ready but another provider is chosen.
+- **Small input window:** `fitPrompt` shrinks the long blocks (resume, job post) proportionally and keeps instructions whole; with `measureInputUsage`/`inputQuota` it shrinks until the prompt fits; a `QuotaExceededError` shrinks and retries (max 3), then `AJP-AI-LOCAL-LEN`.
+- Older builds without `responseConstraint` are asked again without it. Timeouts abort the prompt (`AJP-AI-TIME`); the session is always destroyed.
+- Same prompts and rules as the cloud providers (EEO never included); nothing leaves the computer.
 
 **Tasks:**
 - `extractSkills` (JSON)
@@ -500,8 +509,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 477 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 867 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 482 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 896 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -576,6 +585,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-18 | **Chrome built-in AI runs in the background**, its download in Admin | AI calls stay in one place (keys, logs, traces, retries); the browser only requires a click for the one-time download |
 | 2026-11-18 | **Site adapters = field names + reusable widget handlers**, not one script per site; the widget pass also runs on unknown sites | Most ATSs share a few widget kinds (React-Select, select2, Yes/No buttons); handling the kind helps every site using it, and site configs stay small and easy to fix |
 | 2026-11-18 | **Years & seniority are fit rows, not part of the %**; synonyms via a hand-kept implies/similar table, not embeddings | Parsing years from free text is heuristic, so it informs instead of scoring; embeddings would need a model download or a server, against "fast, offline, no database" |
 | 2026-11-18 | **One resume format: PDF.** A small built-in writer (no library) makes a text-based PDF for every resume that has no uploaded PDF; tailored resumes get one on creation; Autofill uploads the resume tailored for the current job, else the track's / active one | PDF is what every ATS accepts and keeps the layout; one format is simpler for users and for us; uncompressed standard-font text is read back exactly by ATS parsers (tested with pdf.js) |

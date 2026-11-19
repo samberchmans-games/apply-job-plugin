@@ -59,6 +59,7 @@ After installing, the **Admin** page opens automatically. You can reopen it from
 
 | Provider | Cost | Get a key |
 |---|---|---|
+| **Chrome built-in AI** | Free, no key, runs on your computer | Desktop Chrome 138+: Admin → AI settings → Chrome built-in AI → Download the on-device model (one time) |
 | Google Gemini | Free tier | https://aistudio.google.com/apikey |
 | Groq | Free tier | https://console.groq.com/keys |
 | OpenRouter | Free `:free` models | https://openrouter.ai/keys |
@@ -109,7 +110,7 @@ tests/                   automated tests (harness, browser mock, unit + end-to-e
 docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md, TEST-SCENARIOS.md, SUPPORT.md
 ```
 
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (867) in headless Chrome. `./tests/run-tests.sh` runs the 477 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (896) in headless Chrome. `./tests/run-tests.sh` runs the 482 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.

@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (867). Run them before every merge into `develop`.
+1. **Automated tests** (896). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **477** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **867** tests in headless Chrome. This is the full suite: the 477 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **482** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **896** tests in headless Chrome. This is the full suite: the 482 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -40,6 +40,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Problem reports (rules) | `unit/issue-report.test.js` | Pre-filled GitHub issue (template, title `[code] … (R-…)`, every field); **public text masks emails, phone numbers, keys and links; never logs**; crash code first; URL ≤ 7,500 chars with the report id kept; search URLs; status mapping (received / needs-info / fixing / fixed vX / duplicate / won't fix / closed / not submitted); crash-prompt rules (always for AJP-INTERNAL/STORE, 3× in 10 min, once a day, "don't ask again", setting off, **never for user-fixable codes**) |
 | Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
 | Smarter matching | `unit/experience.test.js` | Years asked (7 phrasings, ranges, number words) and what to ignore (company history, ages, degrees, "past 10 years"); highest required ask wins; per-skill asks ("3+ years with Kafka", "4 years of Java experience", either-or); date formats; Experience-section roles only; overlapping jobs counted once; profile > work history > resume; years per skill incl. implied skills; seniority from 12 title styles, "Product Manager" not a level, fallback to years; fit rows (enough / close / short / unknown / stretch / below); implied skills (one-way), similar half credit, new aliases, **"Go" still not a word match**, score ignores years, **a crash in the check never breaks matching**, speed; B14 |
+| Chrome built-in AI | `unit/local-ai.test.js` | Prompt fitting (instructions kept, long blocks shrunk proportionally); provider with a **fake Prompt API**: system prompt as the first prompt, session freed, **no network**, JSON via responseConstraint (and without it on older builds), older `ai.languageModel` shape, shrinking to the measured quota, QuotaExceeded → shorter retry → AJP-AI-LOCAL-LEN, downloadable/downloading/unavailable/no API/needs-a-click codes, timeout, logs without prompt text, **no EEO in prompts**, status, download progress, background message; Admin: provider listed, "Use it" banner, download with progress → Ready, unsupported browser, Test connection |
 | PDF resumes | `unit/pdf.test.js` | Rebuilding lines from positioned text (order, spacing, paragraphs, 7 bullet glyphs → "- ", negative numbers kept, columns, uneven baselines); error mapping (locked → AJP-PDF-LOCKED, broken → AJP-RES-PARSE); **real pdf.js on generated PDFs** (resume, ready for tailoring, multi-page, scanned → AJP-PDF-NOTEXT, not-a-PDF, reader fails to load then recovers); Admin upload (text + file saved, bullet count message, scanned PDF message, "Read text from PDF" for older uploads) |
 | The standard (errors / retries / conventions) | `unit/standard.test.js` | Temporary vs permanent codes; retry with backoff and Retry-After; `AJP.http` (JSON, 5xx retried, 4xx not, network, timeout, bad JSON, Retry-After); AI uses it (503 retried, 401 not); `AJP.guard` (coded log + trace, message shown, never throws); panel actions guarded; send/storage recover; **source scan**: no `throw new Error`, no raw fetch, error keys exist and are documented, no silent catch, no console, captureErrors on pages |
 | Site adapters | `unit/ats.test.js` (+ `fixtures/ats-mock.js`) | Detection by host (look-alikes rejected) and by markup; site field names → profile values; location scoring; **Greenhouse** React-Select (yes/no, learned, EEO wording, async location search, user's choice kept, no menu left open, questions, learning from picks); **Greenhouse classic** select2 proxies, resume box left empty / pasted when no upload; **Lever** resume first then profile replaces the site's guesses (typed values kept), URLs, location from its list, radio cards, EEO selects, B15 labels; **Ashby** system fields, Yes/No buttons (profile, learned, user's choice kept, learning), comboboxes, EEO radios; **iCIMS** names, hidden dropdowns (TX → Texas, USA → United States), sign-in note; panel site + notes; widgets on unknown sites; one broken widget never stops the rest |
@@ -74,6 +75,9 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | A2 | Click the toolbar icon | The popup shows skills, resumes and AI status, with a warning that the profile is incomplete |
 | A3 | Firefox: allow the job-site permissions in the extension's Permissions tab | The badge appears on job sites after a page reload |
 | A4 | Safari: convert with `safari-web-extension-converter`, build and enable it | Same as A1 and A2 |
+| A6 | Desktop Chrome 138+: Admin → AI settings → Chrome built-in AI | Status Ready / needs download (⬇ button with progress) / can't run here, with the reason |
+| A7 | After the download: Test connection, then AI deep analysis and Draft answer on a job page | "✅ Works"; AI results arrive without any key (note the speed) |
+| A8 | Firefox or Safari: Chrome built-in AI | "This browser has no built-in AI"; choosing it anyway gives AJP-AI-LOCAL-NONE with a hint |
 | A5 | Remove and reinstall the extension | All data is gone (expected). Restoring a backup brings it back. |
 
 ### B. Admin page

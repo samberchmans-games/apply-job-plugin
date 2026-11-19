@@ -396,6 +396,32 @@
     $('#aiProvider').innerHTML = Object.entries(AJP.ai.PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join('');
     $('#aiProvider').value = settings.ai.provider;
     updateModelPlaceholder();
+    $('#aiProvider').addEventListener('change', () => setTimeout(renderLocalAI, 0));
+    $('#aiLocalUse').addEventListener('click', AJP.guard('admin.useLocalAI', async () => {
+      $('#aiProvider').value = 'chrome';
+      $('#aiProvider').dispatchEvent(new Event('change', { bubbles: true }));
+      await AJP.store.update('settings', (s) => void (s.ai.provider = 'chrome'));
+      settings.ai.provider = 'chrome';
+      updateModelPlaceholder();
+      renderLocalAI();
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
+    $('#aiLocalDownload').addEventListener('click', AJP.guard('admin.downloadLocalAI', async () => {
+      const bar = $('#aiLocalProgress');
+      bar.hidden = false;
+      $('#aiLocalDownload').disabled = true;
+      $('#aiLocalOut').textContent = 'Downloading… (this can take a while; you can keep using the page)';
+      try {
+        await AJP.ai.local.download((p) => {
+          bar.value = p;
+          $('#aiLocalOut').textContent = `Downloading… ${Math.round(p * 100)}%`;
+        });
+        $('#aiLocalOut').textContent = '✅ Downloaded. Click Test connection.';
+      } finally {
+        $('#aiLocalDownload').disabled = false;
+        renderLocalAI();
+      }
+    }, { mod: 'admin', onError: (d) => ($('#aiLocalOut').textContent = `❌ ${d.message} ${d.hint} (${d.code})`) }));
+    renderLocalAI();
     $('#aiTest').addEventListener('click', async () => {
       await AJP.store.set('settings', settings); // flush pending edits first
       $('#aiTestOut').textContent = 'Testing…';
@@ -403,6 +429,28 @@
       $('#aiTestOut').textContent = r.ok ? `✅ Works. Reply: "${r.text.slice(0, 40)}"` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
     });
   }
+
+  // Built-in AI: what the background (where AI runs) sees, plus the page for the one-time download.
+  const LOCAL_TEXT = {
+    available: '✅ Ready on this computer.',
+    downloadable: 'Needs a one-time model download (a few GB; Chrome manages it).',
+    downloading: 'Downloading in Chrome… you can keep working.',
+    unavailable: "❌ Can't run on this computer (needs a desktop with about 22 GB free disk space and enough memory; see chrome://on-device-internals).",
+    unsupported: "❌ This browser has no built-in AI. Use a recent desktop Chrome (138+), or pick another free provider.",
+  };
+  const renderLocalAI = AJP.guard('admin.localAIStatus', async () => {
+    const bg = await AJP.send('ai.localStatus');
+    const page = AJP.ai.local.api() ? await AJP.ai.local.status() : { state: 'unsupported' };
+    // The background decides (AI runs there); the page can still download when only it sees the API.
+    const st = bg && bg.state && bg.state !== 'unsupported' ? bg.state : page.state;
+    const isLocal = settings.ai.provider === 'chrome';
+    $('#aiLocal').hidden = !isLocal;
+    $('#aiLocalState').textContent = LOCAL_TEXT[st] || st;
+    $('#aiLocalDownload').hidden = !(st === 'downloadable' || st === 'downloading') || page.state === 'unsupported';
+    $('#aiLocalOffer').hidden = isLocal || st !== 'available';
+    if (isLocal && bg && bg.state === 'unsupported' && page.state !== 'unsupported') $('#aiLocalOut').textContent = 'Note: the extension background cannot see the built-in AI in this browser version; AI actions may fail with AJP-AI-LOCAL-NONE.';
+    log.info('Local AI status', { background: bg && bg.state, page: page.state });
+  }, { mod: 'admin', onError: (d) => ($('#aiLocalState').textContent = `${d.message} (${d.code})`) });
 
   // ---- Learned answers ------------------------------------------------------------------------------
   async function renderAnswers() {

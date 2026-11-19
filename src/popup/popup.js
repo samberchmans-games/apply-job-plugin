@@ -39,7 +39,7 @@
     if (!profile.personal.firstName || !profile.personal.email) warn.push('Profile incomplete');
     if (!profile.skills.length) warn.push('No skills added');
     if (!resumes.items.length) warn.push('No resume saved');
-    const ai = settings.ai.provider === 'none' ? 'AI off (offline matching)' : 'AI: ' + settings.ai.provider;
+    const ai = settings.ai.provider === 'none' ? 'AI off (offline matching)' : settings.ai.provider === 'chrome' ? 'AI: Chrome built-in (on this computer)' : 'AI: ' + settings.ai.provider;
     $('status').innerHTML =
       `${profile.skills.length} skills · ${resumes.items.length} resume(s) · ${ai}` +
       (warn.length ? `<br><span class="warn">⚠ ${warn.join(' · ')}</span>` : '') +

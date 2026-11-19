@@ -139,3 +139,7 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 #ghSimilar li { margin: 4px 0; }
 .st-fixed { color: var(--ok); font-weight: 600; }
 @media (prefers-color-scheme: dark) { .crash-banner { background: #3b0d0d; color: #fecaca; border-color: #7f1d1d; } }
+.banner { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; font-size: 14px; }
+.banner button { margin-left: 8px; }
+#aiLocal { margin: 10px 0; } #aiLocal progress { width: 200px; }
+@media (prefers-color-scheme: dark) { .banner { background: #172554; color: #dbeafe; border-color: #1e40af; } }

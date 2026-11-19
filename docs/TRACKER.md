@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 12, Greenhouse / Lever / Ashby / iCIMS adapters
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 13, Chrome built-in AI (no key)
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **867 / 867 passing** (477 also run without a browser), incl. convention checks |
+| Automated tests | **896 / 896 passing** (482 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 92 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
+| Tester material | Tester Guide (8 sessions, 95 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (15 found and fixed so far, each with a test) |
-| Next step | **Step 13: Chrome's built-in on-device AI (no key needed)** |
+| Next step | **Step 14: suggest profile updates from learned answers** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -46,7 +46,7 @@ Columns:
 | C07 | Skills dictionary | `src/lib/skills-dictionary.js` | ✅ | (in C08) | ⏳ | 199 skills |
 | C08 | Matcher (match %, gaps, fit) + **synonyms**: implied skills count fully (Next.js → React), similar ones half (Azure for AWS) | `src/lib/matcher.js`, `src/lib/skills-dictionary.js` | ✅ | 49 + 13 | ⏳ | |
 | C26 | **Experience & seniority check**: years asked (overall + per skill) vs. profile / work history / resume dates; job level vs. your level; fit rows only, never the % | `src/lib/experience.js` | ✅ | 50 | ⏳ | Check on real job posts (2.10–2.13): report a number it misread |
-| C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 | ⏳ | Gemini, Groq, OpenRouter, Ollama; one automatic retry on invalid JSON. ⬜ Chrome built-in AI (step 12) |
+| C09 | AI providers & prompts | `src/lib/ai.js` | ✅ | 28 + 29 | ⏳ | Gemini, Groq, OpenRouter, Ollama, **Chrome built-in AI** (on-device, no key; Prompt API, current + older shape; prompts fitted to the small window; one-time download from Admin); one automatic retry on invalid JSON |
 | C10 | Word (.docx) resume reader | `src/lib/docx.js` | ✅ | 5 | ⏳ | |
 | C11 | **PDF resume reader** (pdf.js 4.10.38, loaded on demand; lines, bullets, paragraphs) | `src/lib/pdf.js`, `src/vendor/pdfjs/` | ✅ | 26 | ⏳ | Scanned PDFs → AJP-PDF-NOTEXT; locked → AJP-PDF-LOCKED |
 | C12 | Application tracker logic | `src/lib/tracker.js` | ✅ | 77 | ⏳ | Job identity across 8 sites, merge rules, reminders, stats, CSV |
@@ -89,7 +89,7 @@ Columns:
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) = **867**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) = **896**
 
 ---
 
@@ -110,7 +110,8 @@ Columns:
 | W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ✅ Done | — |
 | W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ✅ Done (against emulations) | — |
 | W06b | Try Autofill on 1–2 real Greenhouse, Lever, Ashby and iCIMS applications (Tester Guide 4.15–4.19); report any missed field (site + label) | — | **You** | ⏳ Waiting on you | W06 |
-| W07 | Chrome built-in AI provider (no key) | 13 | Claude | ⬜ To do | — |
+| W07 | Chrome built-in AI provider (no key) | 13 | Claude | ✅ Done (against a simulated Prompt API) | — |
+| W07b | Try Chrome built-in AI on a real desktop Chrome 138+: download, Test connection, AI deep analysis, Draft answer, Tailor resume (Tester Guide 1.16–1.18); note speed and quality | — | **You** | ⏳ Waiting on you | W07 |
 | W08 | Suggest profile updates from learned answers | 14 | Claude | ⬜ To do | — |
 | W09 | CI on GitHub | 15 | Claude | ⬜ To do | — |
 | W10 | Load in Chrome and run the manual scenarios | — | **You** | ⏳ Waiting on you | — |
@@ -137,6 +138,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 13 | **Chrome built-in AI** (on-device, no key): new provider, Admin status + one-time download + "Use it" banner, prompt fitting, 4 new error codes; Tester Guide 1.16–1.18 + video Part 1 scene | _pending_ | 896 |
 | 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** + generic searchable dropdowns, Yes/No buttons, hidden selects, "TX → Texas" for every native dropdown; fixed B15; emulations + local sample page; Tester Guide 4.15–4.19 + video Part 4 scenes | `02b032c` | 867 |
 | 11 | **Smarter matching**: years of experience (overall + per skill, from profile / work history / resume dates), seniority level, implied and similar skills; fixed B14; Tester Guide 2.10–2.13 + video Part 2 scene | `29a3e2a` | 812 |
 | 10 | **One resume format (PDF)**: built-in PDF writer; every resume gets a PDF (tailored ones named for the company); Autofill uploads the resume tailored for *this* job and the panel names the file; Admin Download / View PDF (print view and .md removed); Tester Guide 1.13–1.15, 4.13–4.14 + video scenes | `b7b2522` | 749 |

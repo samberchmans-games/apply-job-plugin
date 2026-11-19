@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 867 automated + 122 manual scenarios · ⬜ CI |
+| Tests | ✅ 896 automated + 122 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -126,7 +126,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 |---|---|---|
 | Gemini, Groq, OpenRouter (free tiers), Ollama (local) | ✅ | `src/lib/ai.js` |
 | Test-connection button | ✅ | |
-| Chrome built-in on-device AI (no key needed) | ⬜ | |
+| Chrome built-in on-device AI (no key needed) | ✅ | Step 13; Prompt API (`LanguageModel`, older `ai.languageModel`), runs in the background; one-time model download from Admin (needs a click); prompts fitted to the on-device window; also works in Edge where the API exists |
 | Logging into free ChatGPT/Claude/Gemini chat websites | ❌ | Not planned: breaks their terms of service and is unreliable |
 
 ## 8. Logging & support — ✅ upgraded 2026-11-18
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 867 across 26 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 867) · `./tests/run-tests.sh` (the 477 that need no browser) |
+| Automated tests: 896 across 27 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 896) · `./tests/run-tests.sh` (the 482 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 13 | **Chrome built-in AI** (section 7) + tester checks & video scene | _pending_ |
 | 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | `02b032c` |
 | 11 | **Smarter matching** (section 3) + tester checks & video scene | `29a3e2a` |
 | 10 | **One resume format (PDF)** (section 4) + tester checks & video scenes | `b7b2522` |
@@ -226,7 +227,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 13 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
 | 14 | Suggest profile updates from learned answers | 6 | Small |
 | 15 | CI on GitHub: run the tests on every push/PR | 9 | Small |
 
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 13: Chrome built-in AI** (on-device, no key), Admin download + status, prompt fitting, AJP-AI-LOCAL-* codes; 896 tests |
 | 2026-11-18 | `02b032c` | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
 | 2026-11-18 | `29a3e2a` | **Step 11: smarter matching**: years (overall + per skill), seniority, implied/similar skills, B14 fix; 812 tests |
 | 2026-11-18 | `b7b2522` | **Step 10: one resume format (PDF)**: PDF writer, tailored PDFs, Autofill uploads the job's tailored PDF, Download / View PDF; 749 tests |

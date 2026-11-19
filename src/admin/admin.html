@@ -163,12 +163,14 @@
       <h1>AI settings</h1>
       <p class="hint">Matching works offline without AI. AI adds deeper JD analysis, honest resume tailoring and drafted answers. Pick a <b>free</b> option:</p>
       <ul class="hint">
+        <li><b>Chrome built-in AI</b> — no key, no account; runs on this computer, so nothing leaves it. Needs a recent desktop Chrome and a one-time model download. Smaller than the cloud models: fine for answers and skills, slower and simpler for resume tailoring.</li>
         <li><b>Google Gemini</b> — free API key at aistudio.google.com/apikey (sign in with a Google account).</li>
         <li><b>Groq</b> — free API key at console.groq.com/keys. Very fast.</li>
         <li><b>OpenRouter</b> — free key at openrouter.ai/keys; use models ending in <code>:free</code>.</li>
         <li><b>Ollama</b> — runs models on this computer; fully private. Start it with <code>OLLAMA_ORIGINS="*" ollama serve</code>.</li>
       </ul>
       <p class="hint">Why not log into free ChatGPT / Claude / Gemini chat websites? Automating those consumer chat apps breaks their terms and stops working whenever their UI changes. Free API keys are the supported, reliable way.</p>
+      <div id="aiLocalOffer" class="banner" hidden>✨ Chrome's built-in AI is ready on this computer: no key needed, and nothing leaves your computer. <button id="aiLocalUse">Use it</button></div>
       <div class="grid">
         <label>Provider<select data-settings="ai.provider" id="aiProvider"></select></label>
         <label>Model (blank = default)<input data-settings="ai.model" id="aiModel"></label>
@@ -176,6 +178,10 @@
         <label>Groq API key<input type="password" data-settings="ai.keys.groq" autocomplete="off"></label>
         <label>OpenRouter API key<input type="password" data-settings="ai.keys.openrouter" autocomplete="off"></label>
         <label>Ollama URL<input data-settings="ai.ollamaUrl"></label>
+      </div>
+      <div id="aiLocal" class="card" hidden>
+        <b>Chrome built-in AI</b> <span id="aiLocalState" class="hint">Checking…</span>
+        <div class="row"><button id="aiLocalDownload" hidden>⬇ Download the on-device model</button><progress id="aiLocalProgress" max="1" value="0" hidden></progress><span id="aiLocalOut" class="hint"></span></div>
       </div>
       <div class="row"><button id="aiTest" class="primary">Test connection</button><span id="aiTestOut" class="hint"></span></div>
       <h3>Behaviour</h3>

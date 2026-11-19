@@ -365,6 +365,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return { text: await AJP.ai.tasks.test({ tid }) };
     },
 
+    // Chrome built-in AI as the background sees it (that's where AI calls run).
+    async 'ai.localStatus'() {
+      return AJP.ai.local.status();
+    },
+
     // One analyzed job with its score per career track (feeds track insights / compare).
     async recordEvaluation({ ev }) {
       if (!ev || !ev.jobKey) return {};

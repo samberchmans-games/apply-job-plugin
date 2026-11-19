@@ -130,7 +130,13 @@ PARTS = [
          'say': 'In Job preferences, set a minimum salary of one hundred fifty thousand, tick only Remote, and add Austin, Texas.', 'caption': 'Job preferences: salary, Remote only, Austin, TX', 'check': '1.7'},
         {'kind': 'admin', 'hash': 'ai', 'seed': BASE, 'actions': "H.fakeAI(['OK']); H.click('#aiTest'); await H.waitFor(() => /Works/.test(document.querySelector('#aiTestOut').textContent));",
          'highlight': ['#aiProvider', '#aiTestOut'], 'say': 'Last, in AI settings, choose Groq, paste your free API key, and click Test connection. You should see: works.', 'caption': 'AI settings: Groq + your free key → Test connection → ✅ Works', 'check': '1.9'},
-        card('Part 1 done', 'Next: Part 2 · Match % on job pages', 'That is setup done. Mark checks one point one to one point fourteen in the guide. Next, part two: the match score on job pages.'),
+        {'kind': 'admin', 'hash': 'ai', 'seed': {**BASE, 'settings': {**SETTINGS, 'ai': {**SETTINGS['ai'], 'provider': 'chrome'}}},
+         'actions': "window.__st='downloadable'; window.LanguageModel = { availability: async () => window.__st, create: async (o) => { if (o && o.monitor) { const m = new EventTarget(); o.monitor(m); for (const l of [0.3, 0.7, 1]) { const e = new Event('downloadprogress'); e.loaded = l; m.dispatchEvent(e); await H.sleep(150); } window.__st = 'available'; } return { prompt: async () => 'OK', destroy() {} }; } }; "
+                    "document.querySelector('#aiProvider').dispatchEvent(new Event('change', {bubbles:true})); await H.waitFor(() => !document.querySelector('#aiLocalDownload').hidden); H.click('#aiLocalDownload'); "
+                    "await H.waitFor(() => /Downloaded/.test(document.querySelector('#aiLocalOut').textContent), 5000); H.click('#aiTest'); await H.waitFor(() => /Works/.test(document.querySelector('#aiTestOut').textContent), 5000);",
+         'highlight': ['#aiLocal', '#aiTestOut'], 'budget': 9000,
+         'say': 'No API key? On a recent desktop Chrome, choose Chrome built-in AI. It runs on your computer, so nothing leaves it. Click Download the on-device model once, wait for it to finish, then Test connection.', 'caption': 'No key needed: Chrome built-in AI → Download once → Test connection', 'check': '1.16 – 1.18'},
+        card('Part 1 done', 'Next: Part 2 · Match % on job pages', 'That is setup done. Mark checks one point one to one point eighteen in the guide. Next, part two: the match score on job pages.'),
     ]},
     {'title': 'Match on job pages', 'scenes': [
         card('Part 2 · Match % on job pages', 'Apply Job Assistant · tester walkthrough', 'Part two. We check that job posts are read correctly, and that the match score makes sense.', 'Tester Guide, Session 2. About 10 minutes.'),
