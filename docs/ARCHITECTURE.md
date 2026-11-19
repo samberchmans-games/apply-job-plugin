@@ -538,6 +538,9 @@ video/                    tester walkthrough videos: parts.py (scenes per part),
 - **browser-tests** — `tests/run-browser-tests.sh` in the runner's Google Chrome (`CHROME_FLAGS=--no-sandbox`), per-suite counts printed.
 Run all three locally before pushing: `sh tests/check.sh && sh tests/run-tests.sh && sh tests/run-browser-tests.sh`.
 
+### Packaging (`tools/package.py`)
+One source tree, one source `manifest.json` (with both `service_worker` and `scripts`). The packager writes each store's manifest: Chrome/Edge keep only `service_worker` and drop Firefox settings; Firefox keeps only `scripts` plus `gecko` id / minimum version / `data_collection_permissions`; Safari keeps `service_worker` (16.4+). It packs only `manifest.json`, `src/`, `icons/`, `LICENSE` (never tests, docs, video, tools, dotfiles), with fixed timestamps for reproducible zips, then verifies each zip: every manifest / background / page reference is inside, no remote scripts, nothing that must not ship, description ≤ 132 chars, and the Firefox background list loads every library the service worker imports. `tools/safari.sh` turns the Safari variant into an Xcode project and builds it. CI runs the packager and Mozilla's `web-ext lint`, and keeps the zips as a run artifact.
+
 ## 13. Cross-browser notes
 
 | Topic | Chrome / Edge | Firefox | Safari |
@@ -599,6 +602,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-18 | **Per-store manifests are generated at packaging time**, the repo keeps one cross-browser manifest | Load-unpacked keeps working in every browser during development; each store still gets exactly the keys it accepts |
 | 2026-11-18 | **Chrome built-in AI runs in the background**, its download in Admin | AI calls stay in one place (keys, logs, traces, retries); the browser only requires a click for the one-time download |
 | 2026-11-18 | **Site adapters = field names + reusable widget handlers**, not one script per site; the widget pass also runs on unknown sites | Most ATSs share a few widget kinds (React-Select, select2, Yes/No buttons); handling the kind helps every site using it, and site configs stay small and easy to fix |
 | 2026-11-18 | **Years & seniority are fit rows, not part of the %**; synonyms via a hand-kept implies/similar table, not embeddings | Parsing years from free text is heuristic, so it informs instead of scoring; embeddings would need a model download or a server, against "fast, offline, no database" |

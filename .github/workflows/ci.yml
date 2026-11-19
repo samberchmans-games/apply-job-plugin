@@ -52,3 +52,24 @@ jobs:
           TIMEOUT: '420'
           BY_SUITE: --by-suite
         run: sh tests/run-browser-tests.sh
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [checks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and verify the store packages
+        run: python3 tools/package.py
+      - name: Firefox add-on lint (Mozilla web-ext)
+        run: |
+          mkdir -p /tmp/ff && unzip -q dist/apply-job-assistant-*-firefox.zip -d /tmp/ff
+          npx --yes web-ext@8 lint --source-dir /tmp/ff --output text
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-packages
+          path: dist/*.zip
+          retention-days: 30

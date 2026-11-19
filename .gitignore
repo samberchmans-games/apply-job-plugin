@@ -8,3 +8,5 @@ apply-job-backup-*.json
 apply-job-logs-*.json
 video/build/
 video/out/
+__pycache__/
+*.pyc

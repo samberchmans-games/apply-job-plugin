@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 14, profile suggestions from learned answers
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 16, store packaging (Chrome, Edge, Firefox, Safari)
 
 ## Summary
 
@@ -21,7 +21,7 @@ This is the single page for **where every component stands right now**. The othe
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
 | Open bugs | **0 known** (15 found and fixed so far, each with a test) |
-| Next step | **Store packaging** (Chrome Web Store, Firefox Add-ons, Edge), then work/education entries on other sites, Admin/popup UI tests, Safari packaging |
+| Next step | **Work/education entries on other sites**, then Admin/popup UI tests |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -86,6 +86,7 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
+| C38 | **Store packaging** (Chrome, Edge, Firefox, Safari) | `tools/package.py`, `tools/safari.sh`, `tools/store_assets.py`, `docs/store/` | ✅ | — | ⏳ | Submission needs your developer accounts (W21) |
 | C37 | **Profile suggestions** (learned answers → profile) + shared field rules | `src/lib/profile-suggest.js`, `src/lib/field-rules.js`, `admin.js`, `popup.js` | ✅ | 19 | ⏳ | |
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
@@ -103,6 +104,7 @@ Columns:
 | W01 | Multiple career tracks (2–3 profiles, score every job against each, best track, insights, compare) | 6 | Claude | ✅ Done | W16 ✅ |
 | W18 | Tester material for every step: Tester Guide session + walkthrough video part | — | Claude | ✅ Ongoing (8 sessions, 7 videos, Workday emulation, PDF checks) | — |
 | W19 | **Issue reporting, extension side**: Report on GitHub, similar reports, crash prompt, My reports | 7 | Claude | ✅ Done | — |
+| W21 | Submit to the stores: Chrome Web Store (one-time fee), Edge Add-ons, Firefox AMO; Safari needs an Apple Developer membership. Decide the 4 items in docs/store/SUBMISSION.md first | — | **You** | ⏳ When you're ready | Store packaging ✅ |
 | W20 | Create the triage labels once in GitHub (`needs-info`, `confirmed`, `in-progress`, `duplicate`, `wont-fix`, `fixed-in:…`) | — | **You** | ⏳ Waiting on you | — |
 | W02 | Read PDF resumes automatically | 8 | Claude | ✅ Done | — |
 | W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | ✅ Done (against an emulation) | — |
@@ -139,6 +141,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 16 | **Store packaging**: per-store zips with the right manifest + verification (`tools/package.py`), Chrome packer and Safari Xcode build verified, CI package job with Mozilla `web-ext lint`, listing texts, privacy policy, submission checklist, screenshots + promo tiles (`tools/store_assets.py`), Safari project (`tools/safari.sh`) | _pending_ | 915 |
 | 14 | **Profile suggestions from learned answers**: shared field rules (`field-rules.js`), suggestion rules (empty field / typed twice, most used wins, EEO never), Admin box with Save / Dismiss / Save all + menu count, popup line; Tester Guide 4.20–4.21 + video Part 4 scene | `4561e39` | 915 |
 | 15 | **CI on GitHub**: checks (manifest, files, syntax, debug code), CLI tests (Node), full browser suite (headless Chrome) on every push / PR; `tests/check.sh` | `db02377` | 896 |
 | 13 | **Chrome built-in AI** (on-device, no key): new provider, Admin status + one-time download + "Use it" banner, prompt fitting, 4 new error codes; Tester Guide 1.16–1.18 + video Part 1 scene | `be4de6f` | 896 |

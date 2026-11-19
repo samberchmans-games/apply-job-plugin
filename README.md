@@ -32,9 +32,14 @@ Clone the repo, then load the folder that contains `manifest.json`. No build ste
 | **Chrome** | `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → select the repo folder |
 | **Edge** | `edge://extensions` → **Developer mode** → **Load unpacked** → select the repo folder |
 | **Firefox** (121+) | `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → pick `manifest.json`. Then open the extension's **Permissions** tab and allow the job sites (Firefox MV3 treats host permissions as opt-in). |
-| **Safari** (macOS) | `xcrun safari-web-extension-converter /path/to/apply-job-plugin` → open the generated Xcode project → Run → Safari → Settings → Extensions → enable it (also enable *Develop → Allow Unsigned Extensions*). |
+| **Safari** (macOS) | `sh tools/safari.sh` (needs Xcode) → open `dist/safari-project/…/Apply Job Assistant.xcodeproj` → pick your team under Signing → Run → Safari → Settings → Extensions → enable it (for unsigned builds also *Develop → Allow Unsigned Extensions*). |
 
 After installing, the **Admin** page opens automatically. You can reopen it from the toolbar popup at any time, using **⚙ Open Admin**.
+
+### Store packages
+
+`python3 tools/package.py` builds `dist/apply-job-assistant-<version>-{chrome,edge,firefox,safari}.zip`, each with the manifest that store expects, and checks them. CI builds the same zips on every push (download them from the run's **store-packages** artifact). Listing texts, screenshots, privacy policy and the submission checklist are in [docs/store/](docs/store/).
+Quick test of a package: Firefox → `about:debugging` → This Firefox → **Load Temporary Add-on** → pick the firefox zip. Chrome/Edge: unzip the chrome zip, then **Load unpacked**.
 
 ## First-time setup (Admin page)
 
@@ -90,7 +95,9 @@ If you handle support, see [docs/SUPPORT.md](docs/SUPPORT.md) for how to read a 
 ## Development
 
 ```
-manifest.json            MV3, cross-browser (service_worker for Chrome/Edge, scripts for Firefox/Safari)
+manifest.json            MV3, cross-browser source manifest (tools/package.py writes the per-store versions)
+tools/                   package.py (store zips), store_assets.py (screenshots), safari.sh (Xcode project)
+docs/store/              store listing, privacy policy, submission checklist, screenshots
 src/lib/                 shared, framework-free modules (namespace: globalThis.AJP)
   core.js                helpers, browser API shim
   logger.js              structured, redacted logging: sessions, trace ids, timings, flight recorder

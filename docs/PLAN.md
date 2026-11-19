@@ -50,8 +50,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Local-only storage, no DB, in-memory cache | ✅ | `src/lib/storage.js` |
 | Backup / restore / delete-all | ✅ | Admin → Backup |
 | Loaded and verified in a real browser | ⬜ | Your side, when ready: Chrome first, then Firefox, Edge, Safari |
-| Safari packaging (Xcode converter) | ⬜ | Steps documented in README; not yet run |
-| Store packaging (Chrome Web Store, AMO, Edge, Safari) | ⬜ | |
+| Safari packaging (Xcode converter) | ✅ | `tools/safari.sh`: converter + unsigned Debug build verified on this Mac; running it in Safari / App Store needs your Apple team |
+| Store packaging (Chrome Web Store, AMO, Edge, Safari) | ✅ | `tools/package.py` (per-store manifests, verification), CI artifact + `web-ext lint`, `docs/store/` (listing, privacy policy, checklist, screenshots). Submitting = your side (accounts) |
 
 ## 2. Admin page (local)
 | Item | Status | Notes |
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 16 | **Store packaging** (Chrome, Edge, Firefox, Safari) + listing, privacy policy, screenshots | _pending_ |
 | 14 | **Profile suggestions from learned answers** (section 6) + tester checks & video scene | `4561e39` |
 | 15 | **CI on GitHub** (section 9) | `db02377` |
 | 13 | **Chrome built-in AI** (section 7) + tester checks & video scene | `be4de6f` |
@@ -277,6 +278,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 16: store packaging**: per-store zips, Safari project build, CI package job, store listing / privacy policy / screenshots |
 | 2026-11-18 | `4561e39` | **Step 14: profile suggestions from learned answers**; shared field rules; 915 tests |
 | 2026-11-18 | `db02377` | **Step 15: CI on GitHub** (checks, CLI tests, browser tests on every push / PR) |
 | 2026-11-18 | `be4de6f` | **Step 13: Chrome built-in AI** (on-device, no key), Admin download + status, prompt fitting, AJP-AI-LOCAL-* codes; 896 tests |

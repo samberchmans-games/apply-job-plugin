@@ -9,6 +9,7 @@ There are two layers of tests:
 
 | Command | What it runs | Time |
 |---|---|---|
+| `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **494** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
 | `./tests/run-browser-tests.sh` | All **915** tests in headless Chrome. This is the full suite: the 494 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
@@ -80,6 +81,8 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | A6 | Desktop Chrome 138+: Admin → AI settings → Chrome built-in AI | Status Ready / needs download (⬇ button with progress) / can't run here, with the reason |
 | A7 | After the download: Test connection, then AI deep analysis and Draft answer on a job page | "✅ Works"; AI results arrive without any key (note the speed) |
 | A8 | Firefox or Safari: Chrome built-in AI | "This browser has no built-in AI"; choosing it anyway gives AJP-AI-LOCAL-NONE with a hint |
+| A9 | `python3 tools/package.py`, then install each package: Chrome/Edge (unzip → Load unpacked), Firefox (about:debugging → Load Temporary Add-on → the zip) | Each loads without errors; badge, panel, Admin and Autofill work as with the source folder |
+| A10 | `sh tools/safari.sh`, open the project in Xcode, Run, enable the extension in Safari | It appears in Safari → Settings → Extensions; Admin opens; the badge appears on a job site |
 | A5 | Remove and reinstall the extension | All data is gone (expected). Restoring a backup brings it back. |
 
 ### B. Admin page
