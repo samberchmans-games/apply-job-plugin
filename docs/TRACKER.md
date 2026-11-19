@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 11, smarter matching
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 12, Greenhouse / Lever / Ashby / iCIMS adapters
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **812 / 812 passing** (456 also run without a browser), incl. convention checks |
+| Automated tests | **867 / 867 passing** (477 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
-| Tester material | Tester Guide (8 sessions, 87 checks) + 7 walkthrough videos (~8.5 min) + local Workday emulation page |
+| Tester material | Tester Guide (8 sessions, 92 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (14 found and fixed so far, each with a test) |
-| Next step | **Step 12: per-site adapters for Greenhouse, Lever, Ashby, iCIMS** |
+| Open bugs | **0 known** (15 found and fixed so far, each with a test) |
+| Next step | **Step 13: Chrome's built-in on-device AI (no key needed)** |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -54,6 +54,7 @@ Columns:
 | C32 | **Career tracks UI** (panel tabs, Admin tracks + insights + compare, per-track tailoring/autofill/tracking) | `content.js`, `panel.js`, `src/admin/tracks-view.js` | ✅ | 13 | ⏳ | |
 | C33 | **Issue reporting rules** (pre-filled issue, public-text scrubbing, status mapping, crash-prompt rules) | `src/lib/issue-report.js` | ✅ | 29 | ⏳ | |
 | C35 | **Issue reporting UI** (Report on GitHub, similar reports, My reports + badge, crash prompt/banner, Simulate a problem) | `background.js`, `admin.js`, `panel.js` | ✅ | 21 | ⏳ | Status via public GitHub search |
+| C27 | **Greenhouse / Lever / Ashby / iCIMS adapters**: site field names, searchable dropdowns (React-Select), location autocompletes, Yes/No buttons, hidden selects behind custom dropdowns (select2, iCIMS), Lever resume-first, iCIMS sign-in note; the widgets also work on unknown sites | `src/content/ats.js`, `tests/fixtures/ats-mock.js`, `tests/fixtures/ats-sample.html` | ✅ | 55 | ⏳ | Built against emulations: **verify on real applications (W06b)** |
 | C25 | **Workday adapter** (pop-up dropdowns, search prompts, dates, Add entries, multi-page offer) | `src/content/workday.js`, `tests/fixtures/workday-mock.js` | ✅ | 34 | ⏳ | Built against an emulation: **verify on real Workday (W03b)** |
 | C29 | **Resume enhancement rules engine** | `src/lib/resume-engine.js` | ✅ | 54 | ⏳ | Parsing, strict prompts, validator (no job numbers, no invented numbers/skills/names, no copied job text, evidence required), result-oriented checks, assembly + integrity check |
 
@@ -85,12 +86,10 @@ Columns:
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
-| C26 | Tailored resume as a PDF/DOCX file | 10 | ⬜ | |
-| C27 | Per-site adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | ⬜ | |
 | C28 | CI on GitHub (run tests on every push) | 15 | ⬜ | |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) = **812**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) = **867**
 
 ---
 
@@ -107,9 +106,10 @@ Columns:
 | W02 | Read PDF resumes automatically | 8 | Claude | ✅ Done | — |
 | W03 | Workday custom dropdowns, date pickers, multi-step experience | 9 | Claude | ✅ Done (against an emulation) | — |
 | W03b | Try Autofill on 1–2 real Workday applications; report any missed field (page + label) | — | **You** | ⏳ Waiting on you | W03 |
-| W04 | Attach the tailored resume as PDF/DOCX | 10 | Claude | **⬜ Next**, waiting for your go | — |
-| W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ⬜ To do | — |
-| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ⬜ To do | W10 findings |
+| W04 | Attach the tailored resume (one format: PDF) | 10 | Claude | ✅ Done | — |
+| W05 | Years-of-experience & seniority check; skill synonyms | 11 | Claude | ✅ Done | — |
+| W06 | Per-site autofill adapters (Greenhouse, Lever, Ashby, iCIMS) | 12 | Claude | ✅ Done (against emulations) | — |
+| W06b | Try Autofill on 1–2 real Greenhouse, Lever, Ashby and iCIMS applications (Tester Guide 4.15–4.19); report any missed field (site + label) | — | **You** | ⏳ Waiting on you | W06 |
 | W07 | Chrome built-in AI provider (no key) | 13 | Claude | ⬜ To do | — |
 | W08 | Suggest profile updates from learned answers | 14 | Claude | ⬜ To do | — |
 | W09 | CI on GitHub | 15 | Claude | ⬜ To do | — |
@@ -137,6 +137,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** + generic searchable dropdowns, Yes/No buttons, hidden selects, "TX → Texas" for every native dropdown; fixed B15; emulations + local sample page; Tester Guide 4.15–4.19 + video Part 4 scenes | _pending_ | 867 |
 | 11 | **Smarter matching**: years of experience (overall + per skill, from profile / work history / resume dates), seniority level, implied and similar skills; fixed B14; Tester Guide 2.10–2.13 + video Part 2 scene | `29a3e2a` | 812 |
 | 10 | **One resume format (PDF)**: built-in PDF writer; every resume gets a PDF (tailored ones named for the company); Autofill uploads the resume tailored for *this* job and the panel names the file; Admin Download / View PDF (print view and .md removed); Tester Guide 1.13–1.15, 4.13–4.14 + video scenes | `b7b2522` | 749 |
 
@@ -157,6 +158,7 @@ Columns:
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B15 | A `<select>` inside its own `<label>` (Lever) was labelled with all its options ("Gender✱Select …MaleFemale…"); "✱" was not stripped | Video render | Step 12 | sites › bug B15… |
 | B14 | A short bullet with "experience" or "skills" under **Nice to have** (e.g. "- Experience with Snowflake") was read as a heading and flipped the rest back to *required* | Experience tests | Step 11 | matcher › bug B14… |
 
 ## 5. How to update this file

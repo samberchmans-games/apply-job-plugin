@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(ROOT, 'video'))
 from parts import PARTS  # noqa: E402
 
 LIBS = ['core', 'logger', 'errors', 'storage', 'skills-dictionary', 'matcher', 'experience', 'ai', 'docx', 'tracker', 'resume-engine', 'tracks', 'issue-report', 'pdf-writer', 'diagnostics']
-CONTENT = ['jd-extractor.js', 'form-filler.js', 'workday.js', 'apply-detector.js', 'panel.js', 'content.js']
+CONTENT = ['jd-extractor.js', 'form-filler.js', 'workday.js', 'ats.js', 'apply-detector.js', 'panel.js', 'content.js']
 
 
 def scene_html(kind, cfg):
@@ -54,6 +54,15 @@ def scene_html(kind, cfg):
         html = html.replace('<script src="workday-mock.js"></script>', mock + stage + libs + '<script src="/src/background/background.js"></script>' + '<script src="workday-mock.js"></script>', 1)
         html = html.replace('let i = 0;', "let i = Math.max(0, pages.indexOf(%s));" % json.dumps(cfg.get('wdPage', 'info')), 1)
         html = html.replace('<p class="note">', '<p class="note" hidden>', 1)
+        return html.replace('</body>', content + '</body>', 1)
+    if kind == 'ats':
+        html = open(os.path.join(ROOT, 'tests/fixtures/ats-sample.html')).read()
+        libs = ''.join('<script src="/src/lib/%s.js"></script>' % l for l in LIBS)
+        content = ''.join('<script src="/src/content/%s"></script>' % c for c in CONTENT)
+        html = html.replace('<head>', '<head><base href="/tests/fixtures/">' + cfg_js, 1)
+        html = html.replace('<script src="ats-mock.js"></script>', mock + stage + libs + '<script src="/src/background/background.js"></script><script src="ats-mock.js"></script>', 1)
+        html = html.replace("|| 'greenhouse'", "|| %s" % json.dumps(cfg.get('atsSite', 'greenhouse')), 1)
+        html = html.replace('<p class="note">', '<p class="note" hidden>', 1).replace('<nav id="nav">', '<nav id="nav" hidden>', 1)
         return html.replace('</body>', content + '</body>', 1)
     if kind == 'card':
         items = ''.join('<li>%s</li>' % i for i in cfg.get('items', []))
@@ -102,7 +111,7 @@ def build_part(n, part):
     for i, sc in enumerate(scenes, 1):
         cfg = dict(sc.get('cfg', {}))
         cfg.update(part=n, partTitle=part['title'], step=i, total=len(scenes))
-        for k in ('caption', 'check', 'highlight', 'actions', 'seed', 'settle', 'wdPage'):
+        for k in ('caption', 'check', 'highlight', 'actions', 'seed', 'settle', 'wdPage', 'atsSite'):
             if k in sc:
                 cfg[k] = sc[k]
         rel = f"video/build/{slug}/s{i}.html"

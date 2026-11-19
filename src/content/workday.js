@@ -80,6 +80,11 @@
     if (/country/i.test(key) && COUNTRY_ALIASES[v.toLowerCase()]) out.push(COUNTRY_ALIASES[v.toLowerCase()]);
     if (/degree/i.test(key)) for (const [re, name] of DEGREE_ALIASES) if (re.test(v)) out.push(name);
     if (/decline|prefer not|not wish/i.test(v)) out.push('I do not wish to answer', 'I do not wish to self-identify');
+    // Veteran status is worded many ways: "I am not a protected veteran" ↔ "I am not a veteran" ↔ "No".
+    if (/veteran/i.test(key) || /veteran/i.test(v)) {
+      if (/\bnot\b/i.test(v)) out.push('I am not a veteran', 'I am not a protected veteran', 'Not a veteran', 'No');
+      else if (/identify as|protected veteran|^yes$/i.test(v)) out.push('I identify as one or more of the classifications of protected veteran', 'I am a protected veteran', 'I am a veteran', 'Yes');
+    }
     return out;
   }
 

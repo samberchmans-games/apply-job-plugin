@@ -17,13 +17,13 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Admin page | ✅ (incl. PDF resumes, one PDF per resume) |
 | Job reading & match % | ✅ (incl. years, seniority, synonyms) |
 | Resume tailoring (v2: evidence-checked, result-oriented) | ✅ · ⏳ real-AI quality check (your side) · ⬜ attach the tailored file |
-| Autofill & learning | ✅ incl. Workday (verify on real Workday) · ⬜ per-site adapters |
+| Autofill & learning | ✅ incl. Workday, Greenhouse, Lever, Ashby, iCIMS (verify on real sites) |
 | Application tracker | ✅ complete |
 | Logging & support | ✅ complete · one standard for errors, retries and failure capture across the plugin (enforced by tests) |
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 812 automated + 122 manual scenarios · ⬜ CI |
+| Tests | ✅ 867 automated + 122 manual scenarios · ⬜ CI |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -110,7 +110,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Application tracking | ✅ | Full tracker — see section 11 |
 | Workday custom dropdowns, date pickers, multi-step "My Experience" | ✅ | Step 9; `src/content/workday.js`; built against an emulation, to verify on real Workday |
 | Repeatable experience/education entries on forms | 🟡 | ✅ Workday (Add + fill); other sites ⬜ |
-| Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ⬜ | |
+| Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ✅ | Step 12; `ats.js`: site field names, searchable dropdowns, location autocompletes, Yes/No buttons, hidden selects, Lever resume-first, iCIMS sign-in note. Built against emulations: verify on real sites |
 | Job-site accounts (username/password) | ⬜ | Plan: use the browser's password manager, not our storage |
 
 ## 6. Learning about the user
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 812 across 25 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 812) · `./tests/run-tests.sh` (the 456 that need no browser) |
+| Automated tests: 867 across 26 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 867) · `./tests/run-tests.sh` (the 477 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 12 | **Greenhouse / Lever / Ashby / iCIMS adapters** (section 5) + emulations, tester checks & video scenes | _pending_ |
 | 11 | **Smarter matching** (section 3) + tester checks & video scene | `29a3e2a` |
 | 10 | **One resume format (PDF)** (section 4) + tester checks & video scenes | `b7b2522` |
 | 9 | **Workday support** (section 5) + tester checks, video scenes, Workday emulation | `fd1b226` |
@@ -225,7 +226,6 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 12 | Per-site adapters for Greenhouse, Lever, Ashby, iCIMS (higher fill accuracy) | 5 | Medium |
 | 13 | Chrome's built-in on-device AI (no key needed) | 7 | Small |
 | 14 | Suggest profile updates from learned answers | 6 | Small |
 | 15 | CI on GitHub: run the tests on every push/PR | 9 | Small |
@@ -277,6 +277,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 12: Greenhouse / Lever / Ashby / iCIMS adapters**, generic dropdown widgets, B15 fix; 867 tests |
 | 2026-11-18 | `29a3e2a` | **Step 11: smarter matching**: years (overall + per skill), seniority, implied/similar skills, B14 fix; 812 tests |
 | 2026-11-18 | `b7b2522` | **Step 10: one resume format (PDF)**: PDF writer, tailored PDFs, Autofill uploads the job's tailored PDF, Download / View PDF; 749 tests |
 | 2026-11-18 | `fd1b226` | **Step 9: Workday support** + rule-order fixes + Workday emulation + tester checks/video; 720 tests |

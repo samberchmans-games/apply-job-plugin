@@ -20,7 +20,14 @@
   const NEVER_LEARN = /(ssn|social security|password|passcode|card number|cvv|cvc|bank|routing|account number|date of birth|\bdob\b)/i;
 
   // ---- Labels -----------------------------------------------------------------
-  const clean = (s) => String(s || '').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+  const clean = (s) => String(s || '').replace(/\s+/g, ' ').replace(/[*✱∗＊]/g, '').trim();
+  // A <label> that wraps its control (Lever) must not include the control's own text (a select's options).
+  const labelText = (l) => {
+    if (!l.querySelector('select, textarea, input, option')) return l.textContent;
+    const c = l.cloneNode(true);
+    c.querySelectorAll('select, textarea, input, option, button').forEach((n) => n.remove());
+    return c.textContent;
+  };
 
   function byIds(ids) {
     return clean(
@@ -52,7 +59,7 @@
 
   function labelFor(el) {
     if (el.labels && el.labels.length && !/^(radio|checkbox)$/i.test(el.type)) {
-      const t = clean([...el.labels].map((l) => l.textContent).join(' '));
+      const t = clean([...el.labels].map(labelText).join(' '));
       if (t) return t;
     }
     const aria = byIds(el.getAttribute('aria-labelledby')) || clean(el.getAttribute('aria-label'));
@@ -131,6 +138,7 @@
   function ruleFor(label) {
     return RULES.find((r) => r.re.test(label));
   }
+  const ruleByKey = (key) => RULES.find((r) => r.key === key);
 
   // ---- Setting values (works with React/Vue controlled inputs) -------------------
   function setNativeValue(el, value) {
@@ -173,6 +181,12 @@
     if (!best || bestScore < 3) return false;
     setNativeValue(el, best.value);
     return true;
+  }
+
+  // Also tries the site's usual wording: "TX" → "Texas", "USA" → "United States of America", "B.S." → "Bachelor's Degree".
+  function fillSelectAny(el, value, key) {
+    const tries = AJP.workday ? AJP.workday.candidates(value, key || labelFor(el)) : [value];
+    return tries.some((v) => fillSelect(el, v));
   }
 
   function fillRadioGroup(radios, value) {
@@ -265,14 +279,32 @@
 
   async function fillInner({ profile, answers, resume, root = document }) {
     const t0 = performance.now();
-    const report = { filled: [], learned: [], skipped: [], questions: [], unknown: [], host: location.hostname };
+    const report = { filled: [], learned: [], skipped: [], questions: [], unknown: [], notes: [], host: location.hostname };
     const doneGroups = new Set();
     const workday = AJP.workday && AJP.workday.applies(root);
-    const fields = [...root.querySelectorAll(FIELD_SEL)].filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el) && !(workday && AJP.workday.owns(el)));
+    const site = !workday && AJP.ats ? AJP.ats.detect(root) : null;
+    if (site) report.site = site.name;
+    const rulefor = (el, label) => {
+      const key = site && AJP.ats.ruleKey(el, site);
+      return (key && ruleByKey(key)) || ruleFor(label);
+    };
+    const fields = [...root.querySelectorAll(FIELD_SEL)]
+      .filter((el) => !SKIP_TYPES.test(el.type || '') && !el.disabled && !el.readOnly && visible(el) && !(workday && AJP.workday.owns(el)) && !(AJP.ats && AJP.ats.owns(el)) && !(site && site.location && el.matches(site.location.input)))
+      // Files first: some sites (Lever) read the uploaded resume and fill fields themselves.
+      .sort((a, b) => (b.type === 'file') - (a.type === 'file'));
+    let snap = null;
+    let waitedForSite = !(site && site.resumeFirst);
 
     for (const el of fields) {
       if (!el.dataset.ajpId) el.dataset.ajpId = AJP.uid('f');
       const type = (el.type || el.tagName).toLowerCase();
+      if (!waitedForSite && type !== 'file') {
+        waitedForSite = true;
+        if (snap) {
+          const changed = await AJP.ats.siteFilled(snap);
+          if (changed.length) report.notes.push(`${site.name} filled ${changed.length} field(s) from your resume; your profile values were used where you have them.`);
+        }
+      }
       try {
         // Radio/checkbox groups
         if (type === 'radio' || type === 'checkbox') {
@@ -282,7 +314,7 @@
           const group = el.name ? [...root.querySelectorAll(`input[name="${CSS.escape(el.name)}"]`)] : [el];
           if (group.some((r) => r.checked)) continue;
           const q = groupQuestion(el);
-          const rule = ruleFor(q);
+          const rule = rulefor(el, q);
           let value = rule ? rule.v(profile) : '';
           let how = 'profile';
           if (!value) {
@@ -299,6 +331,7 @@
         const label = labelFor(el);
         if (type === 'file') {
           if (/resume|cv\b|curriculum/i.test(label + ' ' + (el.name || '') + ' ' + (el.id || '')) && !el.files.length) {
+            if (site && site.resumeFirst && !snap) snap = AJP.ats.snapshot(root);
             if (await attachFile(el, resume)) {
               report.filled.push('Resume file');
               report.attached = attachFile.lastName;
@@ -308,11 +341,22 @@
           continue;
         }
 
-        if (el.value && el.value.trim() && el.tagName !== 'SELECT') continue; // never overwrite user input
+        // Never overwrite user input (a value the SITE guessed from the resume may be replaced; see Lever).
+        if (el.value && el.value.trim() && el.tagName !== 'SELECT' && !el.dataset.ajpSiteFilled) continue;
         if (el.tagName === 'SELECT' && el.selectedIndex > 0) continue;
 
         const isLongText = el.tagName === 'TEXTAREA';
-        const rule = ruleFor(label);
+        // "Paste your resume" boxes: the resume text, never an AI question. Skipped when the file went in.
+        if (isLongText && (/^(resume|cv)\b|resume\s*\/\s*cv|paste (your )?resume/i.test(label) || (site && site.resumeText && /resume/i.test(el.name || el.id || '') && site.resumeText.test(el.name || el.id || '')))) {
+          if (!report.attached && resume && (resume.text || '').trim()) {
+            setNativeValue(el, resume.text);
+            el.dataset.ajpValue = el.value;
+            mark(el, 'profile');
+            report.filled.push('Resume (pasted text)');
+          }
+          continue;
+        }
+        const rule = rulefor(el, label);
         let value = rule && (!isLongText || rule.textarea) ? rule.v(profile) : '';
         let how = 'profile';
         if (!value) {
@@ -320,6 +364,7 @@
           if (l) (value = l.value), (how = 'learned');
         }
 
+        if (!value && el.dataset.ajpSiteFilled) continue; // keep what the site read from the resume
         if (!value) {
           if (isLongText || (label.length > 30 && /\?|describe|explain|why|tell us/i.test(label))) {
             report.questions.push({ ajpId: el.dataset.ajpId, label: label.slice(0, 300), maxLength: el.maxLength > 0 ? el.maxLength : null });
@@ -327,7 +372,7 @@
           continue;
         }
 
-        const ok = el.tagName === 'SELECT' ? fillSelect(el, value) : (setNativeValue(el, String(value)), true);
+        const ok = el.tagName === 'SELECT' ? fillSelectAny(el, value, rule && rule.key) : (setNativeValue(el, String(value)), true);
         if (ok) {
           mark(el, how);
           el.dataset.ajpValue = el.value;
@@ -335,6 +380,18 @@
         } else report.unknown.push(label);
       } catch (e) {
         log.warn('Field fill failed', { label: labelFor(el), error: e.message });
+      }
+    }
+
+    // Site widgets: searchable dropdowns, location autocompletes, Yes/No buttons, hidden selects (Greenhouse,
+    // Lever, Ashby, iCIMS, and the same widgets on any other site).
+    if (!workday && AJP.ats) {
+      try {
+        await AJP.ats.fill({ profile, answers, resume, root, report, site });
+      } catch (e) {
+        const x = AJP.toAppError(e);
+        log.error('Site widgets autofill failed', { code: x.code, error: x.message, details: x.details }, { code: x.code });
+        report.skipped.push(`Dropdowns and buttons (${x.code})`);
       }
     }
 
@@ -350,7 +407,7 @@
     }
 
     report.ms = Math.round(performance.now() - t0);
-    log.info('Autofill done', { host: report.host, filled: report.filled.length, learned: report.learned.length, questions: report.questions.length, unknown: report.unknown.length, ms: report.ms });
+    log.info('Autofill done', { host: report.host, site: site ? site.id : workday ? 'workday' : 'generic', filled: report.filled.length, learned: report.learned.length, questions: report.questions.length, unknown: report.unknown.length, ms: report.ms });
     return report;
   }
 
@@ -396,6 +453,13 @@
       },
       true
     );
+    // Searchable dropdowns and Yes/No buttons are not <select>/radios: learn from what the user clicks.
+    if (AJP.ats) {
+      AJP.ats.learnFromClicks((label, value, kind) => {
+        if (filling || NEVER_LEARN.test(label)) return;
+        AJP.send('learnAnswer', { label, value, host: location.hostname, kind });
+      });
+    }
     // Workday dropdowns are buttons + popup lists, not <select>: learn from the option the user clicks.
     if (AJP.workday) {
       AJP.workday.learnFromClicks((label, value) => {
@@ -406,5 +470,5 @@
     log.debug('Learning listener on', { host: location.hostname });
   }
 
-  AJP.filler = { fill, fillQuestion, startLearning, labelFor, groupQuestion, ruleFor, optionScore, findLearned, setNativeValue, mark, NEVER_LEARN };
+  AJP.filler = { fill, fillQuestion, startLearning, labelFor, groupQuestion, ruleFor, ruleByKey, optionScore, fillSelect, fillSelectAny, findLearned, setNativeValue, mark, NEVER_LEARN, RULES };
 })();

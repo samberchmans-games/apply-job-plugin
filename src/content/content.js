@@ -337,6 +337,8 @@
       const cur = state.autofill || { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       for (const k of ['filled', 'learned', 'unknown', 'questions', 'skipped']) cur[k] = cur[k].concat(r[k] || []);
       if (r.attached) cur.attached = r.attached;
+      if (r.site) cur.site = r.site;
+      cur.notes = (cur.notes || []).concat((r.notes || []).filter((n) => !(cur.notes || []).includes(n)));
       state.autofill = cur;
       state.message = '';
       render();

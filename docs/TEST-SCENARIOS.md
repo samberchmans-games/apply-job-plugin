@@ -2,15 +2,15 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (812). Run them before every merge into `develop`.
+1. **Automated tests** (867). Run them before every merge into `develop`.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
 
 | Command | What it runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh` | The **456** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **812** tests in headless Chrome. This is the full suite: the 456 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **477** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **867** tests in headless Chrome. This is the full suite: the 477 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -42,6 +42,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Smarter matching | `unit/experience.test.js` | Years asked (7 phrasings, ranges, number words) and what to ignore (company history, ages, degrees, "past 10 years"); highest required ask wins; per-skill asks ("3+ years with Kafka", "4 years of Java experience", either-or); date formats; Experience-section roles only; overlapping jobs counted once; profile > work history > resume; years per skill incl. implied skills; seniority from 12 title styles, "Product Manager" not a level, fallback to years; fit rows (enough / close / short / unknown / stretch / below); implied skills (one-way), similar half credit, new aliases, **"Go" still not a word match**, score ignores years, **a crash in the check never breaks matching**, speed; B14 |
 | PDF resumes | `unit/pdf.test.js` | Rebuilding lines from positioned text (order, spacing, paragraphs, 7 bullet glyphs → "- ", negative numbers kept, columns, uneven baselines); error mapping (locked → AJP-PDF-LOCKED, broken → AJP-RES-PARSE); **real pdf.js on generated PDFs** (resume, ready for tailoring, multi-page, scanned → AJP-PDF-NOTEXT, not-a-PDF, reader fails to load then recovers); Admin upload (text + file saved, bullet count message, scanned PDF message, "Read text from PDF" for older uploads) |
 | The standard (errors / retries / conventions) | `unit/standard.test.js` | Temporary vs permanent codes; retry with backoff and Retry-After; `AJP.http` (JSON, 5xx retried, 4xx not, network, timeout, bad JSON, Retry-After); AI uses it (503 retried, 401 not); `AJP.guard` (coded log + trace, message shown, never throws); panel actions guarded; send/storage recover; **source scan**: no `throw new Error`, no raw fetch, error keys exist and are documented, no silent catch, no console, captureErrors on pages |
+| Site adapters | `unit/ats.test.js` (+ `fixtures/ats-mock.js`) | Detection by host (look-alikes rejected) and by markup; site field names → profile values; location scoring; **Greenhouse** React-Select (yes/no, learned, EEO wording, async location search, user's choice kept, no menu left open, questions, learning from picks); **Greenhouse classic** select2 proxies, resume box left empty / pasted when no upload; **Lever** resume first then profile replaces the site's guesses (typed values kept), URLs, location from its list, radio cards, EEO selects, B15 labels; **Ashby** system fields, Yes/No buttons (profile, learned, user's choice kept, learning), comboboxes, EEO radios; **iCIMS** names, hidden dropdowns (TX → Texas, USA → United States), sign-in note; panel site + notes; widgets on unknown sites; one broken widget never stops the rest |
 | Workday | `unit/workday.test.js` (+ `fixtures/workday-mock.js`) | Dates ("06/2019", "June 2019", "2019-06"…), Workday wording (TX → Texas, USA → United States of America, B.S. → Bachelor's Degree, decline → "I do not wish to answer"); detection (also on custom domains); against an **emulated Workday form**: text fields, pop-up dropdowns, search prompts with learned answers, unanswerable questions reported, user choices kept, no pop-up left open, **Save and Continue / Submit never clicked**, broken dropdown reported while the rest fills, learning from picked options; My Experience: one entry per job via Add, Month/Year dates, "currently work here", education prompts + degree; existing entries kept; EEO wording; multi-page "Autofill this page" in the panel |
 | Resume PDFs | `unit/pdf-writer.test.js` | WinAnsi encoding (smart quotes, dashes, bullets; unsupported → "?" counted); wrapping by real Helvetica widths; resume structure; **valid PDF with exact xref offsets**; plain (uncompressed) text; escaping; multi-page; empty → AJP-PDF-CREATE; safe file names; **pdf.js reads our PDF back**; Autofill makes/uses a PDF (typed, old Word, own PDF kept); Admin Download / View, regenerate on edit, uploaded PDF never replaced, Word upload keeps the original. Plus: tailored resume gets its PDF (`enhance-flow`), Autofill uploads the one tailored for this job and the panel names it (`tracks-flow`) |
 | Background + end-to-end | `unit/background.test.js` | Every message type; 20 simultaneous saves with no lost updates; application add/update; tailored resume saved as a new version (original untouched); log ring buffer (max 3,000 entries, max 200 per message); failed actions logged; **right-click → score**, **Autofill button → form filled → report → application tracked**, **Mark applied** |
@@ -147,7 +148,11 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | ID | Steps | Expected |
 |---|---|---|
 | E1 | Greenhouse application → Autofill form | Name, email, phone, LinkedIn and location filled (green outline); resume attached; work authorization and sponsorship answered |
-| E2 | Lever application | Same as E1 |
+| E2 | Lever application | Same as E1. The resume is attached first; Lever's guesses are replaced by your profile and the panel says so; location picked from Lever's list |
+| E20 | Greenhouse searchable dropdowns and EEO | Work authorization, sponsorship, EEO answers and "Location (City)" picked from their lists; the panel heading says "Autofill · Greenhouse" |
+| E21 | Ashby application | Yes/No buttons answered; location picked; resume attached |
+| E22 | iCIMS application (sign-in page, then the form) | Sign-in page: a note to sign in yourself, password untouched. Form: name, address, State/Country dropdowns (TX → Texas) |
+| E23 | Local emulations (`python3 tests/serve.py` → `/tests/fixtures/ats-sample.html`, switch sites at the top) | Same as E1, E2, E20–E22 |
 | E3 | Workday application, My Information | Text fields, dropdowns (country, state, phone type, yes/no) and search boxes filled; nothing submitted |
 | E14 | Workday: Save and Continue | The panel offers "⚡ Autofill this page" for the next page |
 | E15 | Workday: My Experience → Autofill this page | One entry per job is added and filled (title, company, Month/Year dates, current job, description); education too |
@@ -155,7 +160,7 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | E17 | Local Workday emulation (`python3 tests/serve.py` → `/tests/fixtures/workday-sample.html`) | Same as E3, E14–E16 |
 | E18 | Tailor the resume for a job (D-scenarios) → Create, then Autofill **that** job's application | The file attached is "<Name> - Resume - <Company>.pdf"; the panel shows "📎 Resume attached: …" |
 | E19 | Autofill a different job you did not tailor for | Your track's / active resume PDF is attached instead |
-| E4 | Ashby, SmartRecruiters, iCIMS applications | Text fields and native dropdowns filled |
+| E4 | SmartRecruiters and other applications | Text fields, native and searchable dropdowns filled |
 | E5 | EEO section | Matches your Admin answers. "Decline to self-identify" maps to the site's wording. |
 | E6 | A field you'd already typed into before clicking Autofill | Left unchanged |
 | E7 | A "Why do you want to work here?" box → Draft answer with AI | Text inserted into that box; it's specific and uses only facts from your resume |

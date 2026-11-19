@@ -63,6 +63,7 @@ src/
     jd-extractor.js           find the job description (JSON-LD → site selectors → heuristic)
     form-filler.js            label detection, profile mapping, filling, learning
     workday.js                Workday adapter: pop-up dropdowns, search prompts, dates, Add entries, multi-page
+    ats.js                    Greenhouse / Lever / Ashby / iCIMS adapters + searchable dropdowns, Yes/No buttons, hidden selects
     apply-detector.js         notice Submit + confirmation to mark "applied"
     panel.js                  floating Shadow-DOM panel (pure view)
     content.js                per-page controller wiring everything together
@@ -290,6 +291,17 @@ A result needs at least 200 chars. `extract({root, host, url})` can be pointed a
 - **Never:** submits, overwrites a field the user filled, or touches password, hidden or disabled fields.
 - **Learning:** a capture-phase `change` listener records user edits. It skips the extension's own fills (a `filling` flag and `data-ajp-value`), AI drafts that haven't been edited, and sensitive labels (SSN, password, card, bank, date of birth).
 
+### 8.3b Site adapters: Greenhouse, Lever, Ashby, iCIMS (`ats.js`)
+`AJP.ats.detect` finds the site by host (`*.greenhouse.io`, `*.lever.co`, `*.ashbyhq.com`, `*.icims.com`) or, when embedded on a company domain, by its markup. Then:
+- **Field names first:** each site's own names map to profile rules before the label is read (Lever `name`/`org`/`urls[LinkedIn]`/`eeo[…]`, Ashby `_systemfield_*`, iCIMS `PersonProfileFields.*`, Greenhouse `first_name`).
+- **Files first:** file inputs are handled before anything else. On Lever, which reads the uploaded resume and fills fields itself, the filler snapshots the empty fields, waits for the site (≤ 1.5 s), and treats what the site filled as replaceable by profile values (`data-ajp-site-filled`). Anything the user typed is never replaced.
+- **Widgets pass** (after the generic loop; also on unknown sites): searchable dropdowns (`role=combobox` / React-Select: open, pick without typing when the list is short, else type and wait; success = a single-value element or the picked text), location autocompletes (city must match, state preferred), Yes/No button pairs (Ashby), hidden `<select>`s behind a custom dropdown (select2, iCIMS: set the select + `change`). Each widget is isolated: a failure is logged with its code and listed, never stops the rest.
+- **Wording:** native dropdowns everywhere now try the site's wording too ("TX" → "Texas", "USA" → "United States of America", "B.S." → "Bachelor's Degree", veteran status variants).
+- **"Paste your resume" boxes** get the resume text only when no file could be attached; they are never AI questions.
+- **iCIMS sign-in pages:** a note to sign in yourself; password fields are never touched.
+- **Learning:** options the user picks in searchable dropdowns and Yes/No buttons are learned like native answers.
+- Selectors live in `SITES` / `SEL`, built against emulations (`tests/fixtures/ats-mock.js`, `ats-sample.html`): verify on real pages.
+
 ### 8.3a Workday adapter (`workday.js`)
 Workday widgets aren't native form fields. The generic filler skips the fields the adapter owns; then `AJP.workday.fill` runs.
 
@@ -488,8 +500,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 456 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 812 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 477 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 867 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -564,6 +576,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-18 | **Site adapters = field names + reusable widget handlers**, not one script per site; the widget pass also runs on unknown sites | Most ATSs share a few widget kinds (React-Select, select2, Yes/No buttons); handling the kind helps every site using it, and site configs stay small and easy to fix |
 | 2026-11-18 | **Years & seniority are fit rows, not part of the %**; synonyms via a hand-kept implies/similar table, not embeddings | Parsing years from free text is heuristic, so it informs instead of scoring; embeddings would need a model download or a server, against "fast, offline, no database" |
 | 2026-11-18 | **One resume format: PDF.** A small built-in writer (no library) makes a text-based PDF for every resume that has no uploaded PDF; tailored resumes get one on creation; Autofill uploads the resume tailored for the current job, else the track's / active one | PDF is what every ATS accepts and keeps the layout; one format is simpler for users and for us; uncompressed standard-font text is read back exactly by ATS parsers (tested with pdf.js) |
 | 2026-11-18 | PDF text via vendored, integrity-verified pdf.js loaded on demand (not a hand-written parser) | Resume PDFs use embedded fonts/CMaps a small parser gets wrong; on-demand loading keeps Admin fast |

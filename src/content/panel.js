@@ -187,7 +187,8 @@
 
     const r = state.autofill;
     if (r) {
-      body += `<h4>Autofill</h4><div class="muted">Filled ${r.filled.length} from profile, ${r.learned.length} from learned answers.
+      body += `<h4>Autofill${r.site ? ` <span class="site">· ${esc(r.site)}</span>` : ''}</h4><div class="muted">Filled ${r.filled.length} from profile, ${r.learned.length} from learned answers.
+        ${(r.notes || []).map((n) => `<div class="note">ℹ️ ${esc(n)}</div>`).join('')}
         ${r.unknown.length ? `<br>Not filled (${r.unknown.length}): ${esc(r.unknown.slice(0, 8).join(' · '))}${r.unknown.length > 8 ? '…' : ''}` : ''}
         ${r.attached ? `<div class="att" style="margin:4px 0">📎 Resume attached: <b>${esc(r.attached)}</b></div>` : ''}
         <br><b>Review everything, then submit yourself.</b> What you type is remembered for next time.</div>`;

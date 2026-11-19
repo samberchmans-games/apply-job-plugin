@@ -33,7 +33,7 @@
   <h1>Apply Job Assistant — automated tests</h1>
   <div class="bar">
     <a href="?">Run all</a><a href="?grep=autofill">Autofill</a><a href="?grep=job%20page">Job page</a>
-    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a><a href="?grep=tracker">Tracker</a><a href="?grep=admin">Admin</a><a href="?grep=logging">Logging</a><a href="?grep=resume">Resume</a><a href="?grep=track">Tracks</a><a href="?grep=report">Reports</a><a href="?grep=standard">Standard</a><a href="?grep=pdf">PDF</a><a href="?grep=workday">Workday</a><a href="?grep=experience">Experience</a>
+    <a href="?grep=matcher">Matcher</a><a href="?grep=ai">AI</a><a href="?grep=background">Background</a><a href="?grep=end-to-end">End-to-end</a><a href="?grep=tracker">Tracker</a><a href="?grep=admin">Admin</a><a href="?grep=logging">Logging</a><a href="?grep=resume">Resume</a><a href="?grep=track">Tracks</a><a href="?grep=report">Reports</a><a href="?grep=standard">Standard</a><a href="?grep=pdf">PDF</a><a href="?grep=workday">Workday</a><a href="?grep=experience">Experience</a><a href="?grep=sites">Sites</a>
   </div>
   <div id="summary">Running…</div>
   <div id="results"></div>
@@ -63,6 +63,8 @@
   <script src="../src/content/jd-extractor.js"></script>
   <script src="../src/content/form-filler.js"></script>
   <script src="../src/content/workday.js"></script>
+  <script src="../src/content/ats.js"></script>
+  <script src="fixtures/ats-mock.js"></script>
   <script src="fixtures/workday-mock.js"></script>
   <script src="../src/content/apply-detector.js"></script>
   <script src="../src/content/panel.js"></script>
@@ -93,6 +95,7 @@
   <script src="unit/pdf.test.js"></script>
   <script src="unit/workday.test.js"></script>
   <script src="unit/pdf-writer.test.js"></script>
+  <script src="unit/ats.test.js"></script>
   <script>
   (async () => {
     const params = new URLSearchParams(location.search);

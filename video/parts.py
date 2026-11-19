@@ -89,6 +89,10 @@ LOGS = [
 ]
 
 OPEN_PANEL = "await AJP.send('analyzeTab', { tabId: 1 }); await H.waitFor(() => H.shadow() && H.shadow().querySelector('.badge') && /%/.test(H.shadow().querySelector('.badge').textContent));"
+OPEN_ATS = ("await AJP.send('analyzeTab', { tabId: 1, jdText: 'Requirements\\n5+ years of experience\\nPython' }); "
+           "await H.waitFor(() => H.shadow() && H.shadow().querySelector('[data-act=\"autofill\"]')); "
+           "H.shadow().querySelector('[data-act=\"autofill\"]').click(); "
+           "await H.waitFor(() => /Filled/.test(H.shadow().textContent), 9000); await H.sleep(500);")
 OPEN_WD = ("await AJP.send('analyzeTab', { tabId: 1, jdText: 'Requirements\\nJava\\nAWS' }); "
            "await H.waitFor(() => H.shadow() && H.shadow().querySelector('[data-act=\"autofill\"]')); "
            "H.shadow().querySelector('[data-act=\"autofill\"]').click(); "
@@ -172,6 +176,11 @@ PARTS = [
          'say': 'On the My Experience page, it clicks Add for each job in your profile, and fills the title, company, dates, and description. Education too.', 'caption': 'Workday My Experience: entries added and filled', 'check': '4.11'},
         {'kind': 'workday', 'wdPage': 'info', 'seed': BASE, 'actions': OPEN_WD + " document.querySelector('[data-automation-id=\"bottom-navigation-next-button\"]').click(); await H.waitFor(() => /New Workday page/.test(H.shadow().textContent), 4000);", 'highlight': 'shadow:.msg', 'budget': 15000,
          'say': 'When you click Save and Continue, the panel offers Autofill again for the next page. You always review, and click Save and Continue yourself.', 'caption': 'Next Workday page → "⚡ Autofill this page"', 'check': '4.12'},
+        {'kind': 'ats', 'atsSite': 'greenhouse', 'seed': BASE, 'actions': "AJP.ats.CONFIG.parseWaitMs = 400; " + OPEN_ATS + " document.querySelector('#question_2').closest('.field').scrollIntoView({block:'center'});",
+         'highlight': ['[data-rs="candidate-location"]', '[data-rs="question_2"]', '[data-rs="question_3"]'], 'budget': 15000,
+         'say': 'On Greenhouse, Lever, Ashby and iCIMS, Autofill knows each site\'s own fields and dropdowns. Here on Greenhouse, the searchable dropdowns are answered: your city from the location search, work authorization, and sponsorship.', 'caption': 'Greenhouse, Lever, Ashby, iCIMS: their own dropdowns are filled too', 'check': '4.15 – 4.17'},
+        {'kind': 'ats', 'atsSite': 'lever', 'seed': BASE, 'actions': "AJP.ats.CONFIG.parseWaitMs = 600; AJP.ats.CONFIG.settleMs = 100; " + OPEN_ATS, 'highlight': ['shadow:.note', '[name="name"]'], 'budget': 15000,
+         'say': 'Lever reads your resume and guesses your details. Autofill attaches the resume first, then puts your real profile details back, and tells you so.', 'caption': 'Lever: resume first, then your profile replaces Lever\'s guesses', 'check': '4.16'},
         {'kind': 'admin', 'hash': 'applications', 'seed': BASE, 'actions': APPS_JS + "\nawait AJP.trackerView.render(); await H.sleep(200);", 'highlight': '#trkView', 'budget': 7000,
          'say': 'Click Mark applied, or just apply. The confirmation page is detected. In Admin, Applications, drag cards between columns, and see reminders when a follow-up is due.', 'caption': 'Applications board: drag between columns · reminders · Export CSV', 'check': '5.1 – 5.7'},
         {'kind': 'admin', 'hash': 'applications', 'seed': BASE, 'actions': APPS_JS + "\nawait AJP.trackerView.render(); await H.sleep(200); AJP.trackerView.renderDetail('a1'); await H.sleep(200);", 'highlight': '#trkDetail', 'budget': 7000,
