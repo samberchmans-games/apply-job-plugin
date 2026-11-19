@@ -14,13 +14,13 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **963 / 963 passing** (498 also run without a browser), incl. convention checks |
+| Automated tests | **968 / 968 passing** (498 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 101 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (17 found and fixed so far, each with a test) |
+| Open bugs | **0 known** (18 found and fixed so far, each with a test) |
 | Next step | **None planned.** Remaining work is real-world testing (your side), store submission (your side), and fixes from tester reports |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
@@ -76,7 +76,7 @@ Columns:
 ### Extension pages
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
 |---|---|---|---|---|---|---|
-| C19 | Admin: profile, skills, preferences, resumes, auto-apply, AI settings, learned answers, backup | `src/admin/admin.html/.js/.css` | ✅ | 24 | ⏳ | UI tests: navigation, profile, skills, preferences, resumes, auto-apply, backup (`admin-screens.test.js`) |
+| C19 | Admin: profile, skills (**added automatically from the resume**), preferences, resumes, auto-apply, AI settings, learned answers, backup | `src/admin/admin.html/.js/.css` | ✅ | 29 | ⏳ | UI tests: navigation, profile, skills, preferences, resumes, auto-apply, backup (`admin-screens.test.js`) |
 | C20 | Admin: Applications (board, table, details, stats, CSV) | `src/admin/tracker-view.js` | ✅ | 10 | ⏳ | |
 | C21 | Admin: Logs & support (Report an issue) | `src/admin/admin.js` | ✅ | 7 | ⏳ | |
 | C31 | **Admin: resume tailoring review** | `src/admin/enhance-view.js` | ✅ | 6 | ⏳ | Requirements + evidence, before/after, blocked reasons, "add your real number", gaps, create |
@@ -92,7 +92,7 @@ Columns:
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) = **963**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) = **968**
 
 ---
 
@@ -169,6 +169,7 @@ Columns:
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B18 | The "Learned answers" menu showed a "0" badge when there was nothing to suggest (CSS beat `hidden`) | You (screenshot) | After step 18 | admin screens › the Learned answers badge is hidden… |
 | B17 | An unknown Admin link (old bookmark, typo) showed an empty page | Admin UI tests | Step 18 | admin screens › … unknown section falls back to Profile |
 | B16 | Renaming a resume and then editing its text within half a second lost the new name (one shared save timer) | Admin UI tests | Step 18 | admin screens › bug B16… |
 | B15 | A `<select>` inside its own `<label>` (Lever) was labelled with all its options ("Gender✱Select …MaleFemale…"); "✱" was not stripped | Video render | Step 12 | sites › bug B15… |

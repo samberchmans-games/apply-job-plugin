@@ -280,6 +280,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _auto_ | **Skills added automatically from the resume** (upload, paste, edit, Read text from PDF); removed skills are not re-added; fixed B18 ("0" badge); 968 tests |
 | 2026-11-18 | `1d59cc4` | **Step 18: Admin & popup UI tests**; fixed B16 (resume rename lost), B17 (unknown Admin link); 963 tests |
 | 2026-11-18 | `d3cbc4c` | **Step 17: work experience / education entries on any site** (entries.js); 932 tests |
 | 2026-11-18 | `3794ddc` | **Step 16: store packaging**: per-store zips, Safari project build, CI package job, store listing / privacy policy / screenshots |

@@ -128,6 +128,69 @@
     });
   }, { env: 'browser' });
 
+  // ---- Skills picked up from the resume automatically ---------------------------------------------------
+  describe('admin screens › skills from the resume', () => {
+    afterEach(closeFrame);
+    const RES = '# Ana\n## Experience\n- Built Java and Python services on AWS\n- Ran Kubernetes and Terraform';
+    const upload = (text, name = 'ana.txt') => {
+      const dt = new w.DataTransfer();
+      dt.items.add(new w.File([text], name, { type: 'text/plain' }));
+      $('#resumeFile').files = dt.files;
+      $('#resumeFile').dispatchEvent(new w.Event('change', { bubbles: true }));
+    };
+    const names = async () => (await stored('profile')).skills.map((x) => x.name);
+    it('uploading a resume adds the skills found in it, and says so', async () => {
+      await load('admin.html', {}, { hash: 'resumes' });
+      upload(RES);
+      await waitFor(async () => (await names()).length >= 5, { msg: 'skills added' });
+      for (const n of ['Java', 'Python', 'AWS', 'Kubernetes', 'Terraform']) includes(await names(), n);
+      await waitFor(() => /Added 5 skills from it/.test($('#toast').textContent), { msg: 'toast' });
+    });
+    it('skills already in the list are kept as they are (level, years)', async () => {
+      await load('admin.html', { profile: profile({ skills: [{ name: 'Java', level: 'expert', years: '10' }] }) }, { hash: 'resumes' });
+      upload(RES);
+      await waitFor(async () => (await names()).length === 5, { msg: 'added the 4 new ones' });
+      eq((await stored('profile')).skills[0], { name: 'Java', level: 'expert', years: '10' });
+    });
+    it('pasting text into a resume adds its skills', async () => {
+      await load('admin.html', { resumes: { activeId: 'r1', items: [{ id: 'r1', name: 'Typed', text: '' }] } }, { hash: 'resumes' });
+      await waitFor(() => !$('#resumeEditor').hidden);
+      const ta = $('#resumeText');
+      ta.value = RES;
+      ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+      ta.dispatchEvent(new w.Event('paste', { bubbles: true }));
+      await waitFor(async () => (await names()).includes('Terraform'), { msg: 'added on paste' });
+    });
+    it('a skill you removed is not added back when the resume changes; adding it by hand works again', async () => {
+      await load('admin.html', {}, { hash: 'resumes' });
+      upload(RES);
+      await waitFor(async () => (await names()).includes('Terraform'));
+      w.location.hash = 'skills';
+      await waitFor(() => $('#skills').classList.contains('on'));
+      const i = (await names()).indexOf('Terraform');
+      $(`#skillRows [data-del="${i}"]`).click();
+      await waitFor(async () => !(await names()).includes('Terraform'), { msg: 'removed' });
+      await waitFor(async () => ((await stored('suggestions')).ignoredSkills || []).includes('Terraform'), { msg: 'remembered' });
+      w.location.hash = 'resumes';
+      await waitFor(() => !$('#resumeEditor').hidden);
+      const ta = $('#resumeText');
+      ta.value = RES + '\n- More Terraform work';
+      ta.dispatchEvent(new w.Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      notOk((await names()).includes('Terraform'), 'not re-added');
+      w.location.hash = 'skills';
+      await waitFor(() => $('#skills').classList.contains('on'));
+      $('#skillName').value = 'Terraform';
+      $('#skillForm').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+      await waitFor(async () => !((await stored('suggestions')).ignoredSkills || []).includes('Terraform'), { msg: 'no longer ignored' });
+    });
+    it('the Learned answers badge is hidden when there is nothing to suggest (no "0")', async () => {
+      await load('admin.html', {});
+      await new Promise((r) => setTimeout(r, 200));
+      eq(w.getComputedStyle($('#sugCount')).display, 'none');
+    });
+  }, { env: 'browser' });
+
   // ---- Job preferences --------------------------------------------------------------------------------
   describe('admin screens › job preferences', () => {
     afterEach(closeFrame);

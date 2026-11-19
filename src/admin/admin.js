@@ -93,11 +93,34 @@
     return true;
   }
 
+  // Skills from a resume, added automatically (upload, paste, edit). Skills the user removed are remembered in
+  // suggestions.ignoredSkills and never re-added automatically (the "Detect skills" button still adds them).
+  async function autoSkillsFrom(text) {
+    if (!(text || '').trim()) return [];
+    const sug = await AJP.store.get('suggestions');
+    const ignored = new Set((sug.ignoredSkills || []).map((n) => AJP.norm(n)));
+    const found = [...AJP.matcher.findSkills(text).keys()].filter((n) => !ignored.has(AJP.norm(n)));
+    const added = found.filter((n) => addSkill(n));
+    if (!added.length) return [];
+    renderSkills();
+    await AJP.store.set('profile', profile);
+    log.info('Skills added from resume', { added: added.length, total: profile.skills.length });
+    return added;
+  }
+  const skillsNote = (added) => (added.length ? ` Added ${added.length} skill${added.length > 1 ? 's' : ''} from it: ${added.slice(0, 6).join(', ')}${added.length > 6 ? '…' : ''} (see Skills).` : '');
+  async function ignoreSkill(name, on) {
+    await AJP.store.update('suggestions', (x) => {
+      const list = (x.ignoredSkills || []).filter((n) => AJP.norm(n) !== AJP.norm(name));
+      x.ignoredSkills = on ? list.concat(name).slice(-300) : list;
+    });
+  }
+
   function initSkills() {
     $('#skillSuggest').innerHTML = AJP.SKILLS.map((l) => `<option value="${esc(l.split('|')[0])}">`).join('');
     $('#skillForm').addEventListener('submit', (e) => {
       e.preventDefault();
       if (!addSkill($('#skillName').value, $('#skillLevel').value, $('#skillYears').value)) return toast('Already in your list');
+      ignoreSkill(profile.skills[profile.skills.length - 1].name, false);
       $('#skillName').value = '';
       $('#skillYears').value = '';
       renderSkills();
@@ -113,7 +136,8 @@
     $('#skillRows').addEventListener('click', (e) => {
       const i = e.target.dataset.del;
       if (i == null) return;
-      profile.skills.splice(+i, 1);
+      const [gone] = profile.skills.splice(+i, 1);
+      if (gone) ignoreSkill(gone.name, true); // don't add it back automatically from the resume
       renderSkills();
       saveProfile();
     });
@@ -297,8 +321,9 @@
       selectedResumeId = item.id;
       e.target.value = '';
       log.info('Resume uploaded', { type: file.type, size: file.size, textChars: text.length });
+      const added = await AJP.guard('admin.autoSkills', autoSkillsFrom, { mod: 'admin' })(text) || [];
       if (extractError) toast(`Resume saved, but its text couldn't be read: ${extractError.message} ${extractError.hint} (${extractError.code})`, 9000);
-      else toast(text ? `Resume saved — ${text.split('\n').filter((l) => /^- /.test(l)).length} bullet points read. Check the text below.` : 'Resume saved — paste its text below so it can be matched');
+      else toast(text ? `Resume saved — ${text.split('\n').filter((l) => /^- /.test(l)).length} bullet points read. Check the text below.${skillsNote(added)}` : 'Resume saved — paste its text below so it can be matched', added.length ? 6000 : 1600);
       renderResumes();
     });
 
@@ -340,6 +365,13 @@
       saveField('text', e.target.value);
       regenPdf();
     });
+    // Skills from the text: after a paste, and when the user leaves the box (not on every keystroke).
+    const skillsFromEditor = AJP.guard('admin.autoSkills', async () => {
+      const added = await autoSkillsFrom($('#resumeText').value);
+      if (added.length) toast(skillsNote(added).trim(), 6000);
+    }, { mod: 'admin' });
+    $('#resumeText').addEventListener('change', skillsFromEditor);
+    $('#resumeText').addEventListener('paste', () => setTimeout(skillsFromEditor, 50));
     $('#resumeName').addEventListener('input', (e) => saveField('name', e.target.value));
 
     $('#resumeSetActive').addEventListener('click', async () => {
@@ -366,7 +398,8 @@
       const text = await extractText(sel.file.name, buf);
       await updateResumes((all) => void all.items.forEach((x) => x.id === sel.id && (x.text = text)));
       $('#resumeText').value = text;
-      toast('Text read from the PDF — check it below');
+      const added = await autoSkillsFrom(text);
+      toast(`Text read from the PDF — check it below.${skillsNote(added)}`, added.length ? 6000 : 1600);
     }, { mod: 'admin', onError: (d) => toast(`${d.message} ${d.hint} (${d.code})`, 9000) }));
     // The PDF that applications get (uploaded PDF, or one made from the text).
     async function currentPdf() {

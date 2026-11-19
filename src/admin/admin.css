@@ -145,3 +145,4 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 @media (prefers-color-scheme: dark) { .banner { background: #172554; color: #dbeafe; border-color: #1e40af; } }
 .count { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; background: #2563eb; color: #fff; font-size: 11px; line-height: 18px; text-align: center; margin-left: 4px; }
 #suggestBox { margin: 10px 0 14px; } .sug { padding: 6px 0; border-top: 1px solid var(--line); } .sug:first-child { border-top: 0; } .sug button { margin-left: 6px; }
+.count[hidden] { display: none; }
