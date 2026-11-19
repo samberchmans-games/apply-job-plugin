@@ -68,6 +68,27 @@
     }
   };
 
+  /*
+   * Does `line` continue `prev` (a sentence or bullet wrapped onto the next line by a PDF / copy-paste)?
+   * Never: a new bullet, a heading, a "Label: …" line, or a job line (dates with "|" / "—").
+   * Yes: it starts in lower case ("missing data."), or the previous line ends with "," / "and" / "or", or the previous
+   * line is long and unfinished and this one is a phrase (not a Title-Case sub-heading like "Cloud Migration").
+   */
+  AJP.continuesLine = (prev, line) => {
+    const p = String(prev || '').trim();
+    const t = String(line || '').trim();
+    if (!p || !t) return false;
+    if (/^([-*•·–▪◦‣●○■□➢➤►✓✔→❖◆\uf0b7\uf0a7]|\d{1,2}[.)])\s/.test(t) || /^#/.test(t)) return false;
+    if (/^[A-Z][\w &/()+.,-]{0,40}:\s/.test(t)) return false;
+    if (/\b(19|20)\d{2}\b/.test(t) && /\s[|—–-]\s/.test(t)) return false;
+    if (/^[a-z(]/.test(t)) return true;
+    // A line that starts with an action verb is a new achievement, even without a bullet.
+    if (/^(Led|Lead|Built|Build|Designed|Developed|Delivered|Drove|Owned|Own|Launched|Migrated|Moved|Architected|Implemented|Created|Automated|Optimi[sz]ed|Reduced|Improved|Increased|Managed|Mentored|Coached|Established|Introduced|Partnered|Collaborated|Scaled|Moderni[sz]ed|Defined|Engineered|Integrated|Onboarded|Processed|Used|Tuned|Tune|Served|Set|Monitored|Orchestrated|Gather|Gathered|Maintain|Maintained|Wrote|Ran|Cut|Saved|Shipped|Supported|Trained|Hired|Analy[sz]ed|Configured|Deployed|Converted|Consolidated)\b/.test(t)) return false;
+    if (/(,|&|\band|\bor|\bwith|\bthe|\bof|\bto|\bfor|\bin)$/i.test(p)) return true;
+    const titleCase = /^[A-Z][A-Za-z&/+.-]*(?:[ ,]+(?:[A-Z&][A-Za-z&/+.-]*|and|of|&))*$/.test(t);
+    return !/[.!?:;)]$/.test(p) && p.length >= 60 && t.split(/\s+/).length >= 3 && !titleCase;
+  };
+
   AJP.debounce = (fn, ms) => {
     let t;
     return (...args) => {

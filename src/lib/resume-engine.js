@@ -107,6 +107,8 @@
     let kind = 'header';
     let role = '';
     let lastText = '';
+    let lastBullet = null;
+    let lastBulletRaw = '';
     let n = 0;
     let mdHeadings = false;
     let firstSectionLine = -1;
@@ -128,6 +130,14 @@
       }
       if (!t) {
         blocks.push({ line: i, kind: 'blank', section, text: raw, editable: false });
+        lastBullet = null;
+        continue;
+      }
+      // A bullet wrapped onto the next line(s): the rest belongs to that bullet (edited and replaced together).
+      if (lastBullet && !headingOf(raw) && AJP.continuesLine(lastBulletRaw, t)) {
+        lastBullet.text += ' ' + t;
+        (lastBullet.cont = lastBullet.cont || []).push(i);
+        lastBulletRaw = t;
         continue;
       }
       const b = raw.match(BULLET_RE);
@@ -136,12 +146,17 @@
       } else if (kind === 'skills') {
         blocks.push({ line: i, kind: 'skills', section, text: b ? b[3] : t, prefix: b ? b[1] + b[2] + ' ' : '', editable: true });
       } else if (b && (kind === 'experience' || kind === 'projects' || kind === 'other')) {
-        blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: b[1] + b[2] + ' ', text: b[3], editable: true });
+        blocks.push((lastBullet = { id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: b[1] + b[2] + ' ', text: b[3], editable: true }));
+        lastBulletRaw = t;
+        continue;
       } else if (opts.loose && (kind === 'experience' || kind === 'projects' || kind === 'other') && looksLikeAchievement(t)) {
         // No bullet characters in this resume (e.g. a Word file pasted without its list formatting): a line that
         // reads like an achievement is used as one. The line is rewritten without adding a marker.
-        blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true });
+        blocks.push((lastBullet = { id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true }));
+        lastBulletRaw = t;
+        continue;
       } else {
+        lastBullet = null;
         // Role headers, company/title/date lines, education, contact info: protected. Only a JOB line (dates, or
         // "Title | Company") changes the job the following bullets belong to; a date line on its own joins the line above.
         if (kind === 'experience' || kind === 'projects') {
@@ -209,6 +224,7 @@
       }).map((e) => ({ quote: String(e.quote || e).slice(0, 300), where: String(e.where || '').slice(0, 120) }));
       let match = ['strong', 'partial', 'none'].includes(r.match) ? r.match : 'none';
       if (!evidence.length) match = 'none';
+      else if (match === 'none') match = 'partial'; // verified quotes from the resume: it is NOT "not in resume"
       return {
         id: String(r.id || 'R' + (i + 1)).slice(0, 8),
         text: String(r.text || r.jd_quote || '').slice(0, 200),
@@ -437,12 +453,18 @@
         });
         const extra = order.filter((o) => !present.has(AJP.matcher ? AJP.matcher.canonical(o).toLowerCase() : o.toLowerCase())).slice(0, 8);
         if (extra.length && doc.skills.length) {
-          const b = doc.skills[0];
-          out[b.line] = out[b.line] + ', ' + extra.join(', ');
+          const labelled = doc.skills.some((b) => splitSkills(b.text).label);
+          const last = doc.skills[doc.skills.length - 1];
+          // "Cloud (AWS): …, Stakeholder management" would put a skill in the wrong group: use its own line.
+          if (labelled) out[last.line] = out[last.line] + '\n' + (last.prefix || '') + 'Additional skills: ' + extra.join(', ');
+          else out[doc.skills[0].line] = out[doc.skills[0].line] + ', ' + extra.join(', ');
         }
       } else {
         const b = doc.bullets.find((x) => x.id === e.target);
-        if (b) out[b.line] = b.prefix + String(e.after).trim();
+        if (b) {
+          out[b.line] = b.prefix + String(e.after).trim();
+          (b.cont || []).forEach((l) => drop.add(l)); // the wrapped rest of the old bullet goes with it
+        }
       }
     }
     return out.filter((_, i) => !drop.has(i)).join('\n');

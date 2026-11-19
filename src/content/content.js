@@ -60,7 +60,18 @@
     if (jdText !== job.text) state.trackPicked = null;
     jdText = job.text;
     state.job = job;
-    const [profile, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
+    const [profile0, resumes0] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
+    // A resume tailored for THIS job is what you'd send, so the match uses it (and the panel says so).
+    const key = AJP.tracker.jobKey(job.url || location.href);
+    const tailored = resumes0.items.find((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === key);
+    let profile = profile0;
+    let resumes = resumes0;
+    if (tailored) {
+      if (tailored.trackId) profile = { ...profile0, tracks: (profile0.tracks || []).map((t) => (t.id === tailored.trackId ? { ...t, resumeId: tailored.id } : t)) };
+      else resumes = { ...resumes0, activeId: tailored.id };
+    }
+    state.tailored = tailored ? { id: tailored.id, fileName: tailored.file && tailored.file.name, before: tailored.matchBefore } : null;
+    state.tailoredSig = tailoredSig(resumes0.items, key);
     // Score the job against every career track; keep the user's pick for this page, else the best track.
     const all = AJP.tracks.analyzeAll({ jdText, jobTitle: job.title, jobLocation: job.location, profile, resumes, aiSkills: state.aiSkills });
     state.tracks = all;
@@ -212,6 +223,22 @@
           (d.coverage.atsBefore != null ? `Job keywords in your resume: ${esc(d.coverage.atsBefore)}% → ${esc(d.coverage.atsAfter)}%.<br>` : '') +
           `<a data-act="openEnhance" data-arg="${esc(d.id)}">Review the changes &amp; create the resume →</a>`
       );
+    },
+
+    // The resume tailored for this job, straight from the panel (file name has the job in it).
+    async downloadTailored() {
+      const resumes = await AJP.store.get('resumes');
+      const r = state.tailored && resumes.items.find((x) => x.id === state.tailored.id);
+      if (!r || !r.file || !r.file.dataUrl) return say('The tailored resume has no PDF yet. Open Admin → Resumes and click ⬇ Download PDF.', true);
+      const blob = await (await fetch(r.file.dataUrl)).blob(); // local dataUrl decode, not a network call
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = r.file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      log.info('Tailored resume downloaded from the panel');
     },
 
     openEnhance(id) {
@@ -379,6 +406,19 @@
   });
 
   // ---- Auto-analyze on known job sites (top frame) --------------------------------
+  // When the resume tailored for THIS job is created, replaced or deleted (in Admin), the open panel re-scores with it.
+  // Any other resume change leaves the panel alone.
+  function tailoredSig(items, key) {
+    const t = (items || []).find((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === key);
+    return t ? `${t.id}@${t.updatedAt || t.createdAt}` : '';
+  }
+  const rescore = AJP.guard('content.tailoredChanged', () => analyze({ text: state.job && state.job.source === 'selection' ? jdText : null, keepAi: true }), { mod: 'content' });
+  AJP.api.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.resumes || !state.analysis || window.top !== window) return;
+    const key = AJP.tracker.jobKey((state.job && state.job.url) || location.href);
+    if (tailoredSig(changes.resumes.newValue && changes.resumes.newValue.items, key) !== (state.tailoredSig || '')) rescore();
+  });
+
   async function auto() {
     const settings = await AJP.store.get('settings');
     if (!settings.autoAnalyze || !AJP.jd.isKnownJobSite()) return;

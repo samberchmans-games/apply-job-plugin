@@ -321,15 +321,17 @@
     AJP.enhanceView.renderList();
     const r = await AJP.store.get('resumes');
     if (!selectedResumeId || !r.items.some((x) => x.id === selectedResumeId)) selectedResumeId = r.activeId || (r.items[0] && r.items[0].id);
+    const row = (x) => `<div class="res ${x.id === selectedResumeId ? 'sel' : ''}" data-id="${x.id}">
+          ${x.enhancementId ? '📝' : '📄'} <b>${esc(x.name)}</b> ${x.id === r.activeId ? '<span class="tag">active</span>' : ''}
+          ${x.file ? `<span class="hint">· 📎 ${esc(x.file.name)}${x.file.generated && !x.enhancementId ? ' (made from the text)' : ''}</span>` : ''}
+          <small>${new Date(x.updatedAt || x.createdAt).toLocaleString()}</small></div>`;
+    // Your own resumes first; resumes tailored for jobs in one collapsed group (one per job, replaced on re-tailoring).
+    const mine = r.items.filter((x) => !x.enhancementId);
+    const tailored = r.items.filter((x) => x.enhancementId);
+    const openGroup = tailored.some((x) => x.id === selectedResumeId);
     $('#resumeList').innerHTML =
-      r.items
-        .map(
-          (x) => `<div class="res ${x.id === selectedResumeId ? 'sel' : ''}" data-id="${x.id}">
-          📄 <b>${esc(x.name)}</b> ${x.id === r.activeId ? '<span class="tag">active</span>' : ''}
-          ${x.file ? `<span class="hint">· 📎 ${esc(x.file.name)}${x.file.generated ? ' (made from the text)' : ''}</span>` : ''}
-          <small>${new Date(x.createdAt).toLocaleString()}</small></div>`
-        )
-        .join('') || '<p class="hint">No resumes yet.</p>';
+      (mine.map(row).join('') || (tailored.length ? '' : '<p class="hint">No resumes yet.</p>')) +
+      (tailored.length ? `<details class="tailored-group" ${openGroup ? 'open' : ''}><summary>📝 Tailored for jobs (${tailored.length})</summary>${tailored.map(row).join('')}</details>` : '');
     const sel = r.items.find((x) => x.id === selectedResumeId);
     $('#resumeEditor').hidden = !sel;
     if (sel) {

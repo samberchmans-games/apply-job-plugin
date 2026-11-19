@@ -147,7 +147,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1044) · `./tests/run-tests.sh` (the 548 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1059) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -282,6 +282,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-19 | _t_ | Tailored flow: one tailored resume per job (replaced on re-tailoring), grouped in Admin; panel re-scores with it live and downloads it; file name has company + job title; review stays open with Download; skills ceiling is a warning (4 skills hard); wrapped lines joined (parser + PDF), PDF styles for plain-text resumes, "Additional skills:" line, evidence ⇒ not "not in resume"; B23–B25; 1059 tests |
 | 2026-11-19 | `f1dce41` | Sections decided by content too (a "Career Profile" with dated jobs is Experience); bullets belong to the job line (title / company / dates), not sub-headings or intros; job labels without dates; fixed B22; 1044 tests |
 | 2026-11-19 | `c741498` | Resume sections: "Experience Summary", "Career History", "Employment Details", ALL-CAPS headings with a section word; fixed B21; 1040 tests |
 | 2026-11-19 | `b4614d3` | Resumes without bullets: Word list paragraphs read as "- ", more bullet symbols, achievement lines used without markers, Admin "Mark achievement lines as bullets"; fixed B20; 1032 tests |

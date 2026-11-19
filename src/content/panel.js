@@ -33,6 +33,8 @@
   .chip.no.pref { background: #fffbeb; border-color: #fde68a; color: #92400e; }
   .chip.sim { border-style: dashed; }
   .chip .sim { opacity: .8; font-size: 11px; }
+  .tailored { margin: 6px 0; padding: 6px 8px; border-radius: 8px; background: #eef2ff; font-size: 12px; }
+  .tailored .b { margin-left: 6px; padding: 2px 8px; }
   .fit .sub { grid-column: 2; font-size: 12px; opacity: .85; margin: 0 0 3px; }
   .fit { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
   .tracks { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px 0 10px; }
@@ -145,6 +147,8 @@
           <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match${a.similarCount ? ` <span class="muted">(+${a.similarCount} similar)</span>` : ''}<br>
           <span class="muted">${state.aiUsed ? 'AI-enhanced analysis' : 'Offline keyword analysis'} · ${a.ms}ms</span></div>
         </div>
+        ${state.tailored ? `<div class="tailored">📝 Scored with your resume tailored for this job${state.tailored.before != null && s != null ? ` (was ${esc(state.tailored.before)}%)` : ''}
+          <button class="b small" data-act="downloadTailored" title="${esc(state.tailored.fileName || '')}">⬇ Download PDF</button></div>` : ''}
         <h4>Matching (${a.matched.length})</h4>
         <div class="chips">${a.matched.map((m) => `<span class="chip ok" title="${esc(/^implied/.test(m.source) ? m.source : 'from ' + m.source)}">${esc(m.skill)}</span>`).join('') || '<span class="muted">none</span>'}</div>
         <h4>Gaps (${a.missing.length})</h4>

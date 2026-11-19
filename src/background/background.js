@@ -344,8 +344,8 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       let list = clean.slice(0, lim.maxSkills);
       clean.slice(lim.maxSkills).forEach((p) => skipped.push({ skill: p.skill, reason: 'limit' }));
       // …and within the lift limit (never turn a close match into keyword stuffing).
-      const ceiling = E.liftCeiling(d, lim);
-      while (list.length && resumeScore(d.jd, base.text, list.map((p) => p.skill)) > ceiling) skipped.push({ skill: list.pop().skill, reason: 'lift' });
+      // Above your match + maxLift is allowed but flagged (the review shows a warning); maxSkills is the hard limit.
+      const overCeiling = resumeScore(d.jd, base.text, list.map((p) => p.skill)) > E.liftCeiling(d, lim);
 
       // Lines already changed by an accepted rewrite are not reused.
       const taken = new Set(d.edits.filter((e) => e.accepted && e.source !== 'skill' && e.kind === 'bullet').map((e) => e.target));
@@ -398,7 +398,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       d.coverage.resumeAfter = resumeScore(d.jd, E.assemble(base.text, chosen), d.confirmedSkills);
       await serialData(() => AJP.store.update('enhancements', (all) => all.map((x) => (x.id === d.id ? d : x))));
       mlog.info('Skills added to tailoring draft', { added: out.length, skipped: skipped.length, ai: out.filter((x) => x.wording === 'ai').length });
-      return { draft: d, added: out.map((o) => ({ skill: o.skill, role: o.role, wording: o.wording })), skipped };
+      return { draft: d, added: out.map((o) => ({ skill: o.skill, role: o.role, wording: o.wording })), skipped, overCeiling };
     },
 
     async 'resume.applyEnhancement'({ id, decisions = [], makeActive = false }, sender, { log: mlog }) {
@@ -461,18 +461,30 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         trackId: d.trackId || null,
         job: d.job,
         coverage: d.coverage,
+        matchBefore: d.matchScore != null ? d.matchScore : null,
         createdAt: new Date().toISOString(),
       };
-      // One format: every tailored resume gets its PDF now, so Autofill can upload it to this job.
+      // One format: every tailored resume gets its PDF now, so Autofill can upload it to this job. The job is in the
+      // file name ("… - Resume - Initech - Senior Data Engineer.pdf").
       try {
-        item.file = AJP.pdfWriter.fileFor(item, { company: d.job && d.job.company }).file;
+        item.file = AJP.pdfWriter.fileFor(item, { company: d.job && d.job.company, title: d.job && d.job.title }).file;
       } catch (e) {
         const x = AJP.toAppError(e);
         mlog.warn('Tailored resume PDF not created', { code: x.code, details: x.details }, { code: x.code });
       }
+      // One tailored resume per job: tailoring the same job again REPLACES its resume (no pile of copies).
+      const key = d.job && d.job.url ? AJP.tracker.jobKey(d.job.url) : null;
+      let replaced = false;
       await serialData(() =>
         AJP.store.update('resumes', (r) => {
-          r.items.unshift(item);
+          const i = key ? r.items.findIndex((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === key) : -1;
+          if (i >= 0) {
+            item.id = r.items[i].id;
+            item.createdAt = r.items[i].createdAt;
+            item.updatedAt = new Date().toISOString();
+            r.items[i] = item;
+            replaced = true;
+          } else r.items.unshift(item);
           if (makeActive && !d.trackId) r.activeId = item.id;
         })
       );
@@ -482,7 +494,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       }
       await serialData(() => AJP.store.update('enhancements', (list) => void list.forEach((x) => x.id === id && (x.appliedResumeId = item.id))));
       mlog.info('Tailored resume created', { edits: chosen.length, skipped: skipped.length, makeActive: !!makeActive });
-      return { resume: item, applied: appliedCount, skipped };
+      return { resume: item, applied: appliedCount, skipped, replaced };
     },
 
     async 'ai.draftAnswer'({ question, jd, job, maxWords, trackId }, sender, { tid }) {

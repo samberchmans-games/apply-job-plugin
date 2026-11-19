@@ -179,12 +179,12 @@
       eq(r.draft.confirmedSkills, ['Kubernetes']);
       eq(r.skipped, [{ skill: 'Snowflake', reason: 'limit' }]);
     });
-    it('the resume match may not go above your match + maxLift (skills dropped, reason "lift")', async () => {
+    it('going above your match + maxLift is allowed but flagged (the skills count is the hard limit)', async () => {
       await AJP.store.update('enhancements', (l) => l.map((d) => ({ ...d, matchScore: 0, resumeScore: 0, limits: { ...d.limits, maxLift: 5 } })));
       fakeAI(new Error('down'));
       const r = await send([{ skill: 'Kubernetes', role: ACME() }]);
-      eq(r.draft.confirmedSkills, []);
-      eq(r.skipped[0].reason, 'lift');
+      eq(r.draft.confirmedSkills, ['Kubernetes']);
+      eq(r.overCeiling, true);
     });
     it('creating the resume: confirmed skills in their lines AND in the Skills list; rewrites capped', async () => {
       fakeAI(new Error('down'));
@@ -197,7 +197,7 @@
       const t = r.resume.text;
       includes(t, 'using Kubernetes');
       includes(t, 'Wrote Python ETL jobs for reporting, using Snowflake');
-      ok(/Cloud: .*Kubernetes|Snowflake/.test(t.split('## Skills')[1]), 'skills list');
+      includes(t.split('## Skills')[1], 'Additional skills: Kubernetes, Snowflake');
       ok(AJP.resumeEngine.verifyIntegrity(F().RESUME, t).ok, 'protected lines intact');
     });
   }, { env: 'browser' });

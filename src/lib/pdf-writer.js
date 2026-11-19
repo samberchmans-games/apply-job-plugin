@@ -89,31 +89,51 @@
   };
 
   // Resume text → blocks with a style.
+  const JOB_SECTION = /experience|career|employment|history|projects/i;
   function blocks(text) {
     const out = [];
     let sawName = false;
     let afterName = 0;
+    let lastRaw = '';
+    let inJobs = false; // inside Experience / Career / Projects: short Title-Case lines are sub-headings
     for (const raw of String(text || '').replace(/\r\n?/g, '\n').split('\n')) {
       const line = raw.trim();
       if (!line) {
         if (sawName) afterName = 99;
+        lastRaw = '';
         continue;
       }
+      // A sentence wrapped onto the next line belongs to the paragraph / bullet above (no orphan words in the PDF).
+      const last = out[out.length - 1];
+      if (last && (last.style === 'bullet' || last.style === 'para') && AJP.continuesLine(lastRaw, line)) {
+        last.text += ' ' + inline(line);
+        lastRaw = line;
+        continue;
+      }
+      lastRaw = line;
       let m;
       if ((m = line.match(/^#\s+(.+)/)) && !sawName) {
         sawName = true;
         out.push({ style: 'name', text: inline(m[1]) });
       } else if ((m = line.match(/^##\s+(.+)/))) {
         afterName = 99;
+        inJobs = JOB_SECTION.test(m[1]);
         out.push({ style: 'section', text: inline(m[1]) });
       } else if ((m = line.match(/^#{3,6}\s+(.+)/))) out.push({ style: 'role', text: inline(m[1]) });
-      else if ((m = line.match(/^[-*•▪●◦]\s+(.+)/))) out.push({ style: 'bullet', text: inline(m[1]) });
-      else if (sawName && afterName++ < 2 && out.length && out[out.length - 1].style !== 'section') out.push({ style: 'contact', text: inline(line) });
+      else if ((m = line.match(/^[-*•▪●◦■➢✓\uf0b7]\s+(.+)/))) out.push({ style: 'bullet', text: inline(m[1]) });
+      else if (sawName && /^[A-Z][A-Z0-9 &/(),.+-]{2,50}$/.test(line) && /[A-Z]{3}/.test(line)) {
+        afterName = 99; // "PROFESSIONAL SUMMARY", "OTHER INTERESTS (SELF-STUDY)"
+        inJobs = JOB_SECTION.test(line);
+        out.push({ style: 'section', text: line });
+      } else if (sawName && afterName++ < 2 && out.length && out[out.length - 1].style !== 'section') out.push({ style: 'contact', text: inline(line) });
       else if (!sawName && !out.length) {
         sawName = true; // plain-text resume: the first line is the name
         out.push({ style: 'name', text: inline(line) });
-      } else if (/^[A-Z][A-Z &/]{2,40}$/.test(line)) out.push({ style: 'section', text: line });
-      else out.push({ style: 'para', text: inline(line) });
+      } else if (/\s[|—–]\s/.test(line) && (/\b(19|20)\d{2}\b/.test(line) || line.length < 90) && !/[.!?]$/.test(line)) {
+        out.push({ style: 'role', text: inline(line) }); // "Title | Company Dec 2022 – Present"
+      } else if (inJobs && /^[A-Z][A-Za-z&/,+ -]{2,60}$/.test(line) && line.split(/\s+/).length <= 7 && !/,\s*[A-Z][a-z]*,/.test(line)) {
+        out.push({ style: 'role', text: inline(line) }); // a sub-heading inside a job ("Architecture")
+      } else out.push({ style: 'para', text: inline(line) });
     }
     return out;
   }
@@ -197,8 +217,9 @@
   }
 
   const safe = (s) => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
-  function fileName(name, company) {
-    return [safe(name) || 'Resume', 'Resume', safe(company)].filter(Boolean).join(' - ').replace(/^Resume - Resume/, 'Resume') + '.pdf';
+  // "Ana Silva - Resume - Initech - Senior Data Engineer.pdf": the job in the name makes each tailored file easy to find.
+  function fileName(name, company, title) {
+    return [safe(name) || 'Resume', 'Resume', safe(company), safe(title)].filter(Boolean).join(' - ').replace(/^Resume - Resume/, 'Resume') + '.pdf';
   }
 
   // The name on a resume: its first "# " heading, else its first line.
@@ -212,11 +233,11 @@
    * A resume item's PDF file record (what autofill attaches). Generated files are marked so they can be
    * regenerated when the text changes; a PDF the user uploaded is never replaced.
    */
-  function fileFor(resume, { company } = {}) {
+  function fileFor(resume, { company, title } = {}) {
     const name = nameFrom(resume.text);
     const { bytes, pages, replaced } = fromResumeText(resume.text, { title: `${name || 'Resume'} - Resume`, author: name });
     return {
-      file: { name: fileName(name, company), type: 'application/pdf', size: bytes.length, dataUrl: toDataUrl(bytes), generated: true, pages, createdAt: new Date().toISOString() },
+      file: { name: fileName(name, company, title), type: 'application/pdf', size: bytes.length, dataUrl: toDataUrl(bytes), generated: true, pages, createdAt: new Date().toISOString() },
       replaced,
     };
   }

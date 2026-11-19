@@ -289,7 +289,9 @@
       includes(created.text, 'keeping invoicing available');
       includes(created.text, 'Backend engineer with 8 years of experience building data platforms.', 'summary change was unticked');
       excludes(created.text, '10TB');
-      await waitFor(() => !dlg().open, { msg: 'dialog closed' });
+      // The review stays open with the result and a Download button (no jump away from the review).
+      await waitFor(() => /✅ Created/.test($('#enhOut').textContent) && $('#enhDownload'), { msg: 'result shown' });
+      includes($('#enhOut').textContent, 'Initech - Senior Data Engineer.pdf', 'file name has the job');
       await waitFor(() => /created/.test($('#enhList').textContent), { msg: 'draft marked created' });
     });
   }, { env: 'browser' });

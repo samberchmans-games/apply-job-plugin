@@ -185,7 +185,12 @@
       includes(out, 'Languages: SQL, Java, Python');
       includes(out, 'Cloud: Docker, AWS');
     });
-    it('adds allowed new skills to the first skills line', () => includes(E.assemble(RESUME, [{ target: 'skills', after: ['Terraform', 'Java'] }]), 'Languages: Java, Python, SQL, Terraform'));
+    it('new skills go to their own "Additional skills:" line when the skills lines are grouped (never into the wrong group)', () => {
+      const out = E.assemble(RESUME, [{ target: 'skills', after: ['Terraform', 'Java'] }]);
+      includes(out, 'Languages: Java, Python, SQL\n');
+      includes(out, 'Cloud: AWS, Docker\nAdditional skills: Terraform');
+    });
+    it('an ungrouped skills line gets the new skill at its end', () => includes(E.assemble('# A\n## Skills\nJava, Python', [{ target: 'skills', after: ['Terraform'] }]), 'Java, Python, Terraform'));
     it('protected lines always survive (integrity check passes)', () => {
       const out = E.assemble(RESUME, [{ target: 'b1', after: 'x y z' }, { target: 'summary', after: 's' }, { target: 'skills', after: ['AWS'] }]);
       ok(E.verifyIntegrity(RESUME, out).ok);

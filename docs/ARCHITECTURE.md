@@ -459,6 +459,8 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 - **Only close matches:** below `minMatch` (default 70%) the panel explains, lists the biggest gaps and makes no AI call; the background also refuses (`AJP-TAILOR-LOW`) when given a lower `score`.
 - **Few rewrites:** the AI is asked for at most `maxEdits` (6) edits; `limitEdits` keeps only the `maxEdits` most important valid rewrites selected (must > should > nice), the rest are shown as unselected "extra ideas"; the review won't tick more, and `applyEnhancement` skips extras (`LIMIT`). The skills-order edit doesn't count.
 - **Skills only if the user confirms them, where they choose:** the draft lists `skillOptions` (job skills the *resume* doesn't show, required first; never pre-ticked) and the resume's `roles`. Ticked skills get a job each — default spread by `placeSkill` (2 : 1 current : previous; a 6th goes to the third job; one job → all there). `resume.addSkills` writes each skill into one free line of the chosen job (AI wording validated like any edit, with the confirmed skill allowed; a line in another job, a changed number, or AI off → simple editable wording "…, using X"), never reusing a line already changed by a selected rewrite. Confirmed skills are also appended to the Skills line on create.
+- **One tailored resume per job:** `applyEnhancement` replaces the existing tailored resume for the same job (job identity via `tracker.jobKey`), keeps its id, and names the PDF "<Name> - Resume - <Company> - <Job title>.pdf". The panel scores the job with its tailored resume (`state.tailored`), re-scores live when that resume changes (signature check, nothing else triggers it), and offers ⬇ Download PDF. Admin groups tailored resumes in a collapsed "Tailored for jobs" list.
+- **Wrapped lines:** `AJP.continuesLine` (core) joins a line to the previous one when it starts in lower case, the previous ends with ","/"and"/…, or the previous is long and unfinished — never a bullet, a heading, a "Label:" line, a job line or a line starting with an action verb. The parser folds continuations into their bullet (replaced together on edit); the PDF writer folds them into their paragraph / bullet.
 - **Ceiling:** the resume-only match (what a recruiter / ATS reads) may reach at most `liftCeiling` = your real match (panel %) + `maxLift` (15), and at most `maxSkills` (4) skills; the review disables skills that would pass it and the background drops them (`lift` / `limit`).
 
 ### 9b. THE STANDARD: errors, failure capture and retries (applies to every change)
@@ -527,8 +529,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 548 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1044 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 1059 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

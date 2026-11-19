@@ -150,3 +150,5 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 .skill-pick.off { opacity: .55; } .skill-pick select { max-width: 320px; }
 .lift { margin: 6px 0 8px; }
 .hint.est { font-size: 11px; margin-top: 2px; }
+.tailored-group { margin: 8px 0; } .tailored-group > summary { cursor: pointer; padding: 6px 0; font-weight: 600; }
+.lift.over b { color: #b45309; }

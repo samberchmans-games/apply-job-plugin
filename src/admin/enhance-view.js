@@ -46,19 +46,19 @@
       const wouldBe = p ? null : projected(picks.map((x) => x.skill).concat(o.skill));
       const overLift = !p && wouldBe != null && wouldBe > E.liftCeiling(d, L);
       const overCount = !p && picks.length >= L.maxSkills;
-      const off = overLift || overCount;
-      const why = overCount ? `Limit: ${L.maxSkills} skills` : overLift ? `Limit: ${E.liftCeiling(d, L)}% (your match + ${L.maxLift}) — more would look like keyword stuffing` : '';
+      const off = overCount; // the skills count is the hard limit; going past the ceiling is a warning
+      const why = overCount ? `Limit: ${L.maxSkills} skills` : overLift ? `Careful: above ${E.liftCeiling(d, L)}% (your match + ${L.maxLift}) can look like keyword stuffing. Tick only what you really did.` : '';
       const place = !p ? '' : roles.length > 1
         ? `→ <select data-skill-role="${esc(o.skill)}">${roles.map((r) => `<option value="${esc(r.key)}" ${r.key === p.role ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select>`
         : roles.length ? `→ <span class="hint">${esc(roles[0].label)}</span>` : '';
       return `<div class="skill-pick ${off ? 'off' : ''}" data-skill-row="${esc(o.skill)}">
         <label class="check" title="${esc(why)}"><input type="checkbox" data-skill="${esc(o.skill)}" ${p ? 'checked' : ''} ${off ? 'disabled' : ''}> <b>${esc(o.skill)}</b></label>
         <span class="pill">${o.importance === 'required' ? 'Required' : o.importance === 'preferred' ? 'Nice to have' : 'Mentioned'}</span>
-        ${o.inProfile ? '<span class="hint">in your profile</span>' : ''} ${place} ${off ? `<span class="hint">${esc(why)}</span>` : ''}</div>`;
+        ${o.inProfile ? '<span class="hint">in your profile</span>' : ''} ${place} ${why ? `<span class="hint">${esc(why)}</span>` : ''}</div>`;
     };
     return `<h3>Skills the job asks for that your resume doesn't show</h3>
       <p class="hint">Tick <b>only skills you really have</b>, and choose the job where you used each one${roles.length > 1 ? ' (spread across jobs by default, most in your current one)' : ''}. Each goes into one line of that job and into your Skills list.</p>
-      <div class="lift"><b>Resume match ${before == null ? '—' : before + '%'} → <span id="enhLift">${now == null ? '—' : now + '%'}</span></b>
+      <div class="lift ${now != null && now > E.liftCeiling(d, L) ? 'over' : ''}"><b>Resume match ${before == null ? '—' : before + '%'} → <span id="enhLift">${now == null ? '—' : now + '%'}</span></b>${now != null && now > E.liftCeiling(d, L) ? ' <span class="pill warn">above your match + ' + L.maxLift + '</span>' : ''}
         <span class="hint">(${d.matchScore != null ? `your match ${esc(d.matchScore)}%, ` : ''}limit ${E.liftCeiling(d, L)}% and ${L.maxSkills} skills: a light touch keeps it yours)</span></div>
       ${opts.map(row).join('')}
       <div class="row"><button id="enhAddSkills" ${picks.length ? '' : 'disabled'}>Add ${picks.length || ''} selected skill${picks.length === 1 ? '' : 's'} to the draft</button>
@@ -231,6 +231,17 @@
     });
     dlg.addEventListener('click', async (e) => {
       if (e.target.id === 'enhClose') dlg.close();
+      if (e.target.id === 'enhDownload') {
+        const all = await AJP.store.get('resumes');
+        const r = all.items.find((x) => x.id === current.__created);
+        if (r && r.file) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(await (await fetch(r.file.dataUrl)).blob()); // local dataUrl decode
+          a.download = r.file.name;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+      }
       if (e.target.id === 'enhAddSkills') {
         e.target.disabled = true;
         const r = await AJP.send('resume.addSkills', { id: current.id, picks: picks.map((p) => ({ skill: p.skill, role: p.role })) });
@@ -266,10 +277,14 @@
           e.target.disabled = false;
           return;
         }
-        ui.toast(`Created “${r.resume.name}” (${r.applied} changes)`);
-        dlg.close();
+        // Stay here: say what happened, offer the PDF, and point back to the job (its panel re-scores by itself).
         renderList();
         ui.onCreated(r.resume);
+        $('#enhOut').innerHTML = `✅ ${r.replaced ? 'Updated' : 'Created'} <b>${esc(r.resume.name)}</b> (${r.applied} change${r.applied === 1 ? '' : 's'}).
+          <button id="enhDownload" class="primary">⬇ Download PDF</button>
+          <span class="hint">${r.resume.file ? esc(r.resume.file.name) + ' · ' : ''}Back on the job page, the panel now scores with this resume and Autofill uploads it.</span>`;
+        current.__created = r.resume.id;
+        e.target.disabled = false;
       }
     });
     // Deep link #resumes?enh=<id> — on load and when the Admin tab is already open.
