@@ -215,7 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
-| 18 | **Admin & popup UI tests** (section 9) + 2 bug fixes | _pending_ |
+| 18 | **Admin & popup UI tests** (section 9) + 2 bug fixes | `1d59cc4` |
 | 17 | **Work experience / education entries on any site** (section 5) + tester checks & video scene | `d3cbc4c` |
 | 16 | **Store packaging** (Chrome, Edge, Firefox, Safari) + listing, privacy policy, screenshots | `3794ddc` |
 | 14 | **Profile suggestions from learned answers** (section 6) + tester checks & video scene | `4561e39` |
@@ -280,7 +280,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
-| 2026-11-18 | _pending_ | **Step 18: Admin & popup UI tests**; fixed B16 (resume rename lost), B17 (unknown Admin link); 963 tests |
+| 2026-11-18 | `1d59cc4` | **Step 18: Admin & popup UI tests**; fixed B16 (resume rename lost), B17 (unknown Admin link); 963 tests |
 | 2026-11-18 | `d3cbc4c` | **Step 17: work experience / education entries on any site** (entries.js); 932 tests |
 | 2026-11-18 | `3794ddc` | **Step 16: store packaging**: per-store zips, Safari project build, CI package job, store listing / privacy policy / screenshots |
 | 2026-11-18 | `4561e39` | **Step 14: profile suggestions from learned answers**; shared field rules; 915 tests |
