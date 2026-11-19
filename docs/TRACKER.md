@@ -6,7 +6,7 @@ This is the single page for **where every component stands right now**. The othe
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 17, work/education entries on any site
+**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 18, Admin / popup UI tests (all planned items built)
 
 ## Summary
 
@@ -14,14 +14,14 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 35** |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **932 / 932 passing** (498 also run without a browser), incl. convention checks |
+| Automated tests | **963 / 963 passing** (498 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 101 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (15 found and fixed so far, each with a test) |
-| Next step | **Admin / popup UI tests** (last item on the list) |
+| Open bugs | **0 known** (17 found and fixed so far, each with a test) |
+| Next step | **None planned.** Remaining work is real-world testing (your side), store submission (your side), and fixes from tester reports |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -76,12 +76,12 @@ Columns:
 ### Extension pages
 | ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
 |---|---|---|---|---|---|---|
-| C19 | Admin: profile, skills, preferences, resumes, auto-apply, AI settings, learned answers, backup | `src/admin/admin.html/.js/.css` | ✅ | 0 | ⏳ | 🟡 **No automated UI tests yet**; covered by manual scenarios B1–B18 |
+| C19 | Admin: profile, skills, preferences, resumes, auto-apply, AI settings, learned answers, backup | `src/admin/admin.html/.js/.css` | ✅ | 24 | ⏳ | UI tests: navigation, profile, skills, preferences, resumes, auto-apply, backup (`admin-screens.test.js`) |
 | C20 | Admin: Applications (board, table, details, stats, CSV) | `src/admin/tracker-view.js` | ✅ | 10 | ⏳ | |
 | C21 | Admin: Logs & support (Report an issue) | `src/admin/admin.js` | ✅ | 7 | ⏳ | |
 | C31 | **Admin: resume tailoring review** | `src/admin/enhance-view.js` | ✅ | 6 | ⏳ | Requirements + evidence, before/after, blocked reasons, "add your real number", gaps, create |
 | C22 | **Resume PDF writer** (one format): every resume gets an ATS-readable PDF; tailored ones on creation; kept in sync with typed text; Autofill uploads the one tailored for the job; Download / View PDF | `src/lib/pdf-writer.js` | ✅ | 29 | ⏳ | Replaces the old print view. Check the PDF on a real ATS upload (B9, E18) |
-| C23 | Toolbar popup | `src/popup/*` | ✅ | 0 | ⏳ | 🟡 No automated tests; manual A2, F7, I12 |
+| C23 | Toolbar popup | `src/popup/*` | ✅ | 7 + 1 | ⏳ | UI tests: status, warnings, AI label, due link, Admin / report links, Analyze, error display |
 
 ### Not started (roadmap)
 | ID | Component | Roadmap step | Built | Notes |
@@ -92,7 +92,7 @@ Columns:
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) = **932**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) = **963**
 
 ---
 
@@ -121,7 +121,7 @@ Columns:
 | W10 | Load in Chrome and run the manual scenarios | — | **You** | ⏳ Waiting on you | — |
 | W11 | Verify in Firefox, Edge and Safari | — | **You** | ⏳ Waiting on you | W10 |
 | W12 | Check job-page reading on live LinkedIn, Indeed and Glassdoor | — | **You** | ⏳ Waiting on you | W10 |
-| W13 | Automated UI tests for the Admin profile/skills/resume screens and the popup (C19, C22, C23) | — | Claude | ⬜ To do (nice to have) | — |
+| W13 | Automated UI tests for the Admin profile/skills/resume screens and the popup (C19, C22, C23) | 18 | Claude | ✅ Done (found and fixed B16, B17) | — |
 | W14 | Publish to browser stores | — | Both | 💤 Later | W10, W11 |
 | W15 | Optional email status sync (Gmail/Outlook) | — | Claude | 💤 Later, not decided | — |
 
@@ -142,6 +142,7 @@ Columns:
 | — | **THE STANDARD** for errors, failure capture and retries, applied everywhere + convention tests | `3fb5ee3` | 658 |
 | 8 | **PDF resumes**: text read automatically on upload (pdf.js, verified download), Read text from PDF, coded errors; Tester Guide 1.10–1.12 + video Part 1 scene; all videos re-rendered with aligned highlights | `eacd1a3` | 684 |
 | 9 | **Workday support**: pop-up dropdowns, search prompts, Month/Year dates, Add entries for experience/education, "Autofill this page" across pages, learning from picks; emulated Workday for tests/videos; Tester Guide 4.9–4.12 + video Part 4 scenes | `fd1b226` | 720 |
+| 18 | **Admin & popup UI tests**: navigation, profile, skills, preferences, resumes, auto-apply, backup (export without keys, import, wipe), popup; fixed B16 (resume rename lost) and B17 (unknown Admin link → blank page) | _pending_ | 963 |
 | 17 | **Work experience / education entries on any site**: sections found by heading + anchor field, "Add another" clicked per profile item, fields by label (dates as month+year / MM/YYYY / month input, current job, searchable school/degree), user entries kept; Tester Guide 4.22–4.23 + video Part 4 scene | `d3cbc4c` | 932 |
 | 16 | **Store packaging**: per-store zips with the right manifest + verification (`tools/package.py`), Chrome packer and Safari Xcode build verified, CI package job with Mozilla `web-ext lint`, listing texts, privacy policy, submission checklist, screenshots + promo tiles (`tools/store_assets.py`), Safari project (`tools/safari.sh`) | `3794ddc` | 915 |
 | 14 | **Profile suggestions from learned answers**: shared field rules (`field-rules.js`), suggestion rules (empty field / typed twice, most used wins, EEO never), Admin box with Save / Dismiss / Save all + menu count, popup line; Tester Guide 4.20–4.21 + video Part 4 scene | `4561e39` | 915 |
@@ -168,6 +169,8 @@ Columns:
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B17 | An unknown Admin link (old bookmark, typo) showed an empty page | Admin UI tests | Step 18 | admin screens › … unknown section falls back to Profile |
+| B16 | Renaming a resume and then editing its text within half a second lost the new name (one shared save timer) | Admin UI tests | Step 18 | admin screens › bug B16… |
 | B15 | A `<select>` inside its own `<label>` (Lever) was labelled with all its options ("Gender✱Select …MaleFemale…"); "✱" was not stripped | Video render | Step 12 | sites › bug B15… |
 | B14 | A short bullet with "experience" or "skills" under **Nice to have** (e.g. "- Experience with Snowflake") was read as a heading and flipped the rest back to *required* | Experience tests | Step 11 | matcher › bug B14… |
 

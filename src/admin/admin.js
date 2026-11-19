@@ -35,7 +35,9 @@
 
   // ---- Routing --------------------------------------------------------------------
   function route() {
-    const id = (location.hash || '#profile').slice(1).split('?')[0] || 'profile';
+    const want = (location.hash || '#profile').slice(1).split('?')[0] || 'profile';
+    // An unknown link (old bookmark, typo) shows Profile instead of an empty page.
+    const id = $$('section').some((s) => s.id === want) ? want : 'profile';
     $$('section').forEach((s) => s.classList.toggle('on', s.id === id));
     $$('nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
     if (id === 'logs') {
@@ -310,14 +312,19 @@
       renderResumes();
     });
 
-    const saveField = AJP.debounce(async (k, v) => {
+    // One save timer PER FIELD: renaming then editing the text quickly must save both (bug B16).
+    const savers = {};
+    const saveField = (k, v) => {
       const id = selectedResumeId;
-      await updateResumes((r) => {
-        const x = r.items.find((i) => i.id === id);
-        if (x) x[k] = v;
-      });
-      toast('Saved');
-    }, 500);
+      savers[k] = savers[k] || AJP.debounce(async (rid, val) => {
+        await updateResumes((r) => {
+          const x = r.items.find((i) => i.id === rid);
+          if (x) x[k] = val;
+        });
+        toast('Saved');
+      }, 500);
+      savers[k](id, v);
+    };
     // A PDF made from the text is kept in sync with it (a PDF the user uploaded is never replaced).
     const regenPdf = AJP.debounce(AJP.guard('admin.regeneratePdf', async () => {
       const id = selectedResumeId;

@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 932 automated + 122 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 963 automated + 122 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -111,7 +111,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Workday custom dropdowns, date pickers, multi-step "My Experience" | ✅ | Step 9; `src/content/workday.js`; built against an emulation, to verify on real Workday |
 | Repeatable experience/education entries on forms | ✅ | Workday (its adapter) + any other site (`entries.js`, step 17): Add another per item, dates in the site's format, your own entries kept |
 | Per-ATS adapters (Greenhouse, Lever, Ashby, iCIMS) | ✅ | Step 12; `ats.js`: site field names, searchable dropdowns, location autocompletes, Yes/No buttons, hidden selects, Lever resume-first, iCIMS sign-in note. Built against emulations: verify on real sites |
-| Job-site accounts (username/password) | ⬜ | Plan: use the browser's password manager, not our storage |
+| Job-site accounts (username/password) | ✅ by design | Not stored by the extension, ever: the browser's password manager handles logins; iCIMS-style sign-in pages get a note |
 
 ## 6. Learning about the user
 | Item | Status | Notes |
@@ -146,7 +146,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 932 across 29 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 932) · `./tests/run-tests.sh` (the 498 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 963) · `./tests/run-tests.sh` (the 498 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -187,7 +187,7 @@ How it works: [ARCHITECTURE.md §15](ARCHITECTURE.md#15-career-tracks).
 | CSV export (Excel / Google Sheets), safe against formula injection | ✅ | |
 | Duplicate warning on job pages ("You already tracked this job…") | ✅ | Same job or same company + similar title |
 | Fix: Autofill no longer resets an "applied" job to "in progress" | ✅ | Automatic updates only move forward |
-| Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⬜ later | Ideas discussed; not planned yet |
+| Optional email status sync (Gmail/Outlook, read-only, opt-in) | ⏸ parked | Needs your decision + your Google/Microsoft OAuth app registration (and Google's verification for Gmail read scopes); conflicts with "no data leaves the computer" unless done fully client-side. Not built |
 
 ## 12. Issue reporting to GitHub (option A) — ✅ done 2026-11-18 (step 7)
 Users report problems as GitHub issues. The extension pre-fills the form, and the user reviews and submits it from their own GitHub account. A GitHub Action acknowledges and labels each report. No server, and no token in the extension. Full spec: [ISSUE-REPORTING.md](ISSUE-REPORTING.md).
@@ -215,6 +215,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 3 | Application tracker (section 11) | `15fbc3c` |
 | 4 | Support logging: error codes, trace ids, Report an issue (section 8) | `ab79d58` |
 | 5 | **Resume enhancement v2**: verified evidence, targeted result-oriented edits, safety validator, review screen (section 4) | `3022695` |
+| 18 | **Admin & popup UI tests** (section 9) + 2 bug fixes | _pending_ |
 | 17 | **Work experience / education entries on any site** (section 5) + tester checks & video scene | `d3cbc4c` |
 | 16 | **Store packaging** (Chrome, Edge, Firefox, Safari) + listing, privacy policy, screenshots | `3794ddc` |
 | 14 | **Profile suggestions from learned answers** (section 6) + tester checks & video scene | `4561e39` |
@@ -279,6 +280,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-18 | _pending_ | **Step 18: Admin & popup UI tests**; fixed B16 (resume rename lost), B17 (unknown Admin link); 963 tests |
 | 2026-11-18 | `d3cbc4c` | **Step 17: work experience / education entries on any site** (entries.js); 932 tests |
 | 2026-11-18 | `3794ddc` | **Step 16: store packaging**: per-store zips, Safari project build, CI package job, store listing / privacy policy / screenshots |
 | 2026-11-18 | `4561e39` | **Step 14: profile suggestions from learned answers**; shared field rules; 915 tests |
