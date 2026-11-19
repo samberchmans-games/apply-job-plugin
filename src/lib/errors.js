@@ -24,6 +24,7 @@
     AI_TIMEOUT: ['AJP-AI-TIME', 'The AI took too long to answer.', 'Try again; long resumes and job posts take longer.'],
     AI_NETWORK: ['AJP-AI-NET', 'Could not reach the AI provider.', 'Check your internet connection. For Ollama, make sure it is running (OLLAMA_ORIGINS="*" ollama serve).'],
     AI_BAD_RESPONSE: ['AJP-AI-FMT', 'The AI answer could not be understood.', 'Try again, or pick a larger model.'],
+    TAILOR_LOW_MATCH: ['AJP-TAILOR-LOW', 'This job is not a close enough match to tailor your resume for.', 'Tailoring is for jobs that already match well (70%+ by default, Admin → AI settings → Tailoring limits). Honest edits add about 10–15 points; focus on closer jobs or build the missing skills.'],
     AI_LOCAL_UNSUPPORTED: ['AJP-AI-LOCAL-NONE', "This browser doesn't have built-in AI.", 'Use a recent desktop Chrome (138 or newer) or pick another free provider in Admin → AI settings.'],
     AI_LOCAL_UNAVAILABLE: ['AJP-AI-LOCAL-OFF', "Chrome's built-in AI can't run on this computer right now.", 'It needs a desktop computer with enough free disk space (about 22 GB) and memory; see chrome://on-device-internals. Or pick another free provider.'],
     AI_LOCAL_DOWNLOAD: ['AJP-AI-LOCAL-DL', "Chrome's built-in AI model isn't downloaded yet.", 'Open Admin → AI settings and click "Download the on-device model" (one time), then try again.'],

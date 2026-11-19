@@ -202,6 +202,23 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     api.tabs.onRemoved.addListener((tabId) => serialData(() => AJP.store.update('tabJobs', (all) => void delete all[tabId])));
   }
 
+  // ---- Tailoring helpers: what the resume alone shows for a job, and which skills could be added ----------------
+  // Resume-only match % (what a recruiter / ATS sees): profile skills are NOT counted here.
+  function resumeScore(jd, text, extraSkills = []) {
+    const a = AJP.matcher.analyze({ jdText: jd, profile: { skills: extraSkills.map((name) => ({ name })) }, resumeText: text });
+    return a.score;
+  }
+  function skillOptions(jd, text, profile) {
+    const a = AJP.matcher.analyze({ jdText: jd, profile: { skills: [] }, resumeText: text });
+    const mine = new Set((profile.skills || []).map((s) => AJP.norm(AJP.matcher.canonical(s.name || s))));
+    const rank = { required: 0, mentioned: 1, preferred: 2 };
+    return a.missing
+      .slice()
+      .sort((x, y) => rank[x.importance] - rank[y.importance] || y.weight - x.weight)
+      .slice(0, 10)
+      .map((m) => ({ skill: m.skill, importance: m.importance, inProfile: mine.has(AJP.norm(m.skill)) }));
+  }
+
   // ---- Message handlers ------------------------------------------------------
   const handlers = {
     async log({ entries }, sender) {
@@ -221,8 +238,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Resume enhancement v2 — see src/lib/resume-engine.js for the rules.
-    async 'resume.enhance'({ jd, job, trackId }, sender, { tid, log: mlog }) {
+    async 'resume.enhance'({ jd, job, trackId, score }, sender, { tid, log: mlog }) {
       const E = AJP.resumeEngine;
+      // Tailoring is for close matches only: a small honest lift, never a rewrite to chase a far-off job.
+      const lim = E.limits(await AJP.store.get('settings'));
+      if (score != null && Number(score) < lim.minMatch) throw AJP.err('TAILOR_LOW_MATCH', { score: Number(score), min: lim.minMatch });
       const ctx = await aiContext(trackId);
       if (!ctx.resumeText) throw AJP.err('NO_RESUME');
       const doc = E.parse(ctx.resumeText);
@@ -235,10 +255,10 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const skills = (ctx.profile.skills || []).map((x) => x.name || x);
 
       // 3) targeted edits (AI) → 4) validate every edit (code)
-      const proposal = await AJP.ai.tasks.proposeResumeEdits({ doc, requirements, atsKeywords: ats, skills, job, tid });
+      const proposal = await AJP.ai.tasks.proposeResumeEdits({ doc, requirements, atsKeywords: ats, skills, job, maxEdits: lim.maxEdits, tid });
       const vctx = { doc, resumeText: ctx.resumeText, jdText: jd, allowedSkills: E.allowedSkills(doc, ctx.resumeText, ctx.profile.skills) };
       const seen = new Set();
-      const edits = (Array.isArray(proposal.edits) ? proposal.edits : []).slice(0, 20).map((e, i) => {
+      const proposed = (Array.isArray(proposal.edits) ? proposal.edits : []).slice(0, 20).map((e, i) => {
         const target = String(e.target || '');
         const v = E.validateEdit({ target, after: e.after, evidence: e.evidence }, vctx);
         if (seen.has(target)) {
@@ -254,7 +274,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
           ok: v.ok, violations: v.violations, warnings: v.warnings, needsMetric: v.needsMetric, accepted: v.ok,
         };
       });
-      const valid = edits.filter((e) => e.ok);
+      // Only the most important rewrites stay selected (limit); the rest are shown as unselected ideas.
+      const edits = E.limitEdits(proposed, requirements, lim.maxEdits);
+      const valid = edits.filter((e) => e.ok && e.accepted);
       const advice = new Map((Array.isArray(proposal.gap_advice) ? proposal.gap_advice : []).map((g) => [String(g.requirement_id), String(g.advice || '').slice(0, 400)]));
       const gaps = requirements.filter((r) => r.match === 'none').map((r) => ({ requirementId: r.id, text: r.text, priority: r.priority, advice: advice.get(r.id) || '' }));
       const atsBefore = E.keywordCoverage(ctx.resumeText, ats);
@@ -278,7 +300,16 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         edits,
         gaps,
         coverage: { evidence: E.evidenceCoverage(requirements), atsBefore: atsBefore && atsBefore.pct, atsAfter: atsAfter && atsAfter.pct, atsMissingAfter: atsAfter ? atsAfter.missing : [] },
-        stats: { requirements: requirements.length, strong: count('strong'), partial: count('partial'), none: count('none'), edits: edits.length, blocked: edits.length - valid.length, needsMetric: valid.filter((e) => e.needsMetric).length, droppedQuotes },
+        stats: { requirements: requirements.length, strong: count('strong'), partial: count('partial'), none: count('none'), edits: edits.length, blocked: edits.filter((e) => !e.ok).length, limited: edits.filter((e) => e.limited).length, needsMetric: valid.filter((e) => e.needsMetric).length, droppedQuotes },
+        // Skills the job asks for that the RESUME doesn't show (what a recruiter / ATS reads). Never pre-selected:
+        // the user ticks only what they really have, and picks the job where it goes.
+        limits: lim,
+        matchScore: score != null ? Number(score) : null,
+        resumeScore: resumeScore(jd, ctx.resumeText),
+        roles: E.roles(doc).map((r) => ({ key: r.key, label: r.label })),
+        skillOptions: skillOptions(jd, ctx.resumeText, ctx.profile),
+        skillPicks: [],
+        confirmedSkills: [],
       };
       await serialData(() => AJP.store.update('enhancements', (list) => [draft, ...list].slice(0, 20)));
       const blockedBy = {};
@@ -288,6 +319,88 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // The user reviewed a draft: build the new resume from the original + accepted, re-validated edits.
+    // The user ticked skills they really have and chose the job for each: write each into one line of that job.
+    async 'resume.addSkills'({ id, picks = [] }, sender, { tid, log: mlog }) {
+      const E = AJP.resumeEngine;
+      const drafts = await AJP.store.get('enhancements');
+      const d = drafts.find((x) => x.id === id);
+      if (!d) throw AJP.err('ENHANCEMENT_MISSING', { id });
+      const resumes = await AJP.store.get('resumes');
+      const base = resumes.items.find((r) => r.id === d.resumeId);
+      if (!base) throw AJP.err('ENHANCEMENT_MISSING', { reason: 'original resume deleted' });
+      if (hashText(base.text || '') !== d.baseHash) throw AJP.err('RESUME_CHANGED');
+      const lim = d.limits || E.limits(await AJP.store.get('settings'));
+      const doc = E.parse(base.text);
+      const roleList = E.roles(doc);
+      const offered = new Map((d.skillOptions || []).map((o) => [AJP.norm(o.skill), o.skill]));
+      // Valid picks only: offered skills, existing jobs, no duplicates, at most maxSkills…
+      const clean = [];
+      for (const p of picks) {
+        const skill = offered.get(AJP.norm(p && p.skill));
+        const role = roleList.find((r) => r.key === (p && p.role)) || roleList[0];
+        if (skill && role && !clean.some((c) => c.skill === skill)) clean.push({ skill, role: role.key });
+      }
+      const skipped = [];
+      let list = clean.slice(0, lim.maxSkills);
+      clean.slice(lim.maxSkills).forEach((p) => skipped.push({ skill: p.skill, reason: 'limit' }));
+      // …and within the lift limit (never turn a close match into keyword stuffing).
+      const ceiling = E.liftCeiling(d, lim);
+      while (list.length && resumeScore(d.jd, base.text, list.map((p) => p.skill)) > ceiling) skipped.push({ skill: list.pop().skill, reason: 'lift' });
+
+      // Lines already changed by an accepted rewrite are not reused.
+      const taken = new Set(d.edits.filter((e) => e.accepted && e.source !== 'skill' && e.kind === 'bullet').map((e) => e.target));
+      const linesOf = (roleKey) => doc.bullets.filter((b) => b.role === roleKey && !taken.has(b.id));
+      let ai = [];
+      if (list.length) {
+        try {
+          const r = await AJP.ai.tasks.weaveSkills({ picks: list.map((p) => ({ ...p, lines: linesOf(p.role).map((b) => ({ id: b.id, text: b.text })) })), job: d.job, tid });
+          ai = Array.isArray(r && r.edits) ? r.edits : [];
+        } catch (e) {
+          const x = AJP.toAppError(e);
+          mlog.info('Skill wording: AI not used, simple wording instead', { code: x.code }, { code: x.code });
+        }
+      }
+      const allowed = E.allowedSkills(doc, base.text, (await AJP.store.get('profile')).skills);
+      list.forEach((p) => allowed.add(AJP.matcher.canonical(p.skill).toLowerCase()));
+      const vctx = { doc, resumeText: base.text, jdText: d.jd, allowedSkills: allowed };
+      const has = (text, skill) => AJP.matcher.findSkills(text, [skill]).has(skill) || String(text).toLowerCase().includes(skill.toLowerCase());
+      const out = [];
+      for (const p of list) {
+        const lines = linesOf(p.role).filter((b) => !out.some((o) => o.target === b.id));
+        if (!lines.length) {
+          skipped.push({ skill: p.skill, reason: 'no free line in that job' });
+          continue;
+        }
+        const cand = ai.find((e) => e && String(e.skill || '').toLowerCase() === p.skill.toLowerCase() && lines.some((b) => b.id === e.target));
+        let target = cand ? cand.target : lines[0].id;
+        let after = cand ? String(cand.after || '') : '';
+        let v = after && has(after, p.skill) ? E.validateEdit({ target, after, evidence: [lines.find((b) => b.id === target).text] }, vctx) : { ok: false };
+        let wording = 'ai';
+        if (!v.ok) {
+          // Simple wording the user can edit: the AI was off, failed, or broke a rule.
+          target = (cand && lines.some((b) => b.id === cand.target) ? lines.find((b) => b.id === cand.target) : lines[0]).id;
+          const line = lines.find((b) => b.id === target);
+          after = E.weaveFallback(line.text, p.skill);
+          v = E.validateEdit({ target, after, evidence: [line.text] }, vctx);
+          wording = 'simple';
+        }
+        const line = doc.bullets.find((b) => b.id === target);
+        out.push({
+          id: 's' + (out.length + 1), target, kind: 'bullet', role: line.role, before: line.text, after: v.after || after,
+          reason: `Shows ${p.skill} in the job where you used it (you confirmed it)`, requirementIds: [], evidence: [line.text],
+          ok: v.ok, violations: v.violations || [], warnings: [], needsMetric: false, accepted: !!v.ok, source: 'skill', skill: p.skill, wording,
+        });
+      }
+      d.edits = d.edits.filter((e) => e.source !== 'skill').concat(out);
+      d.skillPicks = list;
+      d.confirmedSkills = list.map((p) => p.skill);
+      const chosen = d.edits.filter((e) => e.accepted && e.ok && e.kind === 'bullet').map((e) => ({ target: e.target, after: e.after }));
+      d.coverage.resumeAfter = resumeScore(d.jd, E.assemble(base.text, chosen), d.confirmedSkills);
+      await serialData(() => AJP.store.update('enhancements', (all) => all.map((x) => (x.id === d.id ? d : x))));
+      mlog.info('Skills added to tailoring draft', { added: out.length, skipped: skipped.length, ai: out.filter((x) => x.wording === 'ai').length });
+      return { draft: d, added: out.map((o) => ({ skill: o.skill, role: o.role, wording: o.wording })), skipped };
+    },
+
     async 'resume.applyEnhancement'({ id, decisions = [], makeActive = false }, sender, { log: mlog }) {
       const E = AJP.resumeEngine;
       const drafts = await AJP.store.get('enhancements');
@@ -302,13 +415,22 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const track = d.trackId ? AJP.tracks.list(profileRaw).find((t) => t.id === d.trackId) : null;
       const profile = AJP.tracks.effectiveProfile(profileRaw, track);
       const doc = E.parse(base.text);
-      const vctx = { doc, resumeText: base.text, jdText: d.jd, allowedSkills: E.allowedSkills(doc, base.text, profile.skills) };
+      const allowed = E.allowedSkills(doc, base.text, profile.skills);
+      (d.confirmedSkills || []).forEach((sk) => allowed.add(AJP.matcher.canonical(sk).toLowerCase())); // skills the user confirmed
+      const vctx = { doc, resumeText: base.text, jdText: d.jd, allowedSkills: allowed };
+      const lim = d.limits || E.limits(await AJP.store.get('settings'));
       const chosen = [];
       const skipped = [];
+      let rewrites = 0;
       for (const e of d.edits) {
         const dec = decisions.find((x) => x.editId === e.id);
         const accepted = dec ? !!dec.accepted : e.accepted;
         if (!accepted) continue;
+        // Never more than maxEdits rewrites (skill lines and the skills order are counted separately).
+        if (e.kind !== 'skills' && e.source !== 'skill' && ++rewrites > lim.maxEdits) {
+          skipped.push({ editId: e.id, codes: ['LIMIT'] });
+          continue;
+        }
         const userText = dec && dec.after != null && dec.after !== e.after ? dec.after : null;
         // Text the USER typed is their own claim (e.g. their real result); AI text must pass every rule.
         const v = E.validateEdit({ target: e.target, after: userText != null ? userText : e.after, evidence: e.evidence, userEdited: userText != null }, vctx);
@@ -317,6 +439,13 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
           continue;
         }
         chosen.push({ target: e.target, after: e.kind === 'skills' ? v.after.split(/\s*,\s*/) : v.after });
+      }
+      const appliedCount = chosen.length;
+      // Confirmed skills also go into the Skills line (added at the end of the list).
+      if ((d.confirmedSkills || []).length && doc.skills.length) {
+        const sk = chosen.find((c) => c.target === 'skills');
+        if (sk) sk.after = sk.after.concat(d.confirmedSkills);
+        else chosen.push({ target: 'skills', after: d.confirmedSkills });
       }
       const text = E.assemble(base.text, chosen);
       const integrity = E.verifyIntegrity(base.text, text);
@@ -353,7 +482,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       }
       await serialData(() => AJP.store.update('enhancements', (list) => void list.forEach((x) => x.id === id && (x.appliedResumeId = item.id))));
       mlog.info('Tailored resume created', { edits: chosen.length, skipped: skipped.length, makeActive: !!makeActive });
-      return { resume: item, applied: chosen.length, skipped };
+      return { resume: item, applied: appliedCount, skipped };
     },
 
     async 'ai.draftAnswer'({ question, jd, job, maxWords, trackId }, sender, { tid }) {

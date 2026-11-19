@@ -54,6 +54,7 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-AI-LOCAL-OFF` | Chrome's on-device model can't run (hardware, disk space, policy, unsupported language). `details.name/reason` say why | Check chrome://on-device-internals; about 22 GB free disk space; or another provider |
 | `AJP-AI-LOCAL-DL` | The on-device model isn't downloaded yet (`details.state`: downloadable / downloading), or the browser wanted a click | Admin → AI settings → "Download the on-device model", wait for 100%, then retry |
 | `AJP-AI-LOCAL-LEN` | Resume + job post too long for the on-device model even after shortening | Shorten the resume or use Gemini / Groq for that job |
+| `AJP-TAILOR-LOW` | Tailor resume was asked for a job below the minimum match (`details.score` / `details.min`) | Expected: tailoring is for close matches. Change the limit in Admin → AI settings → Tailoring limits if really needed |
 | `AJP-PAGE-ACCESS` | The extension can't read this page | Browser pages, stores and PDF viewers are off-limits |
 | `AJP-JD-NONE` | No job description found on the page | User can select the text → right-click → analyze. If it's a common site, add a selector in `jd-extractor.js` (see `data.host`). |
 | `AJP-RES-NONE` | No resume text | Add or paste resume text in Admin → Resumes |

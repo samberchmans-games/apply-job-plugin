@@ -290,6 +290,7 @@
     });
 
     it('"Tailor resume" shows a summary and opens the review screen', async () => {
+      await AJP.store.update('settings', (s) => void (s.tailoring.minMatch = 0)); // this job is a low match: the gate is tested in tailoring-limits
       await AJP.send('analyzeTab', { tabId: 1, jdText: JD });
       const sh = await waitFor(() => document.querySelector('ajp-panel') && document.querySelector('ajp-panel').shadowRoot.querySelector('[data-act="tailor"]') && document.querySelector('ajp-panel').shadowRoot);
       sh.querySelector('[data-act="tailor"]').click();

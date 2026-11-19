@@ -174,10 +174,27 @@
     },
 
     async tailor() {
+      // Tailoring is for close matches: an honest edit lifts a good fit by ~10–15 points; it can't (and shouldn't)
+      // turn a 40% match into a fit. Below the minimum, explain and show the biggest gaps instead.
+      const t = (await AJP.store.get('settings')).tailoring || {};
+      const num = (v, d) => (Number.isFinite(parseInt(v, 10)) ? parseInt(v, 10) : d);
+      const lim = { minMatch: num(t.minMatch, 70), maxLift: num(t.maxLift, 15) };
+      const score = state.analysis ? state.analysis.score : null;
+      if (score != null && score < lim.minMatch) {
+        const esc = AJP.panel.esc;
+        const gaps = (state.analysis.missing || []).filter((m) => m.importance !== 'preferred').slice(0, 4).map((m) => esc(m.skill));
+        log.info('Tailoring not offered: match below the minimum', { score, min: lim.minMatch });
+        return say(
+          `<b>${score}% match: tailoring starts at ${lim.minMatch}%.</b><br>` +
+            `Honest edits lift a close match by about ${lim.maxLift} points; they can't close a ${lim.minMatch - score}-point gap, and a stretched resume tends to fall apart in interviews.<br>` +
+            (gaps.length ? `Biggest gaps: ${gaps.join(', ')}.<br>` : '') +
+            `Better use of your time: jobs at ${lim.minMatch}%+, or build these skills first. <span class="muted">(The limit is in Admin → AI settings → Tailoring limits.)</span>`
+        );
+      }
       state.busy = 'tailor';
       say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s…');
       const tr = AJP.startTrace('panel.enhanceResume', { mod: 'content', slowMs: 90000 });
-      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef() }, tr);
+      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef(), score }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
@@ -189,7 +206,8 @@
       tr.end({ requirements: st.requirements, edits: st.edits, blocked: st.blocked });
       say(
         `<b>${st.requirements} job requirements</b>: ${st.strong} strong, ${st.partial} partial, ${st.none} not in your resume.<br>` +
-          `<b>${st.edits - st.blocked} suggested edits</b>${st.blocked ? ` (${st.blocked} blocked by safety checks)` : ''}` +
+          `<b>${st.edits - st.blocked - (st.limited || 0)} suggested edits</b>${st.blocked ? ` (${st.blocked} blocked by safety checks)` : ''}${st.limited ? ` · ${st.limited} more ideas kept aside (light touch)` : ''}` +
+          (d.skillOptions && d.skillOptions.length ? `<br>${d.skillOptions.length} job skill${d.skillOptions.length > 1 ? 's' : ''} your resume doesn't show: tick the ones you really have in the review.` : '') +
           `${st.needsMetric ? ` · ${st.needsMetric} could use your real numbers` : ''}.<br>` +
           (d.coverage.atsBefore != null ? `Job keywords in your resume: ${esc(d.coverage.atsBefore)}% → ${esc(d.coverage.atsAfter)}%.<br>` : '') +
           `<a data-act="openEnhance" data-arg="${esc(d.id)}">Review the changes &amp; create the resume →</a>`

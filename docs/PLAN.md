@@ -94,6 +94,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Review screen: requirements + evidence, before → after, why, blocked reasons, accept/reject, edit, gaps with honest advice | ✅ | Admin → Resumes |
 | Coverage: % of requirements backed by the resume; job keywords before → after | ✅ | |
 | Prompt hygiene: job and resume fenced as data; injected instructions ignored; one automatic retry on invalid JSON | ✅ | |
+| **Limits**: only for close matches (default 70%+; below, the panel shows the biggest gaps instead), at most 6 reworded lines, skills only if you tick them, each placed in the job you choose (spread across jobs by default), resume match capped at your match + 15 | ✅ | Admin → AI settings → Tailoring limits; `AJP-TAILOR-LOW` |
 | Quality check with a real free AI on real jobs | ⏳ | Your side: needs a Groq or Gemini key (scenarios D1–D10) |
 | One format: every resume has a PDF (uploaded PDF kept as is; Word/text/typed → PDF made from the text, kept in sync) · Download / View PDF | ✅ | Step 10; `src/lib/pdf-writer.js` (ATS-readable text, standard fonts) |
 | Tailored resume gets its own PDF, named "<Name> - Resume - <Company>.pdf"; Autofill uploads the one tailored for *this* job | ✅ | Step 10 |
@@ -146,7 +147,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 963) · `./tests/run-tests.sh` (the 498 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 993) · `./tests/run-tests.sh` (the 505 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -280,6 +281,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-19 | _lim_ | **Tailoring limits**: close matches only (70%+), max 6 rewrites, confirmed skills placed per job (2 : 1 spread), resume match ≤ your match + 15; new `resume.addSkills`, `AJP-TAILOR-LOW`; 993 tests |
 | 2026-11-18 | `4623e08` | **Skills added automatically from the resume** (upload, paste, edit, Read text from PDF); removed skills are not re-added; fixed B18 ("0" badge); 968 tests |
 | 2026-11-18 | `1d59cc4` | **Step 18: Admin & popup UI tests**; fixed B16 (resume rename lost), B17 (unknown Admin link); 963 tests |
 | 2026-11-18 | `d3cbc4c` | **Step 17: work experience / education entries on any site** (entries.js); 932 tests |

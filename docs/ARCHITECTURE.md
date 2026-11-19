@@ -454,6 +454,12 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
 | Report | `diagnostics.collect()`: §7.6; contents described in [SUPPORT.md](SUPPORT.md) |
 
+**Limits (a light touch for close matches, never a rewrite)** — `settings.tailoring` (Admin → AI settings → Tailoring limits), read by `resumeEngine.limits()`:
+- **Only close matches:** below `minMatch` (default 70%) the panel explains, lists the biggest gaps and makes no AI call; the background also refuses (`AJP-TAILOR-LOW`) when given a lower `score`.
+- **Few rewrites:** the AI is asked for at most `maxEdits` (6) edits; `limitEdits` keeps only the `maxEdits` most important valid rewrites selected (must > should > nice), the rest are shown as unselected "extra ideas"; the review won't tick more, and `applyEnhancement` skips extras (`LIMIT`). The skills-order edit doesn't count.
+- **Skills only if the user confirms them, where they choose:** the draft lists `skillOptions` (job skills the *resume* doesn't show, required first; never pre-ticked) and the resume's `roles`. Ticked skills get a job each — default spread by `placeSkill` (2 : 1 current : previous; a 6th goes to the third job; one job → all there). `resume.addSkills` writes each skill into one free line of the chosen job (AI wording validated like any edit, with the confirmed skill allowed; a line in another job, a changed number, or AI off → simple editable wording "…, using X"), never reusing a line already changed by a selected rewrite. Confirmed skills are also appended to the Skills line on create.
+- **Ceiling:** the resume-only match (what a recruiter / ATS reads) may reach at most `liftCeiling` = your real match (panel %) + `maxLift` (15), and at most `maxSkills` (4) skills; the review disables skills that would pass it and the background drops them (`lift` / `limit`).
+
 ### 9b. THE STANDARD: errors, failure capture and retries (applies to every change)
 Every part of the plugin handles failure the same way. **Convention tests scan the source** (`tests/unit/standard.test.js`), so a change that breaks a rule fails the build.
 
@@ -520,8 +526,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 498 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 963 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 505 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 993 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -606,6 +612,7 @@ Admin → Applications: filter by track; CSV "Track" column
 | 2026-11-18 | Automatic tracker updates only move status forward | Autofill used to downgrade "applied" (bug) |
 | 2026-11-18 | Error codes + trace ids + scrubbed issue reports | Users can share diagnostics safely; support can find causes quickly |
 | 2026-11-18 | Workday via a dedicated adapter + an emulated Workday fixture | Workday widgets are not form fields; an emulation makes the behaviour testable without live accounts |
+| 2026-11-19 | **Tailoring limits: close matches only, a capped light touch, skills placed by the user** | A 40% match tailored into a fit misleads recruiters and the user; a few honest, well-placed changes help a close match get noticed |
 | 2026-11-18 | **Per-store manifests are generated at packaging time**, the repo keeps one cross-browser manifest | Load-unpacked keeps working in every browser during development; each store still gets exactly the keys it accepts |
 | 2026-11-18 | **Chrome built-in AI runs in the background**, its download in Admin | AI calls stay in one place (keys, logs, traces, retries); the browser only requires a click for the one-time download |
 | 2026-11-18 | **Site adapters = field names + reusable widget handlers**, not one script per site; the widget pass also runs on unknown sites | Most ATSs share a few widget kinds (React-Select, select2, Yes/No buttons); handling the kind helps every site using it, and site configs stay small and easy to fix |

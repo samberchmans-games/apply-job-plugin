@@ -58,6 +58,8 @@
       learnAnswers: true,
       tracker: { autoDetect: true, followUpDays: 7 },
       support: { crashPrompt: true }, // ask to report unnoticed failures (never sends without a click)
+      // Resume tailoring is for CLOSE matches: small honest lift, never a rewrite (see resume-engine.js, "Limits").
+      tailoring: { minMatch: 70, maxLift: 15, maxEdits: 6, maxSkills: 4 },
     },
     resumes: { activeId: null, items: [] },
     answers: {},

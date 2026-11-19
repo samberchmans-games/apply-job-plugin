@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (968). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (993). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -11,8 +11,8 @@ There are two layers of tests:
 |---|---|---|
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
-| `./tests/run-tests.sh` | The **498** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **968** tests in headless Chrome. This is the full suite: the 498 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-tests.sh` | The **505** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
+| `./tests/run-browser-tests.sh` | All **993** tests in headless Chrome. This is the full suite: the 505 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -43,6 +43,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Problem reports (end-to-end) | `unit/issue-flow.test.js` | Panel crash prompt + "!" badge; Not now / Don't ask again / Report → Admin deep link; similar reports (incl. offline); report saved → received → fixed vX with ✓ badge until seen; final statuses not rechecked; max 5 lookups per run and every 10 min; offline = "couldn't check"; Admin: similar list then GitHub opens pre-filled, My reports rows, crash banner, Simulate a problem, deep link with code |
 | Smarter matching | `unit/experience.test.js` | Years asked (7 phrasings, ranges, number words) and what to ignore (company history, ages, degrees, "past 10 years"); highest required ask wins; per-skill asks ("3+ years with Kafka", "4 years of Java experience", either-or); date formats; Experience-section roles only; overlapping jobs counted once; profile > work history > resume; years per skill incl. implied skills; seniority from 12 title styles, "Product Manager" not a level, fallback to years; fit rows (enough / close / short / unknown / stretch / below); implied skills (one-way), similar half credit, new aliases, **"Go" still not a word match**, score ignores years, **a crash in the check never breaks matching**, speed; B14 |
 | Chrome built-in AI | `unit/local-ai.test.js` | Prompt fitting (instructions kept, long blocks shrunk proportionally); provider with a **fake Prompt API**: system prompt as the first prompt, session freed, **no network**, JSON via responseConstraint (and without it on older builds), older `ai.languageModel` shape, shrinking to the measured quota, QuotaExceeded → shorter retry → AJP-AI-LOCAL-LEN, downloadable/downloading/unavailable/no API/needs-a-click codes, timeout, logs without prompt text, **no EEO in prompts**, status, download progress, background message; Admin: provider listed, "Use it" banner, download with progress → Ready, unsupported browser, Test connection |
+| Tailoring limits | `unit/tailoring-limits.test.js` | Limits + clamping; only the most important rewrites stay selected; jobs from the resume; default places (2 : 1, one job, 3+ jobs); simple wording; ceiling = your match + lift; prompt says "not a rewrite"; background refuses a low match **before any AI call**; setting respected; panel explains with the biggest gaps; skill options never pre-selected; skills go to the **chosen** job (AI line in the wrong job / invented number / AI down → simple wording); lines already rewritten not reused; unknown skills ignored, maxSkills and ceiling enforced; create: skill lines + Skills list, rewrites capped, protected lines intact; review: options, ceiling text, default spread + moving a skill, live meter, rewrite limit, add to draft |
 | Admin screens & popup | `unit/admin-screens.test.js` | Navigation (+ unknown link → Profile), profile autosave and reload, skills (standard names, duplicates, level/years, remove, detect from resume, no-resume message), preferences (salary, work types, relocation, area chips), resumes (new, first is active, **rename + text both saved**, switch active, delete with confirm), auto-apply cards and answers incl. EEO, backup (export **without keys** by default / with keys, import, broken file → coded message, delete-all confirm), popup (status, warnings, AI label, due link, Admin / report links, Analyze, error display) |
 | Repeatable entries | `unit/entries.test.js` (+ `fixtures/ats-mock.js`) | Dates into month select / year box / month input / MM/YYYY, "Present", year-only; **Greenhouse** blocks: Add another per item, searchable school/degree/discipline, years, company/title/month+year, current role (no end date), report, user's block kept and items placed after it, no items → nothing added, normal fields still fill; **SmartRecruiters** "+ Add" forms incl. month inputs, current, description, degree select; Add button broken → says how many; **never** a job post heading next to a form, Lever's "Current company", or Workday pages |
 | Profile suggestions | `unit/profile-suggest.test.js` | Empty field → suggested; same value → nothing; different value only after twice; salary / years / yes-no normalised (ambiguous "150" skipped); **EEO, names, schools, cover letters never**; most used wins; dismissed per value; order; apply + unknown target error; Autofill and suggestions share the rules; Admin box + count, Save (and later edits don't undo it), Dismiss, Save all, empty state; popup line |
@@ -141,6 +142,8 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 
 | ID | Steps | Expected |
 |---|---|---|
+| D11 | Tailor on a job below 70% | The panel explains ("tailoring starts at 70%") and lists the biggest gaps; nothing is sent to the AI |
+| D12 | Tailor a 70%+ job, tick 3 skills you have, keep the default jobs, then move one | 2 go to your current job and 1 to the previous by default; the moved one appears in the job you chose; the meter stops at your match + 15 |
 | D1 | On a job page → panel → **📝 Tailor resume** | Within ~40 s: "N job requirements: x strong, y partial, z not in your resume · M suggested edits · keywords a% → b% · Review →" |
 | D2 | Click **Review** | Admin → Resumes opens the review screen for this job |
 | D3 | Check "What the job asks for" | The requirements make sense, with sensible must/should/nice; every evidence quote really is in your resume |

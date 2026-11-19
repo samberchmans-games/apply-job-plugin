@@ -430,7 +430,7 @@
     };
   }
 
-  function editsPrompt({ doc, requirements, atsKeywords, skills, job }) {
+  function editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits = 12 }) {
     const lines = doc.bullets.map((b) => ({ id: b.id, role: b.role || b.section, text: b.text }));
     const supported = requirements.filter((r) => r.match !== 'none');
     return {
@@ -456,7 +456,7 @@
         '6. STYLE: Start with a strong past-tense action verb (present tense only for a current role). No "I", "my", "we", "our". Max 35 words per bullet. No filler words ("synergy", "results-driven", "passionate", "rockstar"). No brackets or placeholders.',
         '7. SUMMARY: At most 3 sentences and 60 words, only claims supported by the resume. Mention years of experience only if the resume states them.',
         '8. SKILLS: "after" is a list that reorders skills so the most job-relevant come first. Only include skills from CANDIDATE SKILLS or the resume.',
-        '9. SCOPE: At most 12 bullet edits. Only edit lines that are relevant to SUPPORTED REQUIREMENTS. Leave irrelevant lines alone.',
+        `9. SCOPE: This is a light touch for a close match, NOT a rewrite: at most ${maxEdits} bullet edits, chosen for the most important requirements. Only edit lines that are relevant to SUPPORTED REQUIREMENTS. Leave everything else exactly as it is.`,
         '10. GAPS: For requirements with no evidence, give honest advice in "gap_advice" (a course, a project, or how to discuss related experience in an interview). Never put gaps into the resume.',
         '',
         'JSON FORMAT (exactly these keys):',
@@ -476,7 +476,87 @@
     };
   }
 
+  // ---- Limits: tailoring is a small, honest lift for a close match — never a rewrite ---------------------
+  const DEFAULT_LIMITS = { minMatch: 70, maxLift: 15, maxEdits: 6, maxSkills: 4 };
+  function limits(settings) {
+    const t = (settings && settings.tailoring) || {};
+    const num = (v, d, lo, hi) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
+    };
+    return {
+      minMatch: num(t.minMatch, DEFAULT_LIMITS.minMatch, 0, 100),
+      maxLift: num(t.maxLift, DEFAULT_LIMITS.maxLift, 1, 40),
+      maxEdits: num(t.maxEdits, DEFAULT_LIMITS.maxEdits, 1, 12),
+      maxSkills: num(t.maxSkills, DEFAULT_LIMITS.maxSkills, 0, 8),
+    };
+  }
+
+  // Keep only the most important rewrites selected: bullets/summary ranked by the priority of the requirements
+  // they serve (must > should > nice). The rest stay visible as "more ideas" but unselected (limited: true).
+  // The skills-order edit doesn't count: reordering a list is not a rewrite.
+  function limitEdits(edits, requirements, max) {
+    const pri = { must: 3, should: 2, nice: 1 };
+    const rank = (e) => Math.max(0, ...(e.requirementIds || []).map((id) => pri[(requirements.find((r) => r.id === id) || {}).priority] || 0));
+    const counted = edits.filter((e) => e.ok && e.kind !== 'skills');
+    const keep = new Set(counted.map((e, i) => ({ e, i, r: rank(e) })).sort((a, b) => b.r - a.r || a.i - b.i).slice(0, max).map((x) => x.e.id));
+    return edits.map((e) => (e.ok && e.kind !== 'skills' && !keep.has(e.id) ? { ...e, accepted: false, limited: true } : e));
+  }
+
+  // The highest resume match % the added skills may reach: your REAL match (profile + resume, as in the panel)
+  // plus maxLift — the resume may catch up with what you really have, plus a little, never more.
+  function liftCeiling({ matchScore, resumeScore }, lim) {
+    const base = Math.max(matchScore == null ? 0 : matchScore, resumeScore == null ? 0 : resumeScore);
+    return Math.min(100, base + lim.maxLift);
+  }
+
+  // The jobs on the resume (Experience roles with bullets), most recent first as written.
+  function roles(doc) {
+    const out = [];
+    for (const b of doc.bullets) {
+      if (!b.role) continue;
+      let r = out.find((x) => x.key === b.role);
+      if (!r) out.push((r = { key: b.role, label: b.role.replace(/\s*\(.*$/, '').slice(0, 80), bulletIds: [] }));
+      r.bulletIds.push(b.id);
+    }
+    return out;
+  }
+
+  // Default place for the i-th chosen skill: spread across jobs, most in the current one —
+  // 2 : 1 (current : previous) for 3 skills; a 6th skill goes to the third job, and so on.
+  function placeSkill(i, roleCount) {
+    if (roleCount <= 1) return 0;
+    return i % 3 === 2 ? Math.min(1 + Math.floor(i / 3), roleCount - 1) : 0;
+  }
+
+  // Simple, editable wording when no AI is set up: "<line>, using <Skill>".
+  function weaveFallback(text, skill) {
+    const t = String(text || '').trim().replace(/[.;]+$/, '');
+    if (new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(t)) return t;
+    return `${t}, using ${skill}`;
+  }
+
+  function weavePrompt({ picks, job }) {
+    return {
+      system:
+        'You are an expert resume editor. You add a skill the candidate CONFIRMED they used to ONE existing line of the job where they used it. ' +
+        'You keep the line truthful and change as little as possible. You reply with strict JSON only. ' + DATA_RULE,
+      prompt: [
+        `TASK: For each SKILL below, pick ONE line from its ROLE LINES and rewrite it so it shows the candidate used that skill there (role: "${String((job && job.title) || 'target role').slice(0, 100)}").`,
+        'RULES:',
+        '1. Change as little as possible: keep the action, the facts and every number of the original line. Add only the skill name and a few words of how it was used.',
+        '2. Never add numbers, results, employers, tools or skills other than the given skill. No "I", "my", "we". Max 35 words. No brackets or placeholders.',
+        '3. Use a line that fits the skill (e.g. Kafka → a line about data pipelines or events). Never use the same line for two skills.',
+        '',
+        'JSON FORMAT: {"edits":[{"skill":"Kafka","target":"b3","after":"rewritten line"}]}',
+        '',
+        fence('resume_lines', clip(JSON.stringify(picks.map((p) => ({ skill: p.skill, role: p.role, lines: p.lines }))), 10000)),
+      ].join('\n'),
+    };
+  }
+
   AJP.resumeEngine = {
+    DEFAULT_LIMITS, limits, limitEdits, liftCeiling, roles, placeSkill, weaveFallback, weavePrompt,
     parse, numbersIn, hasNumber, hasResult, quoteExists, verifyRequirements, evidenceCoverage, keywordCoverage,
     validateEdit, allowedSkills, assemble, verifyIntegrity, analyzePrompt, editsPrompt, splitSkills,
     VIOLATIONS: V, WARNINGS: W,

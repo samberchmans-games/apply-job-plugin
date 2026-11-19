@@ -308,9 +308,14 @@
       return complete({ task: 'resume.analyze', tid, json: true, ...AJP.resumeEngine.analyzePrompt({ jd, resumeText }) });
     },
 
-    // Stage 3: targeted, evidence-backed edits.
-    proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, tid }) {
-      return complete({ task: 'resume.edits', tid, json: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job }) });
+    // Stage 3: targeted, evidence-backed edits (at most maxEdits: a light touch, not a rewrite).
+    proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, maxEdits, tid }) {
+      return complete({ task: 'resume.edits', tid, json: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits }) });
+    },
+
+    // Skills the user CONFIRMED, each written into one line of the job they chose.
+    weaveSkills({ picks, job, tid }) {
+      return complete({ task: 'resume.weaveSkills', tid, json: true, ...AJP.resumeEngine.weavePrompt({ picks, job }) });
     },
 
     draftAnswer({ question, jd, resumeText, profile, job, maxWords, tid }) {
