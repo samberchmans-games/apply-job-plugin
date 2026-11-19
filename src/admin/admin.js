@@ -299,6 +299,24 @@
   const serialResumes = AJP.serial();
   const updateResumes = (fn) => serialResumes(() => AJP.store.update('resumes', fn));
 
+  // Tailoring works line by line on achievements. A resume without bullet characters (often a Word file) gets a
+  // notice and a one-click fix that puts "- " in front of the lines that read like achievements.
+  function checkBullets(text) {
+    const box = $('#resumeBullets');
+    if (!box) return;
+    const t = String(text || '');
+    const doc = t.trim() ? AJP.resumeEngine.parse(t) : null;
+    if (!doc || !doc.loose) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = doc.bullets.length
+      ? `This resume has no bullet points (common with Word files), so tailoring reads ${doc.bullets.length} line${doc.bullets.length > 1 ? 's' : ''} that look like achievements. ` +
+        `<button id="resumeAddBullets">Mark achievement lines as bullets</button> <span class="hint">Then check the text: each achievement should start with "- ".</span>`
+      : 'No achievements found for tailoring: put each achievement on its own line starting with "-" (for example "- Led the migration of…").';
+  }
+
   async function renderResumes() {
     AJP.enhanceView.renderList();
     const r = await AJP.store.get('resumes');
@@ -317,6 +335,7 @@
     if (sel) {
       if (document.activeElement !== $('#resumeText')) $('#resumeText').value = sel.text || '';
       if (document.activeElement !== $('#resumeName')) $('#resumeName').value = sel.name || '';
+      checkBullets(sel.text);
       $('#resumeGaps').hidden = !sel.gaps;
       $('#resumeGaps').textContent = sel.gaps ? 'Gaps for this job (not added to the resume):\n' + sel.gaps : '';
       $('#resumeSetActive').disabled = sel.id === r.activeId;
@@ -440,6 +459,18 @@
     $('#resumeText').addEventListener('change', skillsFromEditor);
     $('#resumeText').addEventListener('paste', () => setTimeout(skillsFromEditor, 50));
     $('#resumeName').addEventListener('input', (e) => saveField('name', e.target.value));
+    $('#resumeText').addEventListener('change', (e) => checkBullets(e.target.value));
+    $('#resumeEditor').addEventListener('click', AJP.guard('admin.addBullets', async (e) => {
+      if (e.target.id !== 'resumeAddBullets') return;
+      const ta = $('#resumeText');
+      const r = AJP.resumeEngine.addBulletMarkers(ta.value);
+      if (!r.count) return;
+      ta.value = r.text;
+      ta.dispatchEvent(new Event('input', { bubbles: true })); // saves the text and remakes the PDF
+      checkBullets(r.text);
+      toast(`Marked ${r.count} achievement line${r.count > 1 ? 's' : ''} with "- ". Check them in the text.`, 5000);
+      log.info('Bullet markers added', { count: r.count });
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
 
     $('#resumeSetActive').addEventListener('click', async () => {
       await updateResumes((r) => void (r.activeId = selectedResumeId));

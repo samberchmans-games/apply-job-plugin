@@ -35,7 +35,7 @@
     PDF_CREATE: ['AJP-PDF-CREATE', 'Could not create the PDF of this resume.', 'Check that the resume has text, then try again; or upload your own PDF.'],
     PDF_NO_TEXT: ['AJP-PDF-NOTEXT', 'This PDF has no selectable text (it may be a scanned image).', 'Upload the .docx version, or paste the resume text in the box.'],
     PDF_LOCKED: ['AJP-PDF-LOCKED', 'This PDF is password-protected.', 'Save it again without a password (Print → Save as PDF), upload the .docx, or paste the text.'],
-    RESUME_STRUCTURE: ['AJP-RES-STRUCT', 'Could not find bullet points in your resume.', 'Put each achievement on its own line starting with "-" or "•" (Admin → Resumes), then try again.'],
+    RESUME_STRUCTURE: ['AJP-RES-STRUCT', 'Could not find your achievements in the resume.', 'Open Admin → Resumes: click "Mark achievement lines as bullets", or put each achievement on its own line starting with "-" (Word files: upload again, bullets are read now). Then try again.'],
     ENHANCEMENT_MISSING: ['AJP-RES-DRAFT', 'This resume draft is no longer available.', 'Run “Tailor resume” again from the job page.'],
     RESUME_CHANGED: ['AJP-RES-CHANGED', 'Your resume was edited after this draft was made.', 'Run “Tailor resume” again so the suggestions match your current resume.'],
         RESUME_PARSE: ['AJP-RES-PARSE', 'Could not read text from this resume file.', 'Paste the resume text in Admin → Resumes.'],

@@ -183,7 +183,7 @@
       if (!inExp || !line) continue;
       const r = rangeIn(line);
       if (r) {
-        cur = { ...r, text: (prev && !/^[-*•]/.test(prev) ? prev + '\n' : '') + line };
+        cur = { ...r, text: (prev && !/^[-*•●▪■➢✓]/.test(prev) ? prev + '\n' : '') + line };
         roles.push(cur);
       } else if (cur) cur.text += '\n' + line;
       prev = line;

@@ -147,7 +147,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1016) · `./tests/run-tests.sh` (the 522 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1032) · `./tests/run-tests.sh` (the 536 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -233,6 +233,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
+| 19 | **Job Finder (Job Radar)**: watch company careers boards (11 job boards), score new jobs with the matcher, alert by badge / notification / New jobs list. Design: [JOB-FINDER.md](JOB-FINDER.md); tasks J01–J39 in [TRACKER.md §2b](TRACKER.md); starts after your decisions (J01) | new | Large (8 phases) |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
@@ -281,6 +282,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-18 | `bb34324` | ARCHITECTURE.md rewritten as a full technical reference; plan refreshed |
 | 2026-11-18 | `ab0c213` | TRACKER.md: component status tracker; per-suite test counts in the runner |
 | 2026-11-18 | `dbf8a47` | Issue reporting option A: spec (ISSUE-REPORTING.md), GitHub issue form, auto-acknowledgement workflow |
+| 2026-11-19 | _b_ | Resumes without bullets: Word list paragraphs read as "- ", more bullet symbols, achievement lines used without markers, Admin "Mark achievement lines as bullets"; fixed B20; 1032 tests |
 | 2026-11-19 | `e7c56ce` | Job dates: "Till date" / "To date", "Jun-2019", "Jun’19", "Feb, 2019"; resumes without a recognisable Experience heading (dated lines anywhere, education skipped); 1016 tests |
 | 2026-11-19 | `88c2c14` | Skill years filled when Admin / Skills opens (no click), status line with the number of dated jobs found; fixed B19 (job dates next to company names); 1008 tests |
 | 2026-11-19 | `78aa515` | **Skill years and level from the resume's job dates** (only empty fields, marked as estimates); plain PDF headings understood by the date reader; 998 tests |

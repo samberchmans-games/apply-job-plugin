@@ -23,7 +23,8 @@
 
   // ---- Parsing ------------------------------------------------------------------------
   const SECTION_WORDS = /^(summary|professional summary|career summary|profile|professional profile|about|about me|objective|experience|work experience|professional experience|relevant experience|employment|employment history|work history|skills|technical skills|core skills|key skills|core competencies|skills & tools|skills and tools|tools|technologies|education|certifications?|licenses? & certifications|projects|key projects|awards|achievements|publications|volunteering|volunteer experience|languages|interests)$/i;
-  const BULLET_RE = /^(\s*)([-*•·–▪◦‣]|\d{1,2}[.)])\s+(.*\S)\s*$/;
+  // Bullet markers: - * • · – ▪ ◦ ‣ ● ○ ■ □ ➢ ➤ ► ✓ ✔ → ❖ ◆, Word's symbol-font bullets ( ), and "1." / "1)".
+  const BULLET_RE = /^(\s*)([-*•·–▪◦‣●○■□➢➤►✓✔→❖◆\uf0b7\uf0a7\uf076\uf0d8\uf0fc]|\d{1,2}[.)])\s+(.*\S)\s*$/;
 
   function sectionKind(name) {
     const n = AJP.norm(name);
@@ -49,7 +50,23 @@
    * parse(text) -> { lines, blocks, bullets, summary, skills, style }
    *   blocks: every line classified; only kinds 'bullet' | 'summary' | 'skills' are editable.
    */
-  function parse(text) {
+  // An achievement line without a bullet: starts with an action verb (Led, Built…) and has a few words, or is a
+  // longer sentence without a year (so job titles, company and date lines are never taken).
+  function looksLikeAchievement(t) {
+    const w = t.split(/\s+/).length;
+    if (/:$/.test(t) || /\b(19|20)\d{2}\b/.test(t) || t === t.toUpperCase()) return false;
+    return (w >= 4 && ACTION_VERB.test(t)) || (w >= 10 && /[.,;]/.test(t));
+  }
+  // Admin's one-click fix: put "- " in front of every achievement line found in loose mode.
+  function addBulletMarkers(text) {
+    const doc = parse(text);
+    if (!doc.loose) return { text, count: 0 };
+    const out = doc.lines.slice();
+    doc.bullets.forEach((b) => (out[b.line] = (b.prefix || '') + '- ' + b.text));
+    return { text: out.join('\n'), count: doc.bullets.length };
+  }
+
+  function parse(text, opts = {}) {
     const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
     const blocks = [];
     let section = 'header';
@@ -84,16 +101,23 @@
         blocks.push({ line: i, kind: 'skills', section, text: b ? b[3] : t, prefix: b ? b[1] + b[2] + ' ' : '', editable: true });
       } else if (b && (kind === 'experience' || kind === 'projects' || kind === 'other')) {
         blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: b[1] + b[2] + ' ', text: b[3], editable: true });
+      } else if (opts.loose && (kind === 'experience' || kind === 'projects') && looksLikeAchievement(t)) {
+        // No bullet characters in this resume (e.g. a Word file pasted without its list formatting): a line that
+        // reads like an achievement is used as one. The line is rewritten without adding a marker.
+        blocks.push({ id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true });
       } else {
         // Role headers, company/title/date lines, education, contact info: protected.
         if (kind === 'experience' || kind === 'projects') role = t.replace(/[*_#]/g, '').trim().slice(0, 120);
         blocks.push({ line: i, kind: kind === 'header' ? 'header' : 'text', section, text: raw, editable: false });
       }
     }
+    const bullets = blocks.filter((x) => x.kind === 'bullet');
+    if (!bullets.length && !opts.loose) return parse(text, { loose: true });
     return {
+      loose: !!opts.loose,
       lines,
       blocks,
-      bullets: blocks.filter((x) => x.kind === 'bullet'),
+      bullets,
       summary: blocks.filter((x) => x.kind === 'summary'),
       skills: blocks.filter((x) => x.kind === 'skills'),
       style: { mdHeadings, firstSectionLine },
@@ -556,6 +580,7 @@
   }
 
   AJP.resumeEngine = {
+    looksLikeAchievement, addBulletMarkers,
     DEFAULT_LIMITS, limits, limitEdits, liftCeiling, roles, placeSkill, weaveFallback, weavePrompt,
     parse, numbersIn, hasNumber, hasResult, quoteExists, verifyRequirements, evidenceCoverage, keywordCoverage,
     validateEdit, allowedSkills, assemble, verifyIntegrity, analyzePrompt, editsPrompt, splitSkills,

@@ -5,23 +5,26 @@ This is the single page for **where every component stands right now**. The othe
 - [ARCHITECTURE.md](ARCHITECTURE.md): how it works
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): test details
 - [SUPPORT.md](SUPPORT.md): error codes
+- [JOB-FINDER.md](JOB-FINDER.md): Job Finder (Job Radar) architecture, roadmap step 19
 
-**Last updated:** 2026-11-18 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 18, Admin / popup UI tests (all planned items built)
+**Last updated:** 2026-11-19 · **Version:** 0.1.0 · **Branch:** `develop` · **Latest step:** 18, Admin / popup UI tests · **Next:** step 19, Job Finder (designed, waiting on your decisions)
 
 ## Summary
 
 | | |
 |---|---|
-| Components built | **33 / 35** |
-| Components not started | **2**: resume export, CI |
-| Automated tests | **1016 / 1016 passing** (522 also run without a browser), incl. convention checks |
+| Components built | **33 / 40** (5 Job Finder components added as planned) |
+| Components not started | **2**: resume export, CI · **+5 planned**: Job Finder C40–C44 |
+| Automated tests | **1032 / 1032 passing** (536 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 105 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
 | Verified in a real browser | **0 / 4 browsers**: waiting on your manual pass |
+| Pending testing | **17 test areas × 4 browsers** to tick off, incl. retests of B18/B19: see [§2a Pending testing](#2a-pending-testing-your-side) |
+| Job Finder (Job Radar) | **Designed, not started**: 39 build tasks in [§2b](#2b-job-finder-build-tasks-step-19); architecture in [JOB-FINDER.md](JOB-FINDER.md) |
 | Real-AI quality check of resume tailoring | **⏳ waiting on you** (needs a free Groq or Gemini key) |
-| Open bugs | **0 known** (19 found and fixed so far, each with a test) |
-| Next step | **None planned.** Remaining work is real-world testing (your side), store submission (your side), and fixes from tester reports |
+| Open bugs | **0 known** (20 found and fixed so far, each with a test) |
+| Next step | **Step 19, Job Finder**: starts after your 6 decisions (J01). Alongside: real-world testing (your side, §2a), store submission (your side), and fixes from tester reports |
 
 Legend: ✅ done · 🟡 partial · 🔨 in progress · ⬜ not started · ⏳ waiting on you · — not applicable
 
@@ -92,7 +95,16 @@ Columns:
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
 | C34 | GitHub issue form + acknowledgement Action | — | ✅ | `.github/`; live on the default branch |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) = **1016**
+### Job Finder (planned, step 19: see [JOB-FINDER.md](JOB-FINDER.md))
+| ID | Component | File(s) | Built | Tests | Browser | Notes / known gaps |
+|---|---|---|---|---|---|---|
+| C40 | **Job Radar core**: shared job shape, HTML/XML/RSS text parsing (no `DOMParser`), dates, salary, remote, quick filter, skip-seen, pruning | `src/lib/radar-core.js` | ⬜ | — | — | Tasks J04–J08 |
+| C41 | **Board adapters** (11): Greenhouse, Lever, Ashby · Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling · Personio, Teamtailor, Workday | `src/lib/radar-boards.js`, `tests/fixtures/radar/` | ⬜ | — | — | Tasks J11–J13, J27–J34 |
+| C42 | **Board detection** from careers URL and page HTML | `src/lib/radar-detect.js` | ⬜ | — | — | Tasks J10, J35 |
+| C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ⬜ | — | — | Tasks J14–J20 |
+| C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ⬜ | — | — | Tasks J21–J26, J36 |
+
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **16** (resumes without bullets) = **1032**
 
 ---
 
@@ -124,6 +136,85 @@ Columns:
 | W13 | Automated UI tests for the Admin profile/skills/resume screens and the popup (C19, C22, C23) | 18 | Claude | ✅ Done (found and fixed B16, B17) | — |
 | W14 | Publish to browser stores | — | Both | 💤 Later | W10, W11 |
 | W15 | Optional email status sync (Gmail/Outlook) | — | Claude | 💤 Later, not decided | — |
+| W22 | **Job Finder design** (Job Radar): architecture, 11 boards, scan engine, data, permissions, errors, build plan ([JOB-FINDER.md](JOB-FINDER.md)) | 19 | Claude | ✅ Done (design only) | — |
+| W23 | Decide the 6 Job Finder choices (task J01 in §2b) | 19 | **You** | ⏳ Waiting on you | W22 |
+| W24 | **Build Job Finder** (tasks J02–J37, J39 in §2b) | 19 | Claude | ⬜ Not started | W23 |
+| W25 | Test Job Finder in the 4 browsers (task J38, test area T17 in §2a) | 19 | **You** | ⬜ After W24 | W24 |
+
+## 2a. Pending testing (your side)
+
+Every area below still needs a hand check in a real browser. Scenario IDs are in [TEST-SCENARIOS.md §2](TEST-SCENARIOS.md);
+the Tester Guide has the same checks as sessions. Set a browser cell to ✅ when that area passes there (or ❌ + a bug
+ID in §4 when it fails), and fill **Tested on** with the date.
+
+| ID | Area | Scenarios | Work item | Chrome | Firefox | Edge | Safari | Tested on | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| T01 | Install & setup (unpacked; Firefox permissions; Safari converter) | A1–A5 | W10, W11 | ⏳ | ⏳ | ⏳ | ⏳ | | Safari needs the Xcode step |
+| T02 | Store packages install and run | A9, A10 | W21 | ⏳ | ⏳ | ⏳ | ⏳ | | `python3 tools/package.py`, `sh tools/safari.sh` |
+| T03 | Admin page: profile, skills, preferences, resumes (.docx/PDF), backup, dark mode, phone width | B1–B20 | W10, W11 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T04 | **Retest recent fixes**: B19 skill years from job dates next to company names ("Acme 06-2019 – 03-2021"); B18 no "0" badge on Learned answers | B6–B8, E24 | — | ⏳ | ⏳ | ⏳ | ⏳ | | B19 fixed in `88c2c14` + `e7c56ce`; B18 in `4623e08`. Also check skills added from the resume (`78aa515`) and the tailoring limits (`f9ffa30`, D11–D12) |
+| T05 | Job page reading & match % on live sites (LinkedIn, Indeed, Glassdoor, ZipRecruiter, Greenhouse, Lever, Ashby, Workday, SmartRecruiters) | C1–C16 | W12 | ⏳ | ⏳ | ⏳ | ⏳ | | Report any `AJP-JD-NONE` with the page |
+| T06 | Resume tailoring with a real free AI (Groq or Gemini) on 2–3 real jobs | D1–D13 | W17 | ⏳ | ⏳ | ⏳ | ⏳ | | Judge truthfulness and wording |
+| T07 | Autofill on real Greenhouse, Lever, Ashby, iCIMS applications | E1, E2, E20–E22 | W06b | ⏳ | ⏳ | ⏳ | ⏳ | | Report missed fields (site + label) |
+| T08 | Autofill on real Workday applications | E3, E14–E16 | W03b | ⏳ | ⏳ | ⏳ | ⏳ | | Report missed fields (page + label) |
+| T09 | Autofill: other sites, tailored-resume upload, learning, entries, safety | E4–E13, E18, E19, E24, E25 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T10 | Chrome built-in AI (desktop Chrome 138+) | A6–A8 | W07b | ⏳ | — | — | — | | Firefox/Safari: check the "not supported" message (A8) |
+| T11 | Logging & support | F1–F10 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T12 | Privacy & safety | G1–G4 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T13 | Application tracker | I1–I17 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | I12 needs a day (or an edited record) |
+| T14 | Career tracks | K1–K10 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T15 | Reporting problems on GitHub | L1–L8 | W20 | ⏳ | ⏳ | ⏳ | ⏳ | | Create the triage labels first (W20) |
+| T16 | Performance | H1–H4 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
+| T17 | Job Finder: one company per wave, permission prompt, notification, "Watch this company", save to tracker, Safari CORS for Workday | M (added with the build, J37) | W25 | ⬜ | ⬜ | ⬜ | ⬜ | | Not testable until W24 is built |
+
+## 2b. Job Finder build tasks (step 19)
+
+Architecture: [JOB-FINDER.md](JOB-FINDER.md). Branch: `feature/job-radar` off `develop`. J02–J26 give a working Job Radar
+for Greenhouse, Lever and Ashby; J27–J34 add the other 8 boards; J35–J39 finish and merge. Every board task starts by
+capturing a live response from a real company board into `tests/fixtures/radar/`, which also confirms the endpoint.
+Status: ⬜ not started · 🔨 in progress · ✅ done · ⏳ waiting on you · ⛔ blocked.
+
+| ID | Phase | Task | Files | Depends on | Done when | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| J01 | 0 Decide | Decide: approve the design; boards in the first release (all 11 in waves, or ship after wave A); scan interval (3 h); alert threshold (60%); per-scan vs daily digest; badge order | JOB-FINDER.md | — | All six answered here | **You** | ⏳ |
+| J02 | 1 Foundation | Create `feature/job-radar` off `develop` | — | J01 | Branch pushed | Claude | ⬜ |
+| J03 | 1 Foundation | Test wiring: radar files + `radar-*.test.js` in `tests/run-tests.sh` and `tests/test-runner.html`; `tests/fixtures/radar/` | `tests/` | J02 | An empty radar suite runs in both runners | Claude | ⬜ |
+| J04 | 1 Foundation | Job shape + `normalize()` (key, defaults, length limits) | `radar-core.js` | J03 | Tests: defaults; keys unique per board/company/ID | Claude | ⬜ |
+| J05 | 1 Foundation | `decodeEntities`, `htmlToText`, `xmlItems`, `xmlValue(s)` without `DOMParser` | `radar-core.js` | J03 | Tests: double-encoded HTML, CDATA, namespaced tags; pass in JavaScriptCore | Claude | ⬜ |
+| J06 | 1 Foundation | `parseDate`, `salaryFromText`, `remoteFrom` | `radar-core.js` | J04 | Tests: every date style in JOB-FINDER §6.2; salary rejects; every remote flag | Claude | ⬜ |
+| J07 | 1 Foundation | `quickFilter` (titleFit + targetRoles fallback, location/remote, min salary), skip-seen, pruning | `radar-core.js` | J04 | Tests: pass/fail cases, General track, prune at 60/30 days and 500 jobs | Claude | ⬜ |
+| J08 | 1 Foundation | Storage: `radarSettings`, `radarWatchlist`, `radarJobs`, `radarSeen` (exported), `radarScanState` (internal) | `storage.js` | J04 | Export → import restores watchlist + seen; scan state not exported | Claude | ⬜ |
+| J09 | 1 Foundation | `RADAR_*` error codes + SUPPORT.md entries | `errors.js`, `docs/SUPPORT.md` | J03 | Convention test "every error code is documented" passes | Claude | ⬜ |
+| J10 | 1 Foundation | URL detection for the 11 boards (JOB-FINDER §9 table) | `radar-detect.js` | J03 | Tests: every pattern, Workday locale paths, Lever EU, Personio .com | Claude | ⬜ |
+| J11 | 2 Wave A | Greenhouse adapter | `radar-boards.js`, fixture | J04–J06 | Fixture → correct titles, locations, links, dates, plain-text description | Claude | ⬜ |
+| J12 | 2 Wave A | Lever adapter (+ EU host) | `radar-boards.js`, fixture | J04–J06 | Fixture parses; `salaryRange`, `workplaceType` mapped | Claude | ⬜ |
+| J13 | 2 Wave A | Ashby adapter (skip unlisted) | `radar-boards.js`, fixture | J04–J06 | Fixture parses; `isListed:false` skipped; compensation mapped | Claude | ⬜ |
+| J14 | 3 Engine | HTTP helper: timeout, JSON/text, status → `RADAR_*`, one retry on 429/5xx | `radar-scan.js` | J09 | Fake-fetch tests for 200, 404, 429, 500, timeout | Claude | ⬜ |
+| J15 | 3 Engine | List stage: lock, queue, paging caps, per-host pause, save per company, resume | `radar-scan.js` | J14, J11 | 3 companies scanned; a stop mid-scan resumes at the right company | Claude | ⬜ |
+| J16 | 3 Engine | Detail stage: 25 per company, 400 per scan | `radar-scan.js` | J15 | Budgets respected; over-budget jobs marked title-only | Claude | ⬜ |
+| J17 | 3 Engine | Score with `AJP.tracks.analyzeAll`; save jobs + seen; summary log line | `radar-scan.js` | J15, J07 | Sample job scores the same as on its job page; summary logged | Claude | ⬜ |
+| J18 | 3 Engine | Background wiring: `importScripts` + manifest `scripts`, `ajp-radar` alarm, `radar.*` handlers | `background.js`, `manifest.json` | J17 | Every message in JOB-FINDER §13 answers in a browser test; `tests/check.sh` passes | Claude | ⬜ |
+| J19 | 3 Engine | Badge order `!` → `✓` → new jobs (blue) → follow-ups (amber) | `background.js` | J18 | Each state shows when forced in a test | Claude | ⬜ |
+| J20 | 3 Engine | Notifications (per scan or digest), click opens the list, feature check | `background.js`, `manifest.json` | J18 | One notification per scan; no error where unsupported | Claude | ⬜ |
+| J21 | 4 Interface | `optional_host_permissions` per board; request on first company of a board | `manifest.json`, `radar-view.js` | J18 | Adding a Lever company asks for Lever only; refusing shows `AJP-RADAR-PERM` | Claude | ⬜ |
+| J22 | 4 Interface | Admin watchlist: add by URL with live job count, pause, remove, errors | `radar-view.js`, `admin.html`, `admin.js` | J21, J10 | Bad URL → "board not found"; good URL shows its job count before saving | Claude | ⬜ |
+| J23 | 4 Interface | Admin settings: on/off, interval, threshold, locations, remote, min salary, notify mode | `radar-view.js` | J18 | Changing the interval re-creates the alarm | Claude | ⬜ |
+| J24 | 4 Interface | Admin New jobs: sort by match, open, save to tracker, dismiss, "title match only" label | `radar-view.js` | J17 | Save creates a tracker entry; dismissed jobs never return | Claude | ⬜ |
+| J25 | 4 Interface | Popup: new-jobs count, top 5, See all | `popup.*` | J24 | Count matches the badge | Claude | ⬜ |
+| J26 | 4 Interface | Panel "Watch this company" (falls back to Admin when permission is missing) | `panel.js`, manifest content scripts | J10, J21 | One click on a Greenhouse posting adds the company | Claude | ⬜ |
+| J27 | 5 Wave B | Workable adapter | `radar-boards.js`, fixture | J18 | Fixture parses; `telecommuting` → remote | Claude | ⬜ |
+| J28 | 5 Wave B | Recruitee adapter | `radar-boards.js`, fixture | J18 | Non-ISO date + salary object handled | Claude | ⬜ |
+| J29 | 5 Wave B | Breezy HR adapter (no descriptions) | `radar-boards.js`, fixture | J18 | Jobs marked title-only; free-text salary parsed | Claude | ⬜ |
+| J30 | 5 Wave B | SmartRecruiters adapter: offset paging + detail | `radar-boards.js`, fixtures | J16 | Two-page fixture fully read; description from `jobAd.sections` | Claude | ⬜ |
+| J31 | 5 Wave B | Rippling adapter: page paging + detail | `radar-boards.js`, fixtures | J16 | Stops at `totalPages`; date + pay range from detail | Claude | ⬜ |
+| J32 | 6 Wave C | Personio adapter (XML; `.de` → `.com`) | `radar-boards.js`, fixture | J05, J18 | XML fixture parses; `.com` fallback saved | Claude | ⬜ |
+| J33 | 6 Wave C | Teamtailor adapter (RSS; custom domains) | `radar-boards.js`, `radar-detect.js`, fixture | J05, J21 | RSS fixture parses; custom domain asks for that domain only | Claude | ⬜ |
+| J34 | 6 Wave C | Workday adapter: POST, keyword search (≤3), `postedOn` text, detail | `radar-boards.js`, fixtures | J16 | Keyword cap respected; "Posted 30+ Days Ago" → ~30 days, `postedAtExact:false` | Claude | ⬜ |
+| J35 | 7 Finish | Careers-page detection from HTML (one-time site permission) | `radar-detect.js`, `radar-view.js` | J10, J21 | Saved careers pages embedding Greenhouse and Teamtailor are detected | Claude | ⬜ |
+| J36 | 7 Finish | Add a list of careers URLs (paste or .txt/.csv) | `radar-view.js`, `background.js` | J22 | Mixed list: supported lines added, others skipped with reasons | Claude | ⬜ |
+| J37 | 7 Finish | Docs: README, ARCHITECTURE (link + contexts), TEST-SCENARIOS section M, Tester Guide session, this tracker | `README.md`, `docs/` | J36 | Docs reviewed; T17 scenarios listed | Claude | ⬜ |
+| J38 | 7 Finish | Manual run in Chrome, Firefox, Edge, Safari: one company per wave (test area T17) | — | J34, J37 | T17 ✅ in all four browsers (Safari CORS + notifications checked) | **You** | ⬜ |
+| J39 | 7 Finish | Merge `feature/job-radar` into `develop`; move step 19 to Done | — | J38 | All tests pass; merged | Claude | ⬜ |
 
 ## 3. Done
 
@@ -169,6 +260,7 @@ Columns:
 | B11 | A manual track pick carried over to the next job on single-page sites (LinkedIn) | Automated tests | Step 6 | tracks flow › a different job gets its own best track |
 | B12 | "Are you legally authorized to work in the **country**…?" was answered with the country (address rule matched first) | Workday tests | Step 9 | autofill › a work-authorization question mentioning "country"… |
 | B13 | "Phone Device Type" was filled with the phone number | Workday tests | Step 9 | autofill › "Phone Device Type" is the device type… |
+| B20 | Tailoring failed with AJP-RES-STRUCT on Word resumes: Word bullets are list formatting, so the extracted text had no "-"; only a few bullet symbols were known | You (testing) | After step 18 | bullets › … |
 | B19 | Job dates next to a company name ("Acme 06-2019 – 03-2021", "Umbrella 01/2020 to 06/2020", "Stark 2014–2014") were not read: any word was taken as a month name, and "06-2019" wasn't accepted in ranges, so skill years stayed empty | You (years not updating) | After step 18 | experience › date range in … |
 | B18 | The "Learned answers" menu showed a "0" badge when there was nothing to suggest (CSS beat `hidden`) | You (screenshot) | After step 18 | admin screens › the Learned answers badge is hidden… |
 | B17 | An unknown Admin link (old bookmark, typo) showed an empty page | Admin UI tests | Step 18 | admin screens › … unknown section falls back to Profile |

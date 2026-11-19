@@ -55,8 +55,18 @@
       .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d)).replace(/&amp;/g, '&');
   }
 
+  // A Word bullet is list FORMATTING (w:numPr or a List/Bullet paragraph style), not a character:
+  // mark those paragraphs with "- " so the achievements are recognised as bullet points.
+  const LIST_PARA = /<w:numPr\b|<w:pStyle w:val="[^"]*(List|Bullet)[^"]*"/i;
+  function markLists(xml) {
+    return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (p) => {
+      if (!LIST_PARA.test(p)) return p;
+      return p.replace(/(<w:t(?:\s[^>]*)?>)/, '$1- ');
+    });
+  }
+
   async function toText(arrayBuffer) {
-    const xml = await readZipEntry(arrayBuffer, 'word/document.xml');
+    const xml = markLists(await readZipEntry(arrayBuffer, 'word/document.xml'));
     return decodeEntities(
       xml
         .replace(/<w:tab\/>/g, '\t')
@@ -68,5 +78,5 @@
       .trim();
   }
 
-  AJP.docx = { toText };
+  AJP.docx = { toText, markLists };
 })();

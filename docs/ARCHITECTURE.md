@@ -7,6 +7,7 @@ Last updated: 2026-11-18 · Version 0.1.0 · Branch `develop`. Related documents
 - [TRACKER.md](TRACKER.md): current status
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
 - [SUPPORT.md](SUPPORT.md): logs and error codes
+- [JOB-FINDER.md](JOB-FINDER.md): Job Finder (Job Radar) design, planned roadmap step 19
 
 ---
 
@@ -526,8 +527,8 @@ tests/
                           panel, background, tracker, tracker-flow, admin, errors-logging,
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
-  run-tests.sh            CLI: 522 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1016 tests; results POSTed to serve.py
+  run-tests.sh            CLI: 536 tests that need no DOM (Node, or macOS JavaScriptCore)
+  run-browser-tests.sh    headless Chrome, real time: all 1032 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
