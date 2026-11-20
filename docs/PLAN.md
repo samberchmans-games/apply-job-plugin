@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-20 | _w_ | **Which AI did the work**: Recent AI calls in Admin (task, provider · model, time, result; no prompts); test buttons, panel (tailoring, deep analysis, drafted answers) and review screen name the provider · model; 1105 tests |
+| 2026-11-20 | `d37a86a` | **Which AI did the work**: Recent AI calls in Admin (task, provider · model, time, result; no prompts); test buttons, panel (tailoring, deep analysis, drafted answers) and review screen name the provider · model; 1105 tests |
 | 2026-11-20 | `f747ede` | Retired AI models replaced automatically: on "model not found" the provider's model list is read, a capable chat model picked and remembered (Groq, Gemini, OpenRouter); 1101 tests |
 | 2026-11-20 | `a878f41` | AJP-AI-BILLING: a provider whose free tier isn't available for the account / project (Gemini "set up billing", "location not supported", "limit: 0") gets a clear message pointing to Groq; Admin advice corrected; 1097 tests |
 | 2026-11-20 | `13bffd3` | **Tailoring with a free Groq or Gemini key**: a separate "AI for resume tailoring" (e.g. Chrome built-in for everyday tasks, Gemini/Groq for tailoring) + test button; free-tier rate limits waited out once (≤ 60 s, Retry-After or Groq's "try again in Ns"); 6–15 separate requirements asked, too few → asked again once; clickable key links; 1093 tests |
