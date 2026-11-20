@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1080) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1081) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |

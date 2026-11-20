@@ -258,6 +258,21 @@
       sel.dispatchEvent(new w.Event('change', { bubbles: true }));
       eq(roleOf(names[0]), draft.roles[1].key);
     });
+    it('your case: 70% match, 3 missing skills worth ~10 points each → all 3 can be ticked (past +15 is only a warning)', async () => {
+      // Make this draft look like the real job: your match 70%, resume match 70%, limit 85%.
+      const d = (await w.AJP.store.get('enhancements'))[0];
+      await w.AJP.store.set('enhancements', [{ ...d, matchScore: 70, resumeScore: 70 }]);
+      w.AJP.enhanceView.open(d.id);
+      await waitFor(() => $('#enhDialog').textContent.includes('your match 70%, limit 85%'), { msg: 're-opened' });
+      const names = draft.skillOptions.map((o) => o.skill);
+      for (const n of names) {
+        ok(!$(`[data-skill="${n}"]`).disabled, `${n} can be ticked`);
+        tick(n);
+      }
+      eq(names.filter((n) => $(`[data-skill="${n}"]`).checked).length, names.length);
+      includes($('#enhAddSkills').textContent, `Add ${names.length} selected skills`);
+      ok(/above your match \+ 15/.test($('#enhDialog .lift').textContent), 'warning shown, not a block');
+    });
     it('the live meter rises as skills are ticked', () => {
       const before = $('#enhLift').textContent;
       tick('Kubernetes');
