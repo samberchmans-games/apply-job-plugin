@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-20 | _g_ | **Tailoring with a free Groq or Gemini key**: a separate "AI for resume tailoring" (e.g. Chrome built-in for everyday tasks, Gemini/Groq for tailoring) + test button; free-tier rate limits waited out once (≤ 60 s, Retry-After or Groq's "try again in Ns"); 6–15 separate requirements asked, too few → asked again once; clickable key links; 1093 tests |
+| 2026-11-20 | `13bffd3` | **Tailoring with a free Groq or Gemini key**: a separate "AI for resume tailoring" (e.g. Chrome built-in for everyday tasks, Gemini/Groq for tailoring) + test button; free-tier rate limits waited out once (≤ 60 s, Retry-After or Groq's "try again in Ns"); 6–15 separate requirements asked, too few → asked again once; clickable key links; 1093 tests |
 | 2026-11-18 | `cb1ac98` | v0.1 foundation: MV3 extension, Admin page, matcher, job-page reading, autofill + learning, AI providers, logging |
 | 2026-11-18 | `c6f67d8` | Plan document |
 | 2026-11-18 | `3609410` | Automated test suite (279), manual scenarios; fixed a stale-cache race and "preferred" misdetection |
