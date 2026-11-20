@@ -46,6 +46,7 @@
       AJP.send('github.status', {}).then(renderReports); // throttled to every 10 min per report
     }
     if (id === 'answers') renderAnswers();
+    if (id === 'ai') renderAiCalls();
     if (id === 'skills') refreshEstimates();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
@@ -541,7 +542,8 @@
       await AJP.store.set('settings', settings);
       $('#aiTailorOut').textContent = 'Testing…';
       const r = await AJP.send('ai.test', { group: 'tailor' });
-      $('#aiTailorOut').textContent = r.ok ? `✅ Works (${esc(AJP.ai.PROVIDERS[settings.ai.tailorProvider || settings.ai.provider].label)})` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      $('#aiTailorOut').textContent = r.ok ? `✅ Works (${r.ai || ''})` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      renderAiCalls();
     });
     updateModelPlaceholder();
     $('#aiProvider').addEventListener('change', () => setTimeout(renderLocalAI, 0));
@@ -574,7 +576,8 @@
       await AJP.store.set('settings', settings); // flush pending edits first
       $('#aiTestOut').textContent = 'Testing…';
       const r = await AJP.send('ai.test');
-      $('#aiTestOut').textContent = r.ok ? `✅ Works. Reply: "${r.text.slice(0, 40)}"` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      $('#aiTestOut').textContent = r.ok ? `✅ Works (${r.ai || ''}). Reply: "${r.text.slice(0, 40)}"` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      renderAiCalls();
     });
   }
 
@@ -599,6 +602,19 @@
     if (isLocal && bg && bg.state === 'unsupported' && page.state !== 'unsupported') $('#aiLocalOut').textContent = 'Note: the extension background cannot see the built-in AI in this browser version; AI actions may fail with AJP-AI-LOCAL-NONE.';
     log.info('Local AI status', { background: bg && bg.state, page: page.state });
   }, { mod: 'admin', onError: (d) => ($('#aiLocalState').textContent = `${d.message} (${d.code})`) });
+
+  // Recent AI calls: who did what (provider · model), how long, ok or the error code.
+  const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
+    'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection' };
+  async function renderAiCalls() {
+    const box = $('#aiCalls');
+    if (!box) return;
+    const calls = await AJP.store.get('aiCalls');
+    box.innerHTML = calls.length
+      ? calls.slice(0, 15).map((c) => `<tr><td>${esc(new Date(c.at).toLocaleString())}</td><td>${esc(TASK_NAMES[c.task] || c.task)}</td><td><b>${esc(c.label || c.provider + ' · ' + c.model)}</b></td>
+          <td>${(c.ms / 1000).toFixed(1)}s</td><td>${c.ok ? '✅' : '❌ ' + esc(c.code || '')}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="hint">No AI calls yet.</td></tr>';
+  }
 
   // ---- Learned answers ------------------------------------------------------------------------------
   // ---- Profile suggestions from learned answers --------------------------------------------------------
@@ -888,6 +904,7 @@
     const on = (location.hash || '#profile').slice(1).split('?')[0];
     if (changes.promptState) renderCrashBanner();
     if (changes.reports && on === 'logs') renderReports();
+    if (changes.aiCalls && on === 'ai') renderAiCalls();
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();

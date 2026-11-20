@@ -181,7 +181,7 @@
       tr.end();
       const x = r.result || {};
       state.aiSkills = { required: x.required_skills || [], preferred: x.preferred_skills || [] };
-      state.aiUsed = true;
+      state.aiUsed = r.ai || true;
       if (x.company && state.job && !state.job.company) state.job.company = x.company;
       state.message = x.summary ? AJP.panel.esc(x.summary) + (x.years_required ? `<br><span class="muted">Years required: ${AJP.panel.esc(x.years_required)}</span>` : '') : '';
       await analyze({ text: state.job && state.job.source === 'selection' ? jdText : null, keepAi: true });
@@ -224,6 +224,7 @@
           (d.skillOptions && d.skillOptions.length ? `<br>${d.skillOptions.length} job skill${d.skillOptions.length > 1 ? 's' : ''} your resume doesn't show: tick the ones you really have in the review.` : '') +
           `${st.needsMetric ? ` · ${st.needsMetric} could use your real numbers` : ''}.<br>` +
           (d.coverage.atsBefore != null ? `Job keywords in your resume: ${esc(d.coverage.atsBefore)}% → ${esc(d.coverage.atsAfter)}%.<br>` : '') +
+          (d.ai ? `<span class="muted">AI: ${esc(d.ai.label)}</span><br>` : '') +
           `<a data-act="openEnhance" data-arg="${esc(d.id)}">Review the changes &amp; create the resume →</a>`
       );
     },
@@ -296,7 +297,7 @@
       }
       await AJP.send('fillQuestion', { ajpId, text: r.text }, tr);
       tr.end({ chars: r.text.length });
-      btn.textContent = '✓ Drafted — review & edit it in the form';
+      btn.textContent = `✓ Drafted${r.ai ? ' by ' + r.ai : ''} — review & edit it in the form`;
     },
 
     async applied() {

@@ -289,7 +289,8 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     async 'ai.extractSkills'({ jd }, sender, { tid }) {
-      return { result: await AJP.ai.tasks.extractSkills({ jd, tid }) };
+      const result = await AJP.ai.tasks.extractSkills({ jd, tid });
+      return { result, ai: AJP.ai.last && AJP.ai.last.label };
     },
 
     // Resume enhancement v2 — see src/lib/resume-engine.js for the rules.
@@ -365,6 +366,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         skillOptions: skillOptions(jd, ctx.resumeText, ctx.profile),
         skillPicks: [],
         confirmedSkills: [],
+        ai: AJP.ai.last ? { provider: AJP.ai.last.provider, model: AJP.ai.last.model, label: AJP.ai.last.label } : null, // who tailored it
       };
       await serialData(() => AJP.store.update('enhancements', (list) => [draft, ...list].slice(0, 20)));
       const blockedBy = {};
@@ -554,11 +556,13 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
 
     async 'ai.draftAnswer'({ question, jd, job, maxWords, trackId }, sender, { tid }) {
       const ctx = await aiContext(trackId);
-      return { text: await AJP.ai.tasks.draftAnswer({ question, jd, job, maxWords, tid, ...ctx }) };
+      const text = await AJP.ai.tasks.draftAnswer({ question, jd, job, maxWords, tid, ...ctx });
+      return { text, ai: AJP.ai.last && AJP.ai.last.label };
     },
 
     async 'ai.test'(msg, sender, { tid }) {
-      return { text: await AJP.ai.tasks.test({ tid, group: (msg && msg.group) || '' }) };
+      const text = await AJP.ai.tasks.test({ tid, group: (msg && msg.group) || '' });
+      return { text, ai: AJP.ai.last && AJP.ai.last.label, model: AJP.ai.last && AJP.ai.last.model, provider: AJP.ai.last && AJP.ai.last.provider };
     },
 
     // Chrome built-in AI as the background sees it (that's where AI calls run).

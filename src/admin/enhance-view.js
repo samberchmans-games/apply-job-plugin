@@ -125,7 +125,7 @@
     const cov = d.coverage;
     dlg.innerHTML = `
       <h2 style="margin-top:0">Tailor resume: ${esc((d.job && d.job.title) || 'Job')}${d.job && d.job.company ? ' · ' + esc(d.job.company) : ''}${d.trackName ? ` <span class="pill">🧭 ${esc(d.trackName)}</span>` : ''}</h2>
-      <p class="hint">Based on “${esc(d.resumeName)}” · ${new Date(d.createdAt).toLocaleString()}. Nothing changes until you click <b>Create tailored resume</b>; your original stays as it is.</p>
+      <p class="hint">Based on “${esc(d.resumeName)}” · ${new Date(d.createdAt).toLocaleString()}${d.ai ? ` · tailored with <b>${esc(d.ai.label)}</b>` : ''}. Nothing changes until you click <b>Create tailored resume</b>; your original stays as it is.</p>
       ${d.matchScore != null ? `<p class="hint">Your match for this job: <b>${esc(d.matchScore)}%</b>. Tailoring adds a little; it doesn't turn a different job into a fit.</p>` : ''}
       <div class="stats">
         <div class="tile"><b>${d.stats.requirements}</b><span>Job requirements</span></div>

@@ -159,6 +159,41 @@
     });
   }, { env: 'browser' });
 
+  describe('tailoring ai › which AI did the work', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'openrouter', tailorProvider: 'groq', resolvedModels: { groq: 'openai/gpt-oss-120b' }, keys: { groq: 'gsk', gemini: '', openrouter: 'or' } });
+    });
+    afterEach(after);
+    it('every call is recorded: task, provider, model, time, result — never the prompt or the answer', async () => {
+      fake(ok200(REQ(6)), limited('Please try again in 5m.'));
+      await AJP.ai.tasks.analyzeForResume({ jd: JD + ' SECRET-JD', resumeText: '- SECRET-RESUME' });
+      await rejects(() => AJP.ai.tasks.test());
+      const calls2 = await AJP.store.get('aiCalls');
+      eq(calls2.map((c) => [c.task, c.provider, c.model, c.ok, c.code || '']), [['test', 'openrouter', AJP.ai.PROVIDERS.openrouter.defaultModel, false, 'AJP-AI-429'], ['resume.analyze', 'groq', 'openai/gpt-oss-120b', true, '']]);
+      ok(calls2.every((c) => typeof c.ms === 'number' && c.label));
+      const raw = JSON.stringify(calls2);
+      ok(!raw.includes('SECRET'), 'no prompt text');
+    });
+    it('"Test tailoring AI" says which provider AND model answered', async () => {
+      fake(ok200('OK'));
+      const r = await AJP.send('ai.test', { group: 'tailor' });
+      eq(r.ai, 'Groq · openai/gpt-oss-120b');
+    });
+    it('the tailoring draft records who tailored it, and the panel says so', async () => {
+      await AJP.store.update('settings', (x) => void (x.tailoring.minMatch = 0));
+      await AJP.store.set('resumes', { activeId: 'r1', items: [{ id: 'r1', name: 'Main', text: globalThis.__ENH_FIXTURE__.RESUME }] });
+      fake(ok200(globalThis.__ENH_FIXTURE__.ANALYSIS), ok200(globalThis.__ENH_FIXTURE__.EDITS));
+      const r = await AJP.send('resume.enhance', { jd: globalThis.__ENH_FIXTURE__.JD, job: { title: 'X' } });
+      eq(r.draft.ai.label, 'Groq · openai/gpt-oss-120b');
+    });
+    it('recent calls are kept out of backups (internal)', async () => {
+      fake(ok200('OK'));
+      await AJP.ai.tasks.test();
+      eq((await AJP.store.exportAll()).data.aiCalls, undefined);
+    });
+  }, { env: 'browser' });
+
   describe('tailoring ai › too few requirements', () => {
     beforeEach(async () => {
       await before();

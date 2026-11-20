@@ -145,7 +145,7 @@
         <div class="score">
           <div class="ring" style="background:conic-gradient(${color(s)} ${(s || 0) * 3.6}deg,#e5e7eb 0)"><span>${s == null ? '?' : s + '%'}</span></div>
           <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match${a.similarCount ? ` <span class="muted">(+${a.similarCount} similar)</span>` : ''}<br>
-          <span class="muted">${state.aiUsed ? 'AI-enhanced analysis' : 'Offline keyword analysis'} · ${a.ms}ms</span></div>
+          <span class="muted">${state.aiUsed ? `AI-enhanced analysis${typeof state.aiUsed === 'string' ? ' (' + esc(state.aiUsed) + ')' : ''}` : 'Offline keyword analysis'} · ${a.ms}ms</span></div>
         </div>
         ${state.tailored ? `<div class="tailored">📝 Scored with your resume tailored for this job${state.tailored.before != null && s != null ? ` (was ${esc(state.tailored.before)}%)` : ''}
           <button class="b small" data-act="downloadTailored" title="${esc(state.tailored.fileName || '')}">⬇ Download PDF</button></div>` : ''}

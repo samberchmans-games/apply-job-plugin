@@ -306,6 +306,18 @@
     return (m[1] ? +m[1] * 60000 : 0) + parseFloat(m[2]) * (m[3].toLowerCase() === 'ms' ? 1 : 1000);
   }
 
+  // Every AI call is recorded (Admin → AI settings → Recent AI calls): which provider and model did the work, for what,
+  // how long it took and whether it worked. Never the prompt or the answer.
+  const LABEL = (provider, model) => `${(PROVIDERS[provider] || {}).label ? PROVIDERS[provider].label.replace(/\s*\(.*$/, '') : provider} · ${model}`;
+  async function recordCall(entry) {
+    AJP.ai.last = entry;
+    try {
+      await AJP.store.update('aiCalls', (l) => [entry, ...(Array.isArray(l) ? l : [])].slice(0, 30));
+    } catch (e) {
+      AJP.logger('ai').warn('AI call not recorded', { error: e.message });
+    }
+  }
+
   /*
    * group 'tailor' uses settings.ai.tailorProvider when set (e.g. Chrome built-in AI for everyday tasks, Gemini or Groq
    * for resume tailoring). patient: wait out one free-tier rate limit of up to CONFIG.patienceMs, then retry.
@@ -322,6 +334,7 @@
     const resolved = (cfg.resolvedModels || {})[provider];
     let model = own ? resolved || p.defaultModel : cfg.model || resolved || p.defaultModel;
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
+    const t0 = performance.now();
     let discovered = false;
     const call = async (text) => {
       try {
@@ -366,9 +379,12 @@
         }
       } else result = out.trim();
       tr.end({ provider, model, outChars: out.length });
+      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true });
       return result;
     } catch (e) {
-      throw tr.fail(e, { provider, model });
+      const x = tr.fail(e, { provider, model });
+      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: false, code: x.code });
+      throw x;
     }
   }
 
@@ -446,5 +462,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
 })();
