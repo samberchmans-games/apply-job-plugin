@@ -27,7 +27,8 @@
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
   };
 
-  const CONFIG = { timeoutMs: 90000, tries: 3, localMaxChars: 16000 }; // tests shorten these
+  // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
+  const CONFIG = { timeoutMs: 90000, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
@@ -251,16 +252,42 @@
     }
   }
 
-  async function complete({ system, prompt, json = false, task = 'complete', tid }) {
+  // How long a rate-limited provider asked us to wait (Retry-After header, or "try again in 7.66s" in Groq's message).
+  function waitAsked(x) {
+    if (x.details && x.details.retryAfter) return x.details.retryAfter * 1000;
+    const m = String((x.details && x.details.body) || '').match(/try again in\s+(?:(\d+)m)?\s*([\d.]+)\s*(ms|s)\b/i);
+    if (!m) return null;
+    return (m[1] ? +m[1] * 60000 : 0) + parseFloat(m[2]) * (m[3].toLowerCase() === 'ms' ? 1 : 1000);
+  }
+
+  /*
+   * group 'tailor' uses settings.ai.tailorProvider when set (e.g. Chrome built-in AI for everyday tasks, Gemini or Groq
+   * for resume tailoring). patient: wait out one free-tier rate limit of up to CONFIG.patienceMs, then retry.
+   */
+  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false }) {
     const settings = await AJP.store.get('settings');
     const cfg = settings.ai;
-    const p = PROVIDERS[cfg.provider];
-    if (!p || cfg.provider === 'none') throw AJP.err('AI_OFF');
-    if (p.needsKey && !cfg.keys[cfg.provider]) throw AJP.err('AI_NO_KEY', { provider: cfg.provider });
-    const model = cfg.model || p.defaultModel;
-    const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider: cfg.provider, model, promptChars: prompt.length } });
+    const own = group === 'tailor' && cfg.tailorProvider && cfg.tailorProvider !== cfg.provider && PROVIDERS[cfg.tailorProvider] ? cfg.tailorProvider : null;
+    const provider = own || cfg.provider;
+    const p = PROVIDERS[provider];
+    if (!p || provider === 'none') throw AJP.err('AI_OFF');
+    if (p.needsKey && !cfg.keys[provider]) throw AJP.err('AI_NO_KEY', { provider });
+    const model = own ? p.defaultModel : cfg.model || p.defaultModel; // the Model field belongs to the main provider
+    const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
+    const call = async (text) => {
+      try {
+        return await CALLERS[provider](cfg, model, system, text, json);
+      } catch (e) {
+        const x = AJP.toAppError(e);
+        const wait = x.code === 'AJP-AI-429' && patient ? waitAsked(x) : null;
+        if (wait == null || wait > CONFIG.patienceMs) throw e;
+        tr.log.info(`ai.${task} free-tier limit reached; waiting ${Math.ceil(wait / 1000)}s, then retrying once`, { provider, waitMs: Math.round(wait) });
+        await new Promise((r) => setTimeout(r, wait + 250));
+        return CALLERS[provider](cfg, model, system, text, json);
+      }
+    };
     try {
-      let out = await CALLERS[cfg.provider](cfg, model, system, prompt, json);
+      let out = await call(prompt);
       if (!out || !String(out).trim()) throw AJP.err('AI_BAD_RESPONSE', { reason: 'empty answer' });
       let result;
       if (json) {
@@ -269,14 +296,14 @@
         } catch (e) {
           // Free models sometimes add prose or break JSON: retry once with a firm reminder.
           tr.log.warn(`ai.${task} invalid JSON, retrying once`, { reason: e.details && e.details.reason });
-          out = await CALLERS[cfg.provider](cfg, model, system, prompt + '\n\nIMPORTANT: Your previous reply was not valid JSON. Reply with ONE valid JSON object only, no other text.', json);
+          out = await call(prompt + '\n\nIMPORTANT: Your previous reply was not valid JSON. Reply with ONE valid JSON object only, no other text.');
           result = parseJsonLoose(out);
         }
       } else result = out.trim();
-      tr.end({ provider: cfg.provider, model, outChars: out.length });
+      tr.end({ provider, model, outChars: out.length });
       return result;
     } catch (e) {
-      throw tr.fail(e, { provider: cfg.provider, model });
+      throw tr.fail(e, { provider, model });
     }
   }
 
@@ -304,18 +331,31 @@
     },
 
     // Resume enhancement v2, stage 1: requirements + evidence (prompt lives in resume-engine.js).
-    analyzeForResume({ jd, resumeText, tid }) {
-      return complete({ task: 'resume.analyze', tid, json: true, ...AJP.resumeEngine.analyzePrompt({ jd, resumeText }) });
+    // A job that lists several skills has several requirements: a reply with fewer than 3 is asked again, once.
+    async analyzeForResume({ jd, resumeText, tid }) {
+      const p = AJP.resumeEngine.analyzePrompt({ jd, resumeText });
+      const first = await complete({ task: 'resume.analyze', tid, json: true, group: 'tailor', patient: true, ...p });
+      const n = Array.isArray(first && first.requirements) ? first.requirements.length : 0;
+      const listed = AJP.matcher ? AJP.matcher.findSkills(jd).size : 0;
+      if (n >= 3 || listed < 5) return first;
+      AJP.logger('ai').info('Too few requirements from the AI; asking again once', { got: n, jobSkills: listed });
+      const again = await complete({
+        task: 'resume.analyze.retry', tid, json: true, group: 'tailor', patient: true, system: p.system,
+        prompt: p.prompt + `\n\nIMPORTANT: Your previous answer listed only ${n} requirement${n === 1 ? '' : 's'}, but this job names at least ${listed} distinct skills or tools. ` +
+          'List 6 to 15 SEPARATE requirements, one per skill, tool, responsibility or qualification. Split combined ones ("AWS, Glue and Snowflake" = three requirements).',
+      });
+      const m = Array.isArray(again && again.requirements) ? again.requirements.length : 0;
+      return m > n ? again : first;
     },
 
     // Stage 3: targeted, evidence-backed edits (at most maxEdits: a light touch, not a rewrite).
     proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, maxEdits, tid }) {
-      return complete({ task: 'resume.edits', tid, json: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits }) });
+      return complete({ task: 'resume.edits', tid, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits }) });
     },
 
     // Skills the user CONFIRMED, each written into one line of the job they chose.
     weaveSkills({ picks, job, tid }) {
-      return complete({ task: 'resume.weaveSkills', tid, json: true, ...AJP.resumeEngine.weavePrompt({ picks, job }) });
+      return complete({ task: 'resume.weaveSkills', tid, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.weavePrompt({ picks, job }) });
     },
 
     draftAnswer({ question, jd, resumeText, profile, job, maxWords, tid }) {
@@ -336,8 +376,8 @@
       });
     },
 
-    test({ tid } = {}) {
-      return complete({ task: 'test', tid, system: 'Reply with one word.', prompt: 'Say OK.' });
+    test({ tid, group = '' } = {}) {
+      return complete({ task: 'test', tid, group, system: 'Reply with one word.', prompt: 'Say OK.' });
     },
   };
 

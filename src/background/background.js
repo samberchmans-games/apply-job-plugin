@@ -558,7 +558,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     async 'ai.test'(msg, sender, { tid }) {
-      return { text: await AJP.ai.tasks.test({ tid }) };
+      return { text: await AJP.ai.tasks.test({ tid, group: (msg && msg.group) || '' }) };
     },
 
     // Chrome built-in AI as the background sees it (that's where AI calls run).

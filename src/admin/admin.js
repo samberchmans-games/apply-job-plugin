@@ -535,6 +535,14 @@
   function initAI() {
     $('#aiProvider').innerHTML = Object.entries(AJP.ai.PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join('');
     $('#aiProvider').value = settings.ai.provider;
+    $('#aiTailor').innerHTML = '<option value="">Same as above</option>' + Object.entries(AJP.ai.PROVIDERS).filter(([k]) => k !== 'none').map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join('');
+    $('#aiTailor').value = settings.ai.tailorProvider || '';
+    $('#aiTailorTest').addEventListener('click', async () => {
+      await AJP.store.set('settings', settings);
+      $('#aiTailorOut').textContent = 'Testing…';
+      const r = await AJP.send('ai.test', { group: 'tailor' });
+      $('#aiTailorOut').textContent = r.ok ? `✅ Works (${esc(AJP.ai.PROVIDERS[settings.ai.tailorProvider || settings.ai.provider].label)})` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+    });
     updateModelPlaceholder();
     $('#aiProvider').addEventListener('change', () => setTimeout(renderLocalAI, 0));
     $('#aiLocalUse').addEventListener('click', AJP.guard('admin.useLocalAI', async () => {

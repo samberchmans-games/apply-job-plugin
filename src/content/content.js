@@ -206,7 +206,7 @@
         );
       }
       state.busy = 'tailor';
-      say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s…');
+      say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s (a free AI limit can add a short wait; it retries by itself)…');
       const tr = AJP.startTrace('panel.enhanceResume', { mod: 'content', slowMs: 90000 });
       const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef(), score }, tr);
       state.busy = '';

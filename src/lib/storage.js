@@ -51,6 +51,7 @@
         provider: 'none', // none | gemini | groq | openrouter | ollama
         model: '',
         keys: { gemini: '', groq: '', openrouter: '' },
+        tailorProvider: '', // '' = same as provider; e.g. 'gemini' for tailoring while 'chrome' does the rest
         ollamaUrl: 'http://localhost:11434',
       },
       logLevel: 'info',

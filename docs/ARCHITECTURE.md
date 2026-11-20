@@ -374,6 +374,8 @@ For sites other than Workday. A section = a heading ("Employment", "Experience",
 | Ollama | `{ollamaUrl}/api/chat` | none (local) | `llama3.1` |
 | Chrome built-in AI | Prompt API in the browser (`LanguageModel`, or older `ai.languageModel`); no network | none | on-device (Gemini Nano in Chrome) |
 
+**Tailoring provider and free-tier limits:** tailoring tasks (`analyzeForResume`, `proposeResumeEdits`, `weaveSkills`) run with `group: 'tailor'`, which uses `settings.ai.tailorProvider` when set (with that provider's default model; the Model field belongs to the main provider) — e.g. Chrome built-in AI for everyday tasks and Gemini or Groq for tailoring. They are `patient`: a rate limit whose wait (Retry-After, or Groq's "try again in 7.66s" in the body) is ≤ `CONFIG.patienceMs` (60 s) is waited out once, then retried; everyday tasks fail fast with `AJP-AI-429`. The analysis asks for 6–15 separate requirements; fewer than 3 for a job naming 5+ skills → asked again once, the fuller answer wins.
+
 **Chrome built-in AI** (`provider: 'chrome'`):
 - Runs in the background service worker, like the other providers (Chrome exposes `LanguageModel` to extension workers).
 - `availability()` decides: `available` → `create({ initialPrompts: [system], expectedInputs/Outputs: en })` → `prompt(text, { responseConstraint: {type:'object'} for JSON, signal })` → `destroy()`. `downloadable`/`downloading` → `AJP-AI-LOCAL-DL`; `unavailable` → `AJP-AI-LOCAL-OFF`; no API → `AJP-AI-LOCAL-NONE`.
@@ -535,7 +537,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1081 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1093 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

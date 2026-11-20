@@ -499,7 +499,7 @@
         'TASK: List the requirements of the job and find evidence for each one in the resume.',
         '',
         'RULES:',
-        '1. Return at most 15 requirements, the most important first. Merge duplicates.',
+        '1. Return 6 to 15 requirements (fewer only if the job truly asks for fewer), the most important first. One requirement per skill, tool, responsibility or qualification: split combined ones ("AWS, AWS Glue and Snowflake" = three requirements). Merge exact duplicates.',
         '2. priority: "must" = stated as required/minimum; "should" = listed without qualifier; "nice" = preferred/bonus/plus.',
         '3. type: one of "skill", "tool", "domain", "responsibility", "qualification", "soft_skill".',
         '4. jd_quote: the exact phrase from the job description (copy it).',

@@ -134,7 +134,9 @@
       await AJP.store.update('settings', (x) => { x.ai.provider = 'groq'; x.ai.keys.groq = 'k'; });
       const bodies = [];
       const answers = [
-        { requirements: [{ id: 'R1', text: 'AWS', priority: 'must', match: 'strong', evidence: [{ quote: 'Automated AWS infrastructure with Terraform' }] }], ats_keywords: ['AWS'] },
+        { requirements: [{ id: 'R1', text: 'AWS', priority: 'must', match: 'strong', evidence: [{ quote: 'Automated AWS infrastructure with Terraform' }] },
+          { id: 'R2', text: 'Terraform', priority: 'must', match: 'strong', evidence: [{ quote: 'Automated AWS infrastructure with Terraform' }] },
+          { id: 'R3', text: 'Kubernetes', priority: 'must', match: 'none', evidence: [] }], ats_keywords: ['AWS'] },
         { edits: [{ target: 'b1', after: 'Automated AWS infrastructure with Terraform, reducing manual provisioning', requirement_ids: ['R1'], evidence: ['Automated AWS infrastructure with Terraform'], reason: 'r' }] },
       ];
       let i = 0;

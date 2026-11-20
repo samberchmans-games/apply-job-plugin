@@ -166,8 +166,8 @@
       <p class="hint">Matching works offline without AI. AI adds deeper JD analysis, honest resume tailoring and drafted answers. Pick a <b>free</b> option:</p>
       <ul class="hint">
         <li><b>Chrome built-in AI</b> — no key, no account; runs on this computer, so nothing leaves it. Needs a recent desktop Chrome and a one-time model download. Smaller than the cloud models: fine for answers and skills, slower and simpler for resume tailoring.</li>
-        <li><b>Google Gemini</b> — free API key at aistudio.google.com/apikey (sign in with a Google account).</li>
-        <li><b>Groq</b> — free API key at console.groq.com/keys. Very fast.</li>
+        <li><b>Google Gemini</b> — free API key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (sign in with a Google account → Create API key). <b>Best free choice for resume tailoring</b>: the most room per minute.</li>
+        <li><b>Groq</b> — free API key: <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Very fast; its free tier has a per-minute limit, so tailoring may pause for a few seconds and retry automatically.</li>
         <li><b>OpenRouter</b> — free key at openrouter.ai/keys; use models ending in <code>:free</code>.</li>
         <li><b>Ollama</b> — runs models on this computer; fully private. Start it with <code>OLLAMA_ORIGINS="*" ollama serve</code>.</li>
       </ul>
@@ -186,6 +186,11 @@
         <div class="row"><button id="aiLocalDownload" hidden>⬇ Download the on-device model</button><progress id="aiLocalProgress" max="1" value="0" hidden></progress><span id="aiLocalOut" class="hint"></span></div>
       </div>
       <div class="row"><button id="aiTest" class="primary">Test connection</button><span id="aiTestOut" class="hint"></span></div>
+      <div class="grid">
+        <label>AI for resume tailoring<select data-settings="ai.tailorProvider" id="aiTailor"></select></label>
+      </div>
+      <p class="hint">Tailoring needs a capable model. Keep everyday tasks on one provider (e.g. Chrome built-in AI) and tailor with <b>Gemini</b> or <b>Groq</b>: add that key above, choose it here and test it.</p>
+      <div class="row"><button id="aiTailorTest">Test tailoring AI</button><span id="aiTailorOut" class="hint"></span></div>
       <h3>Tailoring limits</h3>
       <p class="hint">Resume tailoring is a light touch for jobs you already match well, never a rewrite to chase a far-off job.</p>
       <div class="grid">

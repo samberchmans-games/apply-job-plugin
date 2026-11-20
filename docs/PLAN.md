@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1081) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 963 across 30 areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1093) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-20 | _g_ | **Tailoring with a free Groq or Gemini key**: a separate "AI for resume tailoring" (e.g. Chrome built-in for everyday tasks, Gemini/Groq for tailoring) + test button; free-tier rate limits waited out once (≤ 60 s, Retry-After or Groq's "try again in Ns"); 6–15 separate requirements asked, too few → asked again once; clickable key links; 1093 tests |
 | 2026-11-18 | `cb1ac98` | v0.1 foundation: MV3 extension, Admin page, matcher, job-page reading, autofill + learning, AI providers, logging |
 | 2026-11-18 | `c6f67d8` | Plan document |
 | 2026-11-18 | `3609410` | Automated test suite (279), manual scenarios; fixed a stale-cache race and "preferred" misdetection |
