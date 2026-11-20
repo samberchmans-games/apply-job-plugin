@@ -20,6 +20,7 @@
     AI_RATE_LIMIT: ['AJP-AI-429', 'The free AI limit was reached.', 'Wait a minute and try again, or switch provider in Admin → AI settings.'],
     AI_MODEL: ['AJP-AI-404', 'The AI model name was not found.', 'Clear the Model field in Admin → AI settings to use the default.'],
     AI_SERVER: ['AJP-AI-5XX', 'The AI provider had a server error.', 'Try again shortly.'],
+    AI_BILLING: ['AJP-AI-BILLING', "This AI provider's free tier isn't available for your account or project.", 'Use Groq instead (free, no billing: console.groq.com/keys), try another personal Google account, or set up billing with the provider. Then choose it in Admin → AI settings.'],
     AI_HTTP: ['AJP-AI-HTTP', 'The AI request failed.', 'See the logs for the provider response.'],
     AI_TIMEOUT: ['AJP-AI-TIME', 'The AI took too long to answer.', 'Try again; long resumes and job posts take longer.'],
     AI_NETWORK: ['AJP-AI-NET', 'Could not reach the AI provider.', 'Check your internet connection. For Ollama, make sure it is running (OLLAMA_ORIGINS="*" ollama serve).'],

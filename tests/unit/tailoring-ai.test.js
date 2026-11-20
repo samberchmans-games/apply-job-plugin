@@ -97,6 +97,30 @@
     });
   }, { env: 'browser' });
 
+  describe('tailoring ai › free tier not available (billing)', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'gemini', tailorProvider: '', keys: { groq: '', gemini: 'g', openrouter: '' } });
+    });
+    afterEach(after);
+    const gemini = (status, message) => new Response(JSON.stringify({ error: { code: status, message, status: status === 429 ? 'RESOURCE_EXHAUSTED' : 'FAILED_PRECONDITION' } }), { status });
+    for (const [status, msg] of [
+      [400, 'User location is not supported for the API use.'],
+      [429, 'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash'],
+      [403, 'The Gemini API free tier is not available for this project. Please set up billing to upgrade to the paid tier.'],
+    ]) it(`${status}: "${msg.slice(0, 40)}…" → AJP-AI-BILLING with a Groq hint, no waiting`, async () => {
+      fake(gemini(status, msg), ok200(REQ(6)));
+      const e = await rejects(() => AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' }));
+      eq(e.code, 'AJP-AI-BILLING');
+      includes(e.hint, 'Groq');
+      eq(calls.length, 1);
+    });
+    it('an ordinary rate limit is still AJP-AI-429', async () => {
+      fake(limited('Please try again in 5m.'));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-429');
+    });
+  }, { env: 'browser' });
+
   describe('tailoring ai › too few requirements', () => {
     beforeEach(async () => {
       await before();

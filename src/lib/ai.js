@@ -33,7 +33,21 @@
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
   // (each already waited CONFIG.timeoutMs).
-  function fetchJson(url, opts) {
+  // "Free tier not available for this project / set up billing", "User location is not supported", or a quota of
+  // "limit: 0" all mean the same to the user: this key can't be used for free. Say that, and point to Groq.
+  const NO_FREE_TIER = /free tier is not available|set up billing|billing (account|is required|to upgrade)|enable billing|location is not supported|FAILED_PRECONDITION|limit:\s*0\b/i;
+  async function fetchJson(url, opts) {
+    try {
+      return await request(url, opts);
+    } catch (e) {
+      const x = AJP.toAppError(e);
+      if (/^AJP-AI-(429|HTTP|401|404)$/.test(x.code) && NO_FREE_TIER.test(String((x.details && x.details.body) || ''))) {
+        throw AJP.err('AI_BILLING', { status: x.details.status, host: x.details.host }, e);
+      }
+      throw e;
+    }
+  }
+  function request(url, opts) {
     return AJP.http(url, opts, {
       timeoutMs: CONFIG.timeoutMs,
       tries: CONFIG.tries,
