@@ -121,6 +121,44 @@
     });
   }, { env: 'browser' });
 
+  describe('tailoring ai › retired models are replaced automatically', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'chrome', tailorProvider: 'groq', resolvedModels: {}, keys: { groq: 'gsk', gemini: 'g', openrouter: '' } });
+    });
+    afterEach(after);
+    const notFound = (id) => new Response(JSON.stringify({ error: { message: `The model \`${id}\` does not exist or you do not have access to it.`, code: 'model_not_found' } }), { status: 404 });
+    const groqModels = () => new Response(JSON.stringify({ data: [
+      { id: 'whisper-large-v3', active: true }, { id: 'meta-llama/llama-guard-4-12b', active: true },
+      { id: 'llama-3.1-8b-instant', active: true }, { id: 'openai/gpt-oss-120b', active: true }, { id: 'llama-3.3-70b-versatile', active: false },
+    ] }));
+    it('Groq: "model not found" → reads the model list, picks a capable chat model, remembers it, retries', async () => {
+      fake(notFound('llama-3.3-70b-versatile'), groqModels(), ok200('OK'));
+      eq((await AJP.send('ai.test', { group: 'tailor' })).text, 'OK');
+      includes(calls[1].url, 'api.groq.com/openai/v1/models');
+      eq(calls[2].body.model, 'openai/gpt-oss-120b', 'the preferred, active, chat model');
+      eq((await AJP.store.get('settings')).ai.resolvedModels.groq, 'openai/gpt-oss-120b');
+    });
+    it('the remembered model is used next time (no failed call first)', async () => {
+      await settings({ resolvedModels: { groq: 'openai/gpt-oss-120b' } });
+      fake(ok200('OK'));
+      await AJP.send('ai.test', { group: 'tailor' });
+      eq([calls.length, calls[0].body.model], [1, 'openai/gpt-oss-120b']);
+    });
+    it('Gemini: picks a generateContent flash model from the list', async () => {
+      await settings({ tailorProvider: 'gemini' });
+      fake(new Response(JSON.stringify({ error: { code: 404, message: 'models/gemini-2.5-flash is not found for API version v1beta' } }), { status: 404 }),
+        new Response(JSON.stringify({ models: [{ name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] }, { name: 'models/gemini-3.0-flash', supportedGenerationMethods: ['generateContent'] }] })),
+        new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] })));
+      eq((await AJP.send('ai.test', { group: 'tailor' })).text, 'OK');
+      includes(calls[2].url, 'models/gemini-3.0-flash:generateContent');
+    });
+    it('no usable model in the list → the coded "model not found" error', async () => {
+      fake(notFound('llama-3.3-70b-versatile'), new Response(JSON.stringify({ data: [{ id: 'whisper-large-v3' }] })));
+      eq((await AJP.send('ai.test', { group: 'tailor' })).code, 'AJP-AI-404');
+    });
+  }, { env: 'browser' });
+
   describe('tailoring ai › too few requirements', () => {
     beforeEach(async () => {
       await before();

@@ -266,6 +266,38 @@
     }
   }
 
+  // ---- Model discovery: providers retire free models; when one answers "model not found", ask which models it offers
+  // now, pick the best fit, remember it (settings.ai.resolvedModels) and retry. Preferences first, then any suitable model.
+  const PREFER = {
+    groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
+    gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash$/, /^gemini-2\.5-flash-lite$/, /^gemini-[\d.]+-flash-lite$/, /^gemini-[\d.]+-pro$/],
+    openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek.*:free$/, /qwen.*:free$/, /:free$/],
+  };
+  const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n/i;
+  async function availableModels(cfg, provider) {
+    if (provider === 'groq') {
+      const d = await request('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.groq}` } });
+      return (d.data || []).filter((m) => m.active !== false).map((m) => m.id);
+    }
+    if (provider === 'gemini') {
+      const d = await request('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': cfg.keys.gemini } });
+      return (d.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => String(m.name).replace(/^models\//, ''));
+    }
+    if (provider === 'openrouter') {
+      const d = await request('https://openrouter.ai/api/v1/models', {});
+      return (d.data || []).map((m) => m.id);
+    }
+    return [];
+  }
+  async function discoverModel(cfg, provider, failed) {
+    const ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id));
+    for (const re of PREFER[provider] || []) {
+      const hit = ids.find((id) => re.test(id));
+      if (hit) return hit;
+    }
+    return ids[0] || null;
+  }
+
   // How long a rate-limited provider asked us to wait (Retry-After header, or "try again in 7.66s" in Groq's message).
   function waitAsked(x) {
     if (x.details && x.details.retryAfter) return x.details.retryAfter * 1000;
@@ -286,13 +318,32 @@
     const p = PROVIDERS[provider];
     if (!p || provider === 'none') throw AJP.err('AI_OFF');
     if (p.needsKey && !cfg.keys[provider]) throw AJP.err('AI_NO_KEY', { provider });
-    const model = own ? p.defaultModel : cfg.model || p.defaultModel; // the Model field belongs to the main provider
+    // The Model field belongs to the main provider; a model found by discovery (resolvedModels) replaces a retired default.
+    const resolved = (cfg.resolvedModels || {})[provider];
+    let model = own ? resolved || p.defaultModel : cfg.model || resolved || p.defaultModel;
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
+    let discovered = false;
     const call = async (text) => {
       try {
         return await CALLERS[provider](cfg, model, system, text, json);
       } catch (e) {
         const x = AJP.toAppError(e);
+        // "Model not found": the provider retired it. Find the one it offers now, remember it, retry once.
+        if (x.code === 'AJP-AI-404' && !discovered && PREFER[provider]) {
+          discovered = true;
+          let next = null;
+          try {
+            next = await discoverModel(cfg, provider, model);
+          } catch (d) {
+            tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
+          }
+          if (next) {
+            tr.log.info(`ai.${task} model "${model}" not offered any more; using "${next}"`, { provider, from: model, to: next });
+            model = next;
+            await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: next }));
+            return CALLERS[provider](cfg, model, system, text, json);
+          }
+        }
         const wait = x.code === 'AJP-AI-429' && patient ? waitAsked(x) : null;
         if (wait == null || wait > CONFIG.patienceMs) throw e;
         tr.log.info(`ai.${task} free-tier limit reached; waiting ${Math.ceil(wait / 1000)}s, then retrying once`, { provider, waitMs: Math.round(wait) });

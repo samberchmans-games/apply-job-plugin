@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1097 automated + 122 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1101 automated + 122 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1097 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1097) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 1101 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1101) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-20 | _m_ | Retired AI models replaced automatically: on "model not found" the provider's model list is read, a capable chat model picked and remembered (Groq, Gemini, OpenRouter); 1101 tests |
 | 2026-11-20 | `a878f41` | AJP-AI-BILLING: a provider whose free tier isn't available for the account / project (Gemini "set up billing", "location not supported", "limit: 0") gets a clear message pointing to Groq; Admin advice corrected; 1097 tests |
 | 2026-11-20 | `13bffd3` | **Tailoring with a free Groq or Gemini key**: a separate "AI for resume tailoring" (e.g. Chrome built-in for everyday tasks, Gemini/Groq for tailoring) + test button; free-tier rate limits waited out once (≤ 60 s, Retry-After or Groq's "try again in Ns"); 6–15 separate requirements asked, too few → asked again once; clickable key links; 1093 tests |
 | 2026-11-18 | `cb1ac98` | v0.1 foundation: MV3 extension, Admin page, matcher, job-page reading, autofill + learning, AI providers, logging |

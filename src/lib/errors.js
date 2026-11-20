@@ -18,7 +18,7 @@
     AI_NO_KEY: ['AJP-AI-KEY', 'No API key saved for this AI provider.', 'Add the key in Admin → AI settings, then click Test connection.'],
     AI_AUTH: ['AJP-AI-401', 'The AI provider rejected the API key.', 'Check the key in Admin → AI settings (copy it again from the provider).'],
     AI_RATE_LIMIT: ['AJP-AI-429', 'The free AI limit was reached.', 'Wait a minute and try again, or switch provider in Admin → AI settings.'],
-    AI_MODEL: ['AJP-AI-404', 'The AI model name was not found.', 'Clear the Model field in Admin → AI settings to use the default.'],
+    AI_MODEL: ['AJP-AI-404', 'The AI model name was not found, and no replacement could be found.', 'Clear the Model field in Admin → AI settings and try again; if it keeps failing, the provider may have changed its models: try another provider.'],
     AI_SERVER: ['AJP-AI-5XX', 'The AI provider had a server error.', 'Try again shortly.'],
     AI_BILLING: ['AJP-AI-BILLING', "This AI provider's free tier isn't available for your account or project.", 'Use Groq instead (free, no billing: console.groq.com/keys), try another personal Google account, or set up billing with the provider. Then choose it in Admin → AI settings.'],
     AI_HTTP: ['AJP-AI-HTTP', 'The AI request failed.', 'See the logs for the provider response.'],

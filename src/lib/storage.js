@@ -52,6 +52,7 @@
         model: '',
         keys: { gemini: '', groq: '', openrouter: '' },
         tailorProvider: '', // '' = same as provider; e.g. 'gemini' for tailoring while 'chrome' does the rest
+        resolvedModels: {}, // provider -> model found by discovery when the default was retired (see ai.js)
         ollamaUrl: 'http://localhost:11434',
       },
       logLevel: 'info',
