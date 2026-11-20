@@ -183,8 +183,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   }
   AJP.refreshBadge = refreshBadge;
   const refreshBadgeSoon = AJP.debounce(refreshBadge, 500);
-  // History retention (Admin → Backup & privacy): applications (by their LAST change, so an application still moving
-  // is kept), job history, tailoring drafts and logs older than N days are removed. Default 30; 0 = keep everything.
+  // History retention (Admin → Backup & privacy): an application is kept N days from the day you APPLIED (long enough to
+  // avoid applying twice and to re-read the saved job description), then removed with job history, tailoring drafts
+  // and logs older than N days. Default 30; the user can keep it longer, or 0 = keep everything.
   async function pruneHistory() {
     const settings = await AJP.store.get('settings');
     const days = Number(settings.retentionDays);
@@ -194,7 +195,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     let removed = 0;
     const keep = (list, when) => list.filter((x) => (old(when(x)) ? (removed++, false) : true));
     await serialData(async () => {
-      await AJP.store.update('applications', (l) => keep(l, (a) => a.updatedAt || a.appliedAt || a.date));
+      await AJP.store.update('applications', (l) => keep(l, (a) => a.appliedAt || a.date || a.updatedAt));
       await AJP.store.update('evaluations', (l) => keep(l, (e) => e.at));
       await AJP.store.update('enhancements', (l) => keep(l, (d) => d.createdAt));
     });

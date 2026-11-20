@@ -286,7 +286,7 @@
     <section id="backup">
       <h1>Backup &amp; privacy</h1>
       <p class="hint">There is no server or database — your data lives only in this browser. Export a backup to move to another browser or computer.</p>
-      <div class="row"><label class="check">Keep applications, job history and logs for <input type="number" min="0" max="3650" class="narrow" data-settings="retentionDays"> days <span class="hint">(default 30; 0 = keep everything). An application counts from its last change, so one that is still moving is kept.</span></label></div>
+      <div class="row"><label class="check">Keep applications, job history and logs for <input type="number" min="0" max="3650" class="narrow" data-settings="retentionDays"> days <span class="hint">(default 30). Counted from the day you applied: long enough to avoid applying twice and to re-read the saved job description. Keep it longer if you want the history; 0 = keep everything.</span></label></div>
       <div class="row">
         <label class="check"><input type="checkbox" id="bkKeys"> Include API keys</label>
         <button id="bkExport" class="primary">⬇ Export backup (.json)</button>

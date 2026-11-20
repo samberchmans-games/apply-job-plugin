@@ -182,7 +182,7 @@
     beforeEach(() => mock.__reset());
     const days = (n) => new Date(Date.now() - n * 86400000).toISOString();
     it('default 30 days: older applications, job history, drafts and logs are removed', async () => {
-      await AJP.store.set('applications', [{ id: 'a', status: 'applied', updatedAt: days(40) }, { id: 'b', status: 'applied', updatedAt: days(5) }]);
+      await AJP.store.set('applications', [{ id: 'a', status: 'applied', appliedAt: days(40) }, { id: 'b', status: 'applied', appliedAt: days(5) }]);
       await AJP.store.set('evaluations', [{ jobKey: 'x', at: days(45) }, { jobKey: 'y', at: days(1) }]);
       await AJP.store.set('enhancements', [{ id: 'e1', createdAt: days(31) }]);
       await AJP.store.set('logs', [{ t: days(60), msg: 'old' }, { t: days(2), msg: 'new' }]);
@@ -193,13 +193,20 @@
       eq((await AJP.store.get('enhancements')).length, 0);
       eq((await AJP.store.get('logs')).map((l) => l.msg), ['new']);
     });
-    it('an application counts from its LAST change (still moving → kept)', async () => {
-      await AJP.store.set('applications', [{ id: 'a', status: 'interviewing', appliedAt: days(60), updatedAt: days(3) }]);
+    it('an application counts from the day you APPLIED (later edits do not extend it)', async () => {
+      await AJP.store.set('applications', [{ id: 'a', status: 'applied', appliedAt: days(40), updatedAt: days(1) }, { id: 'b', status: 'applied', appliedAt: days(10) }]);
       await AJP.send('pruneHistory');
-      eq((await AJP.store.get('applications')).length, 1);
+      eq((await AJP.store.get('applications')).map((x) => x.id), ['b']);
+    });
+    it('within the period the duplicate warning and the saved job description are still there', async () => {
+      await AJP.store.set('applications', [{ id: 'a', status: 'applied', url: 'https://boards.greenhouse.io/initech/jobs/42', jobKey: AJP.tracker.jobKey('https://boards.greenhouse.io/initech/jobs/42'), appliedAt: days(20), snapshot: { jd: 'Requirements…' } }]);
+      await AJP.send('pruneHistory');
+      const apps = await AJP.store.get('applications');
+      ok(AJP.tracker.findDuplicate(apps, { url: 'https://boards.greenhouse.io/initech/jobs/42?gh_src=x' }), 'duplicate found');
+      eq(apps[0].snapshot.jd, 'Requirements…');
     });
     it('the period is a setting; 0 keeps everything', async () => {
-      await AJP.store.set('applications', [{ id: 'a', status: 'applied', updatedAt: days(400) }]);
+      await AJP.store.set('applications', [{ id: 'a', status: 'applied', appliedAt: days(400) }]);
       await AJP.store.update('settings', (s) => void (s.retentionDays = 0));
       await AJP.send('pruneHistory');
       eq((await AJP.store.get('applications')).length, 1);

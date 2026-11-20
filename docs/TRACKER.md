@@ -15,7 +15,7 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 40** (5 Job Finder components added as planned) |
 | Components not started | **2**: resume export, CI · **+5 planned**: Job Finder C40–C44 |
-| Automated tests | **1079 / 1079 passing** (557 also run without a browser), incl. convention checks |
+| Automated tests | **1080 / 1080 passing** (557 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 110 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
@@ -90,7 +90,7 @@ Columns:
 | ID | Component | Roadmap step | Built | Notes |
 |---|---|---|---|---|
 | C39 | **Repeatable entries** (work experience / education on any site except Workday) | `src/content/entries.js` | ✅ | 17 | ⏳ | Built against emulations (Greenhouse blocks, SmartRecruiters forms): verify on real sites |
-| C40 | **Application hold across pages** (Apply → new tab → sign up / log in → form): job kept in the tab, same job recognised in another tab, 1 hour after last activity (alert when lost), offboarded once applied; **history retention** (default 30 days, Admin setting) | `background.js` (`tabJob.*`, `applyClicked`, `pruneHistory`), `content.js`, `panel.js` | ✅ | 20 | ⏳ | Content scripts run only on the listed job sites: an application on an unlisted company domain isn't held |
+| C40 | **Application hold across pages** (Apply → new tab → sign up / log in → form): job kept in the tab, same job recognised in another tab, 1 hour after last activity (alert when lost), offboarded once applied; **history retention** (default 30 days from the apply date, Admin setting) | `background.js` (`tabJob.*`, `applyClicked`, `pruneHistory`), `content.js`, `panel.js` | ✅ | 20 | ⏳ | Content scripts run only on the listed job sites: an application on an unlisted company domain isn't held |
 | C38 | **Store packaging** (Chrome, Edge, Firefox, Safari) | `tools/package.py`, `tools/safari.sh`, `tools/store_assets.py`, `docs/store/` | ✅ | — | ⏳ | Submission needs your developer accounts (W21) |
 | C37 | **Profile suggestions** (learned answers → profile) + shared field rules | `src/lib/profile-suggest.js`, `src/lib/field-rules.js`, `admin.js`, `popup.js` | ✅ | 19 | ⏳ | |
 | C36 | **CI** (GitHub Actions: checks, CLI tests, browser tests) | — | ✅ | `.github/workflows/ci.yml`, `tests/check.sh`; status badge in README |
@@ -105,7 +105,7 @@ Columns:
 | C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ⬜ | — | — | Tasks J14–J20 |
 | C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ⬜ | — | — | Tasks J21–J26, J36 |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **20** (application hold, retention) = **1079**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **21** (application hold, retention) = **1080**
 
 ---
 
