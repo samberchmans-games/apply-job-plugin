@@ -21,7 +21,7 @@
   const PROVIDERS = {
     none: { label: 'Off (offline keyword matching only)' },
     chrome: { label: 'Chrome built-in AI (on-device, no key, private)', defaultModel: 'on-device', local: true },
-    gemini: { label: 'Google Gemini (free tier API key)', defaultModel: 'gemini-2.5-flash', needsKey: true },
+    gemini: { label: 'Google Gemini (free tier API key)', defaultModel: 'gemini-3.6-flash', needsKey: true }, // 2.5-flash is deprecated (404 for newer keys; shutdown 2026-12-01)
     groq: { label: 'Groq (free tier API key)', defaultModel: 'llama-3.3-70b-versatile', needsKey: true },
     openrouter: { label: 'OpenRouter (free models)', defaultModel: 'meta-llama/llama-3.3-70b-instruct:free', needsKey: true },
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
@@ -321,7 +321,7 @@
   // now, pick the best fit, remember it (settings.ai.resolvedModels) and retry. Preferences first, then any suitable model.
   const PREFER = {
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
-    gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
+    gemini: [/^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
       /^gemini-[\d.]+-flash-preview(-[\d-]+)?$/, /^gemini-pro-latest$/, /^gemini-[\d.]+-pro$/],
     // Capable free models first; small "flash/mini/nano" ones only as a last resort (they tailor poorly).
     openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek-(chat|v3|r1)[^/]*:free$/, /qwen3-(235b|32b|30b|coder)[^/]*:free$/, /llama-4-maverick[^/]*:free$/,
@@ -362,10 +362,13 @@
     return [];
   }
   // Slow or special-purpose models (agents, deep research, robotics, live audio, video/music) can't answer a resume prompt
-  // in time: never picked, even as a last resort (that is how a key without gemini-2.5-flash ended in AJP-AI-TIME).
+  // in time: never picked, even as a last resort (report R-20261121-XX1QF: a key without the default ended in AJP-AI-TIME).
   const SLOW = /deep-?research|robotics|computer-use|live|native-audio|veo|lyria|imagen|nano-banana|-exp\b|-exp-|experimental|deep-?think/i;
+  const ver = (id) => parseFloat((String(id).match(/-(\d+(?:\.\d+)?)-/) || [0, 0])[1]) || 0;
   async function discoverModel(cfg, provider, failed) {
-    const ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id) && !SLOW.test(id));
+    let ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id) && !SLOW.test(id));
+    // Gemini: the newest version first (gemini-3.6-flash before gemini-3.5-flash before gemini-2.5-flash).
+    if (provider === 'gemini') ids = ids.slice().sort((a, b) => ver(b) - ver(a));
     for (const re of PREFER[provider] || []) {
       const hit = ids.find((id) => re.test(id));
       if (hit) return hit;

@@ -532,11 +532,12 @@
   function updateModelPlaceholder() {
     const P = AJP.ai.PROVIDERS;
     const p = P[$('#aiProvider').value || settings.ai.provider];
-    $('#aiModel').placeholder = (p && p.defaultModel) || '';
+    const auto = settings.ai.resolvedModels || {};
+    $('#aiModel').placeholder = auto[$('#aiProvider').value || settings.ai.provider] || (p && p.defaultModel) || '';
     const tk = $('#aiTailor').value || '';
     const t = P[tk];
     const tm = $('#aiTailorModel');
-    tm.placeholder = t && t.defaultModel ? t.defaultModel : 'uses the model above';
+    tm.placeholder = t && t.defaultModel ? auto[tk] || t.defaultModel : 'uses the model above';
     tm.disabled = !t || tk === ($('#aiProvider').value || settings.ai.provider);
     // Paying per use is never a surprise: say so whenever Claude does any of the work.
     $('#aiPaidNote').hidden = !((p && p.paid) || (t && t.paid));
@@ -633,6 +634,7 @@
     if (b) b.addEventListener('click', AJP.guard('admin.resetModels', async () => {
       await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
       settings.ai.resolvedModels = {};
+      updateModelPlaceholder();
       renderAutoModels();
       toast('Model choice reset: the next AI call uses the default model again.');
     }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));

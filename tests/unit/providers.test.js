@@ -217,6 +217,12 @@
       eq(await AJP.ai.tasks.test(), 'OK');
       includes(calls[2].url, 'models/gemini-3.1-flash-preview:generateContent');
     });
+    it('the default is a current model (gemini-2.5-flash is deprecated); a replacement is the newest flash', async () => {
+      eq(AJP.ai.PROVIDERS.gemini.defaultModel, 'gemini-3.6-flash');
+      fake(notFound(), list('gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.7-pro'), ok());
+      await AJP.ai.tasks.test();
+      includes(calls[2].url, 'models/gemini-3.7-flash:generateContent');
+    });
     it('only slow / special models offered → the coded "model not found" error, not a long wait', async () => {
       fake(notFound(), list('deep-research-pro-preview-12-2026', 'veo-3.0-generate'));
       eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-404');

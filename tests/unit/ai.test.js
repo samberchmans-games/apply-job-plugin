@@ -55,7 +55,7 @@
       await setProvider('gemini');
       globalThis.fetch = respond({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] });
       eq(await AJP.ai.complete({ system: 'SYS', prompt: 'USER' }), 'OK');
-      includes(calls[0].url, 'generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
+      includes(calls[0].url, 'generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent');
       excludes(calls[0].url, 'g-key');
       eq(calls[0].opts.headers['x-goog-api-key'], 'g-key');
       eq(calls[0].body.systemInstruction.parts[0].text, 'SYS');
