@@ -20,7 +20,8 @@
     detailPerCompany: 25,
     requestsPerScan: 400,
     minIntervalHours: 1,
-    lockStaleMs: 10 * 60 * 1000,
+    lockStaleMs: 2 * 60 * 1000, // a running scan refreshes its lock after every company (heartbeat)
+    maxScanMs: 4 * 60 * 1000, // Chrome stops a background task after ~5 min: end in time, resume on the next run
     retryWaitMaxMs: 60000,
     pauseAfterFailures: 5,
     backfillPerScan: 20, // title-only jobs (detail budget used earlier) get their description and a real score later
@@ -32,7 +33,15 @@
   const serial = AJP.serial();
   // Stop: the running scan finishes the request in flight, then ends (its queue is dropped, nothing resumes).
   let cancelRequested = false;
+  let active = false; // a scan is running in THIS background instance (a lock left by a stopped worker is not)
   const cancel = () => (cancelRequested = true);
+  const isActive = () => active;
+  // A lock nobody holds any more (the worker was stopped mid-scan): clear it so the page stops saying "Scanning now".
+  async function clearStaleLock() {
+    if (active) return false;
+    await serial(() => AJP.store.update('radarScanState', (s) => void (s.lockedAt = null)));
+    return true;
+  }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---- HTTP: timeout, JSON / text, status → RADAR_* codes, one retry on 429 / 5xx -------------------
@@ -256,6 +265,7 @@
     });
     if (!got) throw AJP.err('RADAR_BUSY');
     cancelRequested = false;
+    active = true;
     const summary = { companies: 0, requests: 0, listed: 0, new: 0, matches: [], errors: [], ms: 0, resumed: false };
     try {
       const [settings, watchlist, profile, resumes, state] = await Promise.all(['radarSettings', 'radarWatchlist', 'profile', 'resumes', 'radarScanState'].map((k) => AJP.store.get(k)));
@@ -281,6 +291,7 @@
         queue.push(e.key);
       }
       const dirOutcome = {};
+      let dirDone = 0;
       const seen = await AJP.store.get('radarSeen');
       const counter = makeCounter();
       let next = 0;
@@ -289,6 +300,11 @@
         while (!stopped && next < queue.length) {
           if (cancelRequested) {
             stopped = true;
+            break;
+          }
+          if (Date.now() - t0 > CONFIG.maxScanMs) {
+            stopped = true; // time is up: the rest of the queue (and the directory slice) continues next run
+            summary.timeUp = true;
             break;
           }
           const key = queue[next++];
@@ -315,13 +331,16 @@
               summary.directoryErrors = (summary.directoryErrors || 0) + 1;
               await saveCompany(result, now);
               summary.companies++;
+              dirDone++;
               continue;
             }
             summary.errors.push({ key, code: x.code });
             log.warn('Company scan failed', { board: entry.board, company: entry.company, code: x.code, status: x.details && x.details.status });
           }
           summary.companies++;
+          if (entry.directory) dirDone++;
           await saveCompany(result, now);
+          await serial(() => AJP.store.update('radarScanState', (s) => void (s.lockedAt = Date.now()))); // heartbeat
         }
       };
       await Promise.all(Array.from({ length: Math.min(CONFIG.concurrency, queue.length) }, worker));
@@ -340,7 +359,7 @@
       if (slice.length) {
         await AJP.store.update('radarScanState', (s) => {
           s.dirAt = now;
-          s.dirCursor = ((s.dirCursor || 0) + slice.length) % Math.max(1, (AJP.radar.directory || []).length);
+          s.dirCursor = ((s.dirCursor || 0) + (summary.timeUp || cancelRequested ? dirDone : slice.length)) % Math.max(1, (AJP.radar.directory || []).length);
           const f = { ...(s.dirFail || {}) };
           for (const [k, bad] of Object.entries(dirOutcome)) bad ? (f[k] = (f[k] || 0) + 1) : delete f[k];
           s.dirFail = f;
@@ -359,6 +378,7 @@
       log.info('Radar scan done', { companies: summary.companies, requests: summary.requests, listed: summary.listed, new: summary.new, matches: summary.matches.length, errors: summary.errors.length, ms: summary.ms, resumed: summary.resumed });
       return summary;
     } finally {
+      active = false;
       await serial(() => AJP.store.update('radarScanState', (s) => void Object.assign(s, { lockedAt: null, lastSummary: { ...summary, matches: summary.matches.length, at: new Date(now).toISOString() } })));
     }
   }
@@ -416,5 +436,5 @@
     return { entry: e, openJobs: out.total != null ? out.total : out.jobs.length, companyName: (named && named.companyName) || out.companyName || null };
   }
 
-  AJP.radar.scan = { CONFIG, run, probe, request, cancel };
+  AJP.radar.scan = { CONFIG, run, probe, request, cancel, isActive, clearStaleLock };
 })();

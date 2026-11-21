@@ -82,6 +82,8 @@
   // ---- New jobs -----------------------------------------------------------------------------------------
   const FRESH = { today: ['fresh', 'Posted today'], week: ['week', 'This week'] };
   let sort = 'match';
+  let page = 0;
+  const PER_PAGE = 25;
   let tracksById = {};
   function card(j, thr) {
     const el = j.eligibility || { status: 'ok', reasons: [], flags: {} };
@@ -137,8 +139,12 @@
     r.jobs = [...groups.values()];
     const ok = r.jobs.filter((j) => !isBlocked(j));
     const blocked = r.jobs.filter(isBlocked);
+    const pages = Math.max(1, Math.ceil(ok.length / PER_PAGE));
+    page = Math.min(page, pages - 1);
+    const shown = ok.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+    const pager = ok.length > PER_PAGE ? `<div class="row radar-pager"><button data-page="-1" ${page ? '' : 'disabled'}>‹ Previous</button><span class="hint">${page * PER_PAGE + 1}–${page * PER_PAGE + shown.length} of ${ok.length}</span><button data-page="1" ${page < pages - 1 ? '' : 'disabled'}>Next ›</button></div>` : '';
     box.innerHTML =
-      (ok.length ? ok.map((j) => card(j, thr)).join('') : `<p class="hint">${filter === 'new' ? 'No new jobs yet. The built-in directory and your companies are checked every few hours; jobs that fit your tracks appear here (or click Scan now).' : 'Nothing here.'}</p>`) +
+      (ok.length ? shown.map((j) => card(j, thr)).join('') + pager : `<p class="hint">${filter === 'new' ? 'No new jobs yet. The built-in directory and your companies are checked every few hours; jobs that fit your tracks appear here (or click Scan now).' : 'Nothing here.'}</p>`) +
       (blocked.length ? `<details class="radar-blocked"><summary>Likely not eligible (${blocked.length}): the job text conflicts with your work authorization in Auto-apply details. Not counted in alerts; open to check.</summary>${blocked.map((j) => card(j, thr)).join('')}</details>` : '');
   }
   // What Job Radar looks for: your career tracks (up to 3), each with its titles and places.
@@ -304,8 +310,14 @@
     $('#radarScan').addEventListener('click', g('scanAll', () => scan(null)));
     $('#radarSettingsSave').addEventListener('click', g('saveSettings', saveSettings));
     $('#radarSettings').addEventListener('submit', (e) => e.preventDefault()); // Enter in a field must not reload Admin
-    $('#radarFilter').addEventListener('change', (e) => ((filter = e.target.value), renderJobs()));
-    $('#radarSort').addEventListener('change', (e) => ((sort = e.target.value), renderJobs()));
+    $('#radarFilter').addEventListener('change', (e) => ((filter = e.target.value), (page = 0), renderJobs()));
+    $('#radarSort').addEventListener('change', (e) => ((sort = e.target.value), (page = 0), renderJobs()));
+    $('#radarJobs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-page]');
+      if (!b) return;
+      page += Number(b.dataset.page);
+      renderJobs().then(() => $('#radarJobs').scrollIntoView({ block: 'start' }));
+    });
     $('#radarDir').addEventListener('click', g('dirAllow', async (e) => {
       if (!e.target.closest('[data-dir="allow"]')) return;
       const ok = await allow(AJP.radar.boards.all().map((a) => ({ board: a.id })));
@@ -325,8 +337,8 @@
       }
     }));
     $('#radarStop').addEventListener('click', g('stop', async () => {
-      await AJP.send('radar.stop');
-      ui.toast('Scan stopped');
+      const r = await AJP.send('radar.stop');
+      ui.toast(r && r.stopped !== false ? 'Scan stopped' : 'Stopping… the scan ends after the request in flight');
       renderStatus();
     }));
     $('#radarRestart').addEventListener('click', g('restart', async () => {

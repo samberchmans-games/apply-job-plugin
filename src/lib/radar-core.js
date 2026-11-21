@@ -181,11 +181,17 @@
   // ("Data Engineer" ≠ "Senior Software Engineer"). Word forms count ("engineer" ~ "engineering", "sr" = "senior").
   const STOP = new Set(['and', 'the', 'of', 'for', 'remote', 'hybrid', 'a', 'an', 'to', 'in', 'at', 'with']);
   const words = (s) => AJP.normKey(String(s || '').replace(/\bsr\b\.?/gi, 'senior').replace(/\bjr\b\.?/gi, 'junior')).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
+  // Level words say how senior, not what the job is: "Senior Data Engineer" must match on Data + Engineer.
+  const LEVEL = new Set(['senior', 'junior', 'lead', 'staff', 'principal', 'chief', 'head', 'associate', 'intern', 'entry', 'mid', 'level', 'ii', 'iii', 'iv', 'vp', 'svp', 'avp', 'director', 'distinguished', 'fellow']);
+  const core = (ws) => {
+    const c = ws.filter((w) => !LEVEL.has(w));
+    return c.length ? c : ws;
+  };
   const same = (a, b) => a === b || (a.length >= 5 && b.length >= 5 && (a.startsWith(b) || b.startsWith(a)));
   function titleFits(jobTitle, titles) {
     const J = words(jobTitle);
     return (titles || []).some((t) => {
-      const T = [...new Set(words(t))];
+      const T = [...new Set(core(words(t)))];
       if (!T.length) return false;
       const hit = T.filter((w) => J.some((j) => same(w, j))).length;
       return hit >= Math.ceil(T.length * 0.6);
@@ -308,5 +314,8 @@
     return { jobs: keepJobs, seen: keepSeen };
   }
 
-  AJP.radar.core = { LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
+  const RULES_VERSION = 4;
+
+  AJP.radar.core = { RULES_VERSION, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

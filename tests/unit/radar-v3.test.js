@@ -18,6 +18,11 @@
       notOk(fits('Manager, Machine Learning Engineering', ['Data Engineer', 'Data Architect']));
       notOk(fits('Temporary Publicity Coordinator', ['Data Engineer']));
     });
+    it('level words (Senior, Lead, Staff…) do not count: "Senior Data Engineer" needs Data + Engineer (your report)', () => {
+      const T = ['Data Architect', 'Senior Data Engineer'];
+      ['Senior DevOps Engineer', 'Sr. Martech Engineer, Mobile', 'Sr. Data Scientist, Forward-Deployed', 'Senior Data Analyst, Enterprise', 'Senior IT Engineer, Identity and Access Management', 'Senior Enterprise Systems Engineer', 'Senior Sales Engineer - Enterprise (West)'].forEach((t) => notOk(fits(t, T), t));
+      ['Data Engineer Tech Foundations', 'Staff Data Engineer', 'Lead Data Architect', 'Principal Data Platform Engineer', 'Cloud Data Architect'].forEach((t) => ok(fits(t, T), t));
+    });
     it('3-word titles need 2 of 3; "Sr" = "Senior"', () => {
       ok(fits('Principal Solutions Architect', ['Cloud Solutions Architect']));
       notOk(fits('Cloud Support Engineer', ['Cloud Solutions Architect']));
@@ -131,6 +136,27 @@
       ok(s.cancelled && s.companies <= 1, JSON.stringify(s));
       eq((await AJP.store.get('radarScanState')).queue, []);
       eq((await AJP.send('radar.status')).running, false);
+    });
+    it('Stop clears a lock left by a stopped worker (the page no longer says "Scanning now")', async () => {
+      await AJP.store.set('radarScanState', { lockedAt: Date.now() - 30000 });
+      eq((await AJP.send('radar.status')).running, true, 'looks running');
+      const r = await AJP.send('radar.stop');
+      eq(r.stopped, true);
+      eq((await AJP.send('radar.status')).running, false);
+    });
+    it('a lock without a heartbeat for 2 minutes is not "running"', async () => {
+      await AJP.store.set('radarScanState', { lockedAt: Date.now() - 3 * 60000 });
+      eq((await AJP.send('radar.status')).running, false);
+    });
+    it('a scan ends itself after CONFIG.maxScanMs; the rest of the queue continues next run', async () => {
+      await AJP.store.set('radarWatchlist', ['a', 'b', 'c'].map((c) => ({ key: 'greenhouse:' + c, board: 'greenhouse', company: c, companyName: c, paused: false, failuresInRow: 0 })));
+      AJP.radar.scan.CONFIG.concurrency = 1;
+      AJP.radar.scan.CONFIG.maxScanMs = -1;
+      globalThis.fetch = async () => res(list([]));
+      const s = await AJP.radar.scan.run({ force: true });
+      ok(s.timeUp && s.companies <= 1, JSON.stringify(s));
+      const st = await AJP.store.get('radarScanState');
+      ok(st.queue.filter((k) => !st.done.includes(k)).length >= 2, 'the rest wait');
     });
     it('Restart: forgets which jobs were seen and scans again with the current preferences', async () => {
       globalThis.fetch = async (url) => (/jobs\/\d+$/.test(url) ? res({ content: 'Python' }) : res(list(['Data Engineer', 'Lead Data Engineer'])));

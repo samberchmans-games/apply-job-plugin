@@ -166,3 +166,4 @@ input.wide { flex: 1; min-width: 240px; }
 .radar-job.blocked { opacity: .75; }
 .radar-blocked { margin-top: 10px; }
 .hint.warn { color: #b45309; }
+.radar-pager { justify-content: center; margin-top: 10px; }

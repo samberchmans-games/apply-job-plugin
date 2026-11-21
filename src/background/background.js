@@ -408,6 +408,15 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       .catch((e) => log.warn('Radar preference check failed', { error: e.message }));
   });
   AJP.radarRefilter = radarRefilter; // tests
+  // Filter rules changed in an update: re-check the listed jobs once with the new rules.
+  AJP.store
+    .get('radarScanState')
+    .then(async (st) => {
+      if (st.rulesVersion === AJP.radar.core.RULES_VERSION) return;
+      await radarRefilter();
+      await AJP.store.update('radarScanState', (s) => void ((s.rulesVersion = AJP.radar.core.RULES_VERSION), (s.prefsChangedAt = Date.now())));
+    })
+    .catch((e) => log.warn('Radar rules re-check failed', { error: e.message }));
 
   async function radarScan(opts = {}) {
     const rs = await AJP.store.get('radarSettings');
@@ -795,7 +804,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     // ---- Job Radar messages (docs/JOB-FINDER.md §13) ----
     async 'radar.status'() {
       const [rs, st, list] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarScanState'), AJP.store.get('radarWatchlist')]);
-      return { prefsChangedAt: st.prefsChangedAt || null, enabled: !!rs.enabled, running: !!(st.lockedAt && Date.now() - st.lockedAt < AJP.radar.scan.CONFIG.lockStaleMs), lastSummary: st.lastSummary || null, newCount: await radarNewCount(), companies: list.length };
+      return { prefsChangedAt: st.prefsChangedAt || null, enabled: !!rs.enabled, running: AJP.radar.scan.isActive() || !!(st.lockedAt && Date.now() - st.lockedAt < AJP.radar.scan.CONFIG.lockStaleMs), lastSummary: st.lastSummary || null, newCount: await radarNewCount(), companies: list.length };
     },
     async 'radar.detect'({ url, html } = {}) {
       const hit = (url && AJP.radar.detect.fromUrl(url)) || (html && AJP.radar.detect.fromHtml(html, url));
@@ -850,13 +859,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     // Stop the running scan (the request in flight finishes; nothing resumes).
     async 'radar.stop'() {
       AJP.radar.scan.cancel();
-      for (let i = 0; i < 100; i++) {
-        const st = await AJP.store.get('radarScanState');
-        if (!st.lockedAt) break;
-        await new Promise((r) => setTimeout(r, 100));
-      }
-      log.info('Radar scan stopped by you');
-      return {};
+      for (let i = 0; i < 50 && AJP.radar.scan.isActive(); i++) await new Promise((r) => setTimeout(r, 100));
+      // No scan running here any more: a lock still set was left by a stopped worker. Clear it.
+      const cleared = await AJP.radar.scan.clearStaleLock();
+      log.info('Radar scan stopped by you', { cleared });
+      return { stopped: !AJP.radar.scan.isActive() };
     },
     // Restart with the current preferences: stop, re-check the list, forget which jobs were seen (so every company's
     // jobs are judged again), start a fresh scan (your companies + a directory slice).

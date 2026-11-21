@@ -12,6 +12,8 @@
   const $ = (s) => w.document.querySelector(s);
   const $$ = (s) => [...w.document.querySelectorAll(s)];
   async function load(page, seed = {}, { hash = '', background = false, before = '' } = {}) {
+    // Seeded radar jobs are already checked with the current rules (no one-time re-check on load).
+    if (seed.radarJobs && !seed.radarScanState) seed = { ...seed, radarScanState: { rulesVersion: AJP.radar.core.RULES_VERSION } };
     const dir = page.startsWith('admin') ? 'admin' : 'popup';
     let html = await (await fetch(`../src/${dir}/${page}`, { cache: 'no-store' })).text();
     if (background) {
@@ -652,6 +654,16 @@
       await waitFor(() => $('#radarStop').hidden && !$('#radarRestartBox').hidden, { msg: 'restart offered' });
       $('#radarRestart').click();
       await waitFor(async () => !(await stored('radarScanState')).prefsChangedAt, { msg: 'restarted' });
+    });
+    it('pages of 25 jobs with Previous / Next', async () => {
+      const jobs = Array.from({ length: 30 }, (_, i) => job({ id: 100 + i, title: 'Data Engineer ' + i, score: 90 - i }));
+      await load('admin.html', { radarJobs: jobs }, { hash: 'radar', background: true });
+      await waitFor(() => $$('.radar-job').length === 25, { msg: 'page 1' });
+      includes($('.radar-pager').textContent, '1–25 of 30');
+      $('.radar-pager [data-page="1"]').click();
+      await waitFor(() => $$('.radar-job').length === 5, { msg: 'page 2' });
+      includes($('.radar-pager').textContent, '26–30 of 30');
+      ok($('.radar-pager [data-page="1"]').disabled);
     });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
