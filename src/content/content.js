@@ -89,7 +89,7 @@
       if (tailored.trackId) profile = { ...profile0, tracks: (profile0.tracks || []).map((t) => (t.id === tailored.trackId ? { ...t, resumeId: tailored.id } : t)) };
       else resumes = { ...resumes0, activeId: tailored.id };
     }
-    state.tailored = tailored ? { id: tailored.id, fileName: tailored.file && tailored.file.name, before: tailored.matchBefore } : null;
+    state.tailored = tailored ? { id: tailored.id, fileName: tailored.file && tailored.file.name, before: null } : null;
     state.tailoredSig = tailoredSig(resumes0.items, key);
     // Score the job against every career track; keep the user's pick for this page, else the best track.
     const all = AJP.tracks.analyzeAll({ jdText, jobTitle: job.title, jobLocation: job.location, profile, resumes, aiSkills: state.aiSkills });
@@ -97,6 +97,14 @@
     if (!state.trackPicked || !all.results.some((r) => r.track.id === state.trackPicked)) state.trackPicked = null;
     state.trackId = state.trackPicked || all.bestId;
     state.analysis = selected().analysis;
+    // "Before" is your original resume scored NOW with the same rules, so the comparison is always like for like.
+    if (tailored && resumes0.items.some((x) => x.id === tailored.basedOn)) {
+      const baseProfile = tailored.trackId ? { ...profile0, tracks: (profile0.tracks || []).map((t) => (t.id === tailored.trackId ? { ...t, resumeId: tailored.basedOn } : t)) } : profile0;
+      const baseResumes = tailored.trackId ? resumes0 : { ...resumes0, activeId: tailored.basedOn };
+      const base = AJP.tracks.analyzeAll({ jdText, jobTitle: job.title, jobLocation: job.location, profile: baseProfile, resumes: baseResumes, aiSkills: state.aiSkills });
+      const same = base.results.find((r) => r.track.id === state.trackId);
+      state.tailored.before = same ? same.analysis.score : null;
+    }
     log.info('Analyzed job', { source: job.source, score: state.analysis.score, tracks: all.results.map((r) => r.analysis.score), best: all.bestId === state.trackId, matched: state.analysis.matched.length, missing: state.analysis.missing.length, ms: Math.round(performance.now() - t0) });
     if (!all.results[0].track.implicit || all.results.length > 1) {
       AJP.send('recordEvaluation', { ev: {

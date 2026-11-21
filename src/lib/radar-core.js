@@ -368,15 +368,15 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 7;
+  const RULES_VERSION = 8;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
-   * communication or leadership don't count). A title can say "Data Engineer" while the job is physical security of
+   * communication or leadership, and broad concepts like data modeling, don't count: it takes concrete tools). A title can say "Data Engineer" while the job is physical security of
    * data center sites: the description decides. Fewer than 2 technical skills in your profile → that many.
    */
   const MIN_TECH_SKILLS = 2;
-  const SOFT = new Set(['leadership', 'people management', 'mentoring', 'communication', 'cross-functional collaboration', 'problem solving', 'presentation skills', 'negotiation', 'customer service', 'stakeholder management', 'requirements gathering', 'agile', 'jira', 'confluence', 'project management', 'program management', 'roadmapping'].map((s) => AJP.normKey(s)));
+  const SOFT = new Set(['leadership', 'people management', 'mentoring', 'communication', 'cross-functional collaboration', 'problem solving', 'presentation skills', 'negotiation', 'customer service', 'stakeholder management', 'requirements gathering', 'agile', 'jira', 'confluence', 'project management', 'program management', 'roadmapping', 'data modeling', 'data analysis'].map((s) => AJP.normKey(s)));
   const isSoft = (name) => SOFT.has(AJP.normKey(name));
   const techMatches = (analysis) => ((analysis && analysis.matched) || []).filter((m) => !isSoft(m.skill)).length;
   function relevant(job, profile) {

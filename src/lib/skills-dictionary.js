@@ -30,7 +30,7 @@
     'PostgreSQL|postgres|postgresql|psql', 'MySQL', 'SQL Server|mssql|microsoft sql server', 'Oracle Database|oracle db|oracle',
     'MongoDB|mongo', 'Redis', 'Elasticsearch|elastic search|opensearch|=ELK|elk stack', 'Cassandra', 'DynamoDB', 'Snowflake',
     'BigQuery', 'Redshift', 'Databricks', 'Apache Spark|spark|pyspark', 'Hadoop', 'Airflow|apache airflow',
-    'dbt', 'ETL|elt', 'Data modeling|data modelling', 'Data warehousing|data warehouse', 'Pandas', 'NumPy',
+    'dbt', 'ETL|elt', 'Data modeling|data modelling|data model|data models|dimensional model|dimensional models|dimensional modeling|dimensional modelling', 'Data warehousing|data warehouse', 'Pandas', 'NumPy',
     'Tableau', 'Power BI|powerbi', 'Looker', 'Excel|microsoft excel', 'Data analysis|data analytics|analyzing data|analysing data',
     'Statistics|statistical analysis',
     // AI / ML
@@ -59,7 +59,7 @@
     'Stakeholder management|stakeholders', 'Requirements gathering|business requirements', 'Roadmapping|roadmap',
     'A/B testing|ab testing|experimentation', 'Product analytics', 'UX design|user experience', 'UI design|user interface design',
     'Figma', 'User research', 'Salesforce', 'SAP', 'ServiceNow', 'HubSpot', 'CRM', 'ERP', 'SEO', 'Google Analytics',
-    'Digital marketing', 'Content marketing', 'Financial modeling|financial modelling', 'Budgeting|forecasting',
+    'Digital marketing', 'Content marketing', 'Financial modeling|financial modelling', 'Budgeting|budget management|budget planning|financial forecasting',
     'Accounting|gaap', 'Six Sigma|lean six sigma', 'PMP', 'ITIL',
     // Soft / leadership
     'Leadership|team lead|tech lead|technical leadership|technical lead|lead a team|led a team|leading teams', 'People management|managing teams|direct reports|people manager|team management|managed a team|manage a team|line management', 'Mentoring|mentorship|coaching',

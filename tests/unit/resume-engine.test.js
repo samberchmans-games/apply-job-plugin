@@ -101,8 +101,8 @@
       includes(codes(check({ target: 'b1', after: 'Owned migration of data from on-prem to cloud for the customer platform', evidence: EV1 })), 'COPIED_JD'));
     it('allows job keywords used in your own words', () =>
       ok(check({ target: 'b1', after: 'Led the on-prem to cloud migration of customer data from Oracle to AWS', evidence: EV1 }).ok));
-    it('requires evidence from the resume', () => eq(codes(check({ target: 'b1', after: 'Migrated customer data to AWS', evidence: [] })), ['NO_EVIDENCE']));
-    it('rejects fake evidence', () => eq(codes(check({ target: 'b1', after: 'Migrated customer data to AWS', evidence: ['Ran Kubernetes clusters in production'] })), ['NO_EVIDENCE']));
+    it('requires evidence from the resume', () => eq(codes(check({ target: 'b1', after: 'Migrated customer data to AWS', evidence: [] })).filter((c) => c !== 'LOST_SKILL'), ['NO_EVIDENCE']));
+    it('rejects fake evidence', () => eq(codes(check({ target: 'b1', after: 'Migrated customer data to AWS', evidence: ['Ran Kubernetes clusters in production'] })).filter((c) => c !== 'LOST_SKILL'), ['NO_EVIDENCE']));
     it('only bullets, summary and skills may be edited', () => {
       for (const t of ['header', 'L2', 'b99', 'education']) eq(codes(check({ target: t, after: 'x', evidence: EV1 })), ['BAD_TARGET'], t);
     });

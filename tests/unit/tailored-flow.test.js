@@ -126,7 +126,8 @@
       notOk(sh().querySelector('.tailored'));
       await tailor();
       await waitFor(() => sh().querySelector('.tailored'), { msg: 'tailored line' });
-      includes(sh().querySelector('.tailored').textContent, 'Scored with your resume tailored for this job (was 72%)');
+      includes(sh().querySelector('.tailored').textContent, 'Scored with your resume tailored for this job');
+      notOk(/was 72%/.test(sh().querySelector('.tailored').textContent), 'before = the original resume scored now, not a stored number');
     });
     it('"⬇ Download PDF" in the panel saves the tailored file with the job in its name', async () => {
       await tailor();

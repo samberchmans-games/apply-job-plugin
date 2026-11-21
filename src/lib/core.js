@@ -82,6 +82,9 @@
     if (/^[A-Z][\w &/()+.,-]{0,40}:\s/.test(t)) return false;
     if (/\b(19|20)\d{2}\b/.test(t) && /\s[|—–-]\s/.test(t)) return false;
     if (/^[a-z(]/.test(t)) return true;
+    // The tail of a wrapped sentence: "… latency against" + "SLAs.", "… PyTorch /" + "Gymnasium."
+    if (/[/\\]$/.test(p)) return true;
+    if (p.length >= 40 && !/[.!?:;)]$/.test(p) && t.split(/\s+/).length <= 2 && /[.!?]$/.test(t)) return true;
     // A line that starts with an action verb is a new achievement, even without a bullet.
     if (/^(Led|Lead|Built|Build|Designed|Developed|Delivered|Drove|Owned|Own|Launched|Migrated|Moved|Architected|Implemented|Created|Automated|Optimi[sz]ed|Reduced|Improved|Increased|Managed|Mentored|Coached|Established|Introduced|Partnered|Collaborated|Scaled|Moderni[sz]ed|Defined|Engineered|Integrated|Onboarded|Processed|Used|Tuned|Tune|Served|Set|Monitored|Orchestrated|Gather|Gathered|Maintain|Maintained|Wrote|Ran|Cut|Saved|Shipped|Supported|Trained|Hired|Analy[sz]ed|Configured|Deployed|Converted|Consolidated)\b/.test(t)) return false;
     if (/(,|&|\band|\bor|\bwith|\bthe|\bof|\bto|\bfor|\bin)$/i.test(p)) return true;

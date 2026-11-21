@@ -120,8 +120,8 @@
     });
     it('copying "10TB" and "20+" from the job is blocked', async () => {
       const { draft } = await enhance();
-      eq(codesOf(byTarget(draft, 'b2')[0]), ['JD_NUMBER']);
-      eq(codesOf(byTarget(draft, 'b3')[0]), ['JD_NUMBER']);
+      eq(codesOf(byTarget(draft, 'b2')[0]).filter((c) => c !== 'LOST_SKILL'), ['JD_NUMBER']);
+      eq(codesOf(byTarget(draft, 'b3')[0]).filter((c) => c !== 'LOST_SKILL'), ['JD_NUMBER']);
       notOk(byTarget(draft, 'b2')[0].accepted);
     });
     it('an invented skill and client are blocked', async () => {
@@ -133,7 +133,7 @@
     it('protected lines and duplicate edits are blocked', async () => {
       const { draft } = await enhance();
       eq(codesOf(byTarget(draft, 'header')[0]), ['BAD_TARGET']);
-      eq(codesOf(byTarget(draft, 'b1')[1]), ['DUPLICATE']);
+      eq(codesOf(byTarget(draft, 'b1')[1]).filter((c) => c !== 'LOST_SKILL'), ['DUPLICATE']);
     });
     it('honest edits pass and are pre-selected; result-oriented checks are reported', async () => {
       const { draft } = await enhance();

@@ -271,6 +271,7 @@
     FIRST_PERSON: 'Uses I / my / we',
     PLACEHOLDER: 'Contains a placeholder or brackets',
     EMPTY: 'Empty text',
+    LOST_SKILL: 'Removes a skill or tool that your original line shows',
   };
   const W = {
     NO_RESULT: 'No result or impact stated',
@@ -339,6 +340,12 @@
           const c = (AJP.matcher ? AJP.matcher.canonical(item) : item).toLowerCase();
           if (!ctx.allowedSkills.has(c)) add('UNEVIDENCED_SKILL', item);
         }
+      }
+
+      // 2b) Tailoring may reword a line, never lose what it proves ("EMR Spark jobs and Snowflake" → "Snowflake").
+      if (kind === 'bullet' && AJP.matcher) {
+        const kept = AJP.matcher.findSkills(after);
+        for (const s of AJP.matcher.findSkills(before).keys()) if (!kept.has(s)) add('LOST_SKILL', s);
       }
 
       // 3) No new proper names (employers, clients, products) — capitalized words not seen in the resume.
@@ -540,6 +547,7 @@
           'If the original says "Migrated 2TB", keep "2TB" exactly, even though the job asks for 10TB.',
         '4. RESULT-ORIENTED: Write each bullet as ACTION VERB + what was done + RESULT/IMPACT. If the original line states a result or number, keep it and make it prominent. ' +
           'If it states no result, describe the outcome in words that follow logically from the original (e.g. "reducing manual effort", "enabling faster releases", "improving reliability") — without inventing figures.',
+        '4b. KEEP: Keep every tool, technology and skill named in the original line. Reword around them; never drop one.',
         '5. KEYWORDS: Use the job\'s keywords (ATS KEYWORDS) only where the evidence supports them. Do not copy sentences from the job description (never more than 4 consecutive words, except skill names).',
         '6. STYLE: Start with a strong past-tense action verb (present tense only for a current role). No "I", "my", "we", "our". Max 35 words per bullet. No filler words ("synergy", "results-driven", "passionate", "rockstar"). No brackets or placeholders.',
         '7. SUMMARY: At most 3 sentences and 60 words, only claims supported by the resume. Mention years of experience only if the resume states them.',

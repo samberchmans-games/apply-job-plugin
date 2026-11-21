@@ -148,7 +148,7 @@
           <div><b>${a.matched.length}</b> of <b>${a.jdSkillCount}</b> skills match${a.similarCount ? ` <span class="muted">(+${a.similarCount} similar)</span>` : ''}<br>
           <span class="muted">${state.aiUsed ? `AI-enhanced analysis${typeof state.aiUsed === 'string' ? ' (' + esc(state.aiUsed) + ')' : ''}` : 'Offline keyword analysis'} · ${a.ms}ms</span></div>
         </div>
-        ${state.tailored ? `<div class="tailored">📝 Scored with your resume tailored for this job${state.tailored.before != null && s != null ? ` (was ${esc(state.tailored.before)}%)` : ''}
+        ${state.tailored ? `<div class="tailored">📝 Scored with your resume tailored for this job${state.tailored.before != null && s != null ? (s > state.tailored.before ? ` (was ${esc(state.tailored.before)}%)` : `. Skills match unchanged at ${esc(s)}%: the edits reworded skills already counted`) : ''}
           <button class="b small" data-act="downloadTailored" title="${esc(state.tailored.fileName || '')}">⬇ Download PDF</button></div>` : ''}
         <h4>Matching (${a.matched.length})</h4>
         <div class="chips">${a.matched.map((m) => `<span class="chip ok" title="${esc(/^implied/.test(m.source) ? m.source : 'from ' + m.source)}">${esc(m.skill)}</span>`).join('') || '<span class="muted">none</span>'}</div>
