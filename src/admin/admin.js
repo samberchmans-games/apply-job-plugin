@@ -46,7 +46,7 @@
       AJP.send('github.status', {}).then(renderReports); // throttled to every 10 min per report
     }
     if (id === 'answers') renderAnswers();
-    if (id === 'ai') (renderAiCalls(), renderAutoModels());
+    if (id === 'ai') (renderAiCalls(), renderAutoModels(), AJP.aiCheckView.render());
     if (id === 'skills') refreshEstimates();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
@@ -670,7 +670,7 @@
 
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
-    'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection' };
+    'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection', 'check.short': 'Setup check: reply', 'check.json': 'Setup check: JSON', 'check.full': 'Setup check: full size' };
   const PATH_WHY = { gone: 'not offered', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
   async function renderAiCalls() {
     const box = $('#aiCalls');
@@ -995,6 +995,7 @@
     AJP.trackerView.init({ toast, download });
     AJP.tracksView.init({ toast });
     AJP.radarView.init({ toast });
+    AJP.aiCheckView.init({ toast });
     AJP.enhanceView.init({
       toast,
       onCreated: (resume) => {

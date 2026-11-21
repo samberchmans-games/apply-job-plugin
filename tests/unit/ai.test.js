@@ -1,6 +1,7 @@
 (function () {
   const { describe, it, eq, ok, includes, excludes, throws, rejects, beforeEach, afterEach } = globalThis.AJPTest;
   const AJP = globalThis.AJP;
+  AJP.ai.CONFIG.pacing = false; // tests run many calls in a second; the free-tier pace has its own test (ai-wire.test.js)
   const mock = globalThis.browser;
 
   describe('ai › JSON parsing of model output', () => {
@@ -56,7 +57,7 @@
       await setProvider('gemini');
       globalThis.fetch = respond({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] });
       eq(await AJP.ai.complete({ system: 'SYS', prompt: 'USER' }), 'OK');
-      includes(calls[0].url, 'generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent');
+      includes(calls[0].url, 'generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent');
       excludes(calls[0].url, 'g-key');
       eq(calls[0].opts.headers['x-goog-api-key'], 'g-key');
       eq(calls[0].body.systemInstruction.parts[0].text, 'SYS');
@@ -89,7 +90,7 @@
       globalThis.fetch = respond({ message: { content: 'OK' } });
       eq(await AJP.ai.complete({ system: 's', prompt: 'p' }), 'OK');
       eq(calls[0].url, 'http://localhost:11434/api/chat');
-      eq(calls[0].body.stream, false);
+      eq(calls[0].body.stream, true);
     });
     for (const [status, code] of [[401, 'AJP-AI-401'], [403, 'AJP-AI-401'], [429, 'AJP-AI-429'], [404, 'AJP-AI-404'], [500, 'AJP-AI-5XX'], [503, 'AJP-AI-5XX'], [400, 'AJP-AI-HTTP']]) {
       it(`HTTP ${status} → ${code} with status and provider body kept for support`, async () => {

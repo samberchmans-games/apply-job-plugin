@@ -204,6 +204,12 @@
       <p id="aiPaidNote" class="hint warn" hidden>💳 Claude is paid per use: each tailoring run takes a little from your Anthropic API credit.</p>
       <div class="row"><button id="aiTailorTest">Test tailoring AI</button><span id="aiTailorOut" class="hint"></span></div>
       <p id="aiAuto" class="hint" hidden></p>
+      <div class="card" id="aiCheckBox">
+        <h3>Check my AI setup</h3>
+        <p class="hint">Makes <b>real calls with each saved key</b> and tells you which ones can actually tailor a resume: a short reply, valid JSON, and a full-size request. It uses a <b>sample resume and job, never yours</b>. Tailoring then stays on the models that passed.</p>
+        <div class="row"><button id="aiCheckRun" class="primary">Check my AI setup</button><label class="check"><input type="checkbox" id="aiCheckPaid"> Include Claude (paid: uses a few cents of your credit)</label><button id="aiCheckCopy" hidden>Copy results</button></div>
+        <div id="aiCheckOut"></div>
+      </div>
       <h3>Recent AI calls</h3>
       <p class="hint">Which AI did each job, and how it went. Only the provider, model, task and timing are kept: never your resume, the job text or the answer.</p>
       <table class="tbl"><thead><tr><th>When</th><th>Task</th><th>Provider · model</th><th>Time</th><th>Result</th></tr></thead><tbody id="aiCalls"></tbody></table>
@@ -367,6 +373,7 @@
 <script src="../lib/skills-dictionary.js"></script>
 <script src="../lib/matcher.js"></script>
 <script src="../lib/experience.js"></script>
+<script src="../lib/ai-wire.js"></script>
 <script src="../lib/ai.js"></script>
 <script src="../lib/docx.js"></script>
 <script src="../lib/pdf.js"></script>
@@ -381,6 +388,7 @@
 <script src="../lib/radar-core.js"></script>
 <script src="../lib/radar-detect.js"></script>
 <script src="../lib/radar-boards.js"></script>
+<script src="ai-check-view.js"></script>
 <script src="radar-view.js"></script>
 <script src="tracker-view.js"></script>
 <script src="enhance-view.js"></script>

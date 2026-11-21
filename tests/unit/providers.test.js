@@ -264,13 +264,13 @@
     it('default not offered → never a slow special model (deep research, robotics, live…), a flash model instead', async () => {
       fake(notFound(), list('deep-research-pro-preview-12-2026', 'gemini-robotics-er-1.5-preview', 'gemini-2.5-flash-live', 'gemini-3.1-flash-preview'), ok());
       eq(await AJP.ai.tasks.test(), 'OK');
-      includes(calls[2].url, 'models/gemini-3.1-flash-preview:generateContent');
+      includes(calls[2].url, 'models/gemini-3.1-flash-preview:streamGenerateContent');
     });
     it('the default is a current model (gemini-2.5-flash is deprecated); a replacement is the newest flash', async () => {
       eq(AJP.ai.PROVIDERS.gemini.defaultModel, 'gemini-3.6-flash');
       fake(notFound(), list('gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.7-pro'), ok());
       await AJP.ai.tasks.test();
-      includes(calls[2].url, 'models/gemini-3.7-flash:generateContent');
+      includes(calls[2].url, 'models/gemini-3.7-flash:streamGenerateContent');
     });
     it('asks Gemini to think less (newer models think at a high level by default and can take over a minute)', async () => {
       for (const [model, want] of [['gemini-3.6-flash', { thinkingLevel: 'low' }], ['gemini-flash-latest', { thinkingLevel: 'low' }], ['gemini-2.5-flash', { thinkingBudget: 0 }], ['gemini-2.5-pro', { thinkingBudget: 128 }]]) {
@@ -306,7 +306,7 @@
       calls = [];
       globalThis.fetch = (url, opts) => (calls.push({ url: String(url) }), /gemini-slow-model/.test(url) ? hang()(url, opts) : Promise.resolve(ok()));
       eq(await AJP.ai.tasks.test(), 'OK');
-      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      includes(calls[1].url, 'models/gemini-3.6-flash:streamGenerateContent');
       ok((await AJP.store.get('modelHealth')).gemini.bad['gemini-slow-model'] > Date.now());
       eq((await AJP.store.get('modelHealth')).gemini.last, 'gemini-3.6-flash');
     });
@@ -315,7 +315,7 @@
       await settings({ resolvedModels: { gemini: 'gemini-flash-latest' } });
       fake(json({ error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } }, 503), ok);
       eq(await AJP.ai.tasks.test(), 'OK');
-      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      includes(calls[1].url, 'models/gemini-3.6-flash:streamGenerateContent');
       eq((await AJP.store.get('modelHealth')).gemini.why['gemini-flash-latest'], 'busy');
       eq((await AJP.store.get('modelHealth')).gemini.last, 'gemini-3.6-flash', 'the working one is used first next time');
     });
@@ -323,7 +323,7 @@
       await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.6-flash'], at: Date.now() } });
       fake(json({ error: { code: 429, message: 'You exceeded your current quota. Quota exceeded for metric: generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash. Please retry in 41s.', status: 'RESOURCE_EXHAUSTED' } }, 429), ok);
       eq(await AJP.ai.tasks.test(), 'OK');
-      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      includes(calls[1].url, 'models/gemini-3.6-flash:streamGenerateContent');
       const h = (await AJP.store.get('modelHealth')).gemini;
       eq(h.why['gemini-3.8-flash'], 'quota');
       ok(h.bad['gemini-3.8-flash'] > Date.now() + 30000 && h.bad['gemini-3.8-flash'] < Date.now() + 2 * 3600e3, 'until the quota resets, not a day');
@@ -333,7 +333,7 @@
       fake(json({ error: { code: 429, message: 'Quota exceeded for metric: GenerateRequestsPerDayPerProjectPerModel-FreeTier, limit: 250, model: gemini-3.8-flash' } }, 429),
         json({ error: { code: 429, message: 'Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: gemini-3.7-flash' } }, 429), ok);
       eq(await AJP.ai.tasks.test(), 'OK');
-      includes(calls[2].url, 'models/gemini-3.6-flash:generateContent');
+      includes(calls[2].url, 'models/gemini-3.6-flash:streamGenerateContent');
       const h = (await AJP.store.get('modelHealth')).gemini;
       ok(h.bad['gemini-3.8-flash'] > Date.now() + 20 * 3600e3, 'daily → about a day');
       eq(h.why['gemini-3.7-flash'], 'quota');
@@ -379,7 +379,7 @@
       await settings({ resolvedModels: { gemini: 'gemini-3.6-flash' } });
       fake(json({ error: { code: 400, message: 'Model gemini-3.6-flash is deprecated and no longer available.' } }, 400), ok);
       eq(await AJP.ai.tasks.test(), 'OK');
-      eq(calls.map((c) => c.url.replace(/^.*\/models/, '')), ['/gemini-3.6-flash:generateContent', '?pageSize=200', '/gemini-3.7-flash:generateContent'], 'gone → list re-checked → next model');
+      eq(calls.map((c) => c.url.replace(/^.*\/models/, '')), ['/gemini-3.6-flash:streamGenerateContent?alt=sse', '?pageSize=200', '/gemini-3.7-flash:streamGenerateContent?alt=sse'], 'gone → list re-checked → next model');
     });
   }, { env: 'browser' });
 

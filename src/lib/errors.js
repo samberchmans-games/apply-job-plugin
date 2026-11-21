@@ -14,6 +14,8 @@
 
   // key: [code, user message, hint]
   const ERRORS = {
+    AI_CUT: ['AJP-AI-CUT', 'The AI\'s answer was cut off before it finished.', 'Try again, or choose another model or provider in Admin → AI settings.'],
+    AI_TOO_LARGE: ['AJP-AI-BIG', 'This resume and job are too long for this AI\'s limit.', 'Choose a provider with a larger limit (Gemini, NVIDIA NIM or Mistral) in Admin → AI settings.'],
     AI_OFF: ['AJP-AI-OFF', 'AI is turned off.', 'Pick a free provider in Admin → AI settings.'],
     AI_NO_KEY: ['AJP-AI-KEY', 'No API key saved for this AI provider.', 'Add the key in Admin → AI settings, then click Test connection.'],
     RADAR_UNSUPPORTED: ["AJP-RADAR-UNSUP", "This careers page uses a job board Job Radar can't read yet.", "Supported: Greenhouse, Lever, Ashby, Workable, Recruitee, Personio, SmartRecruiters, Workday, Breezy HR, Teamtailor, Rippling."],
@@ -94,6 +96,7 @@
   // HTTP status from an AI provider -> error key.
   function aiErrorForStatus(status) {
     if (status === 401 || status === 403) return 'AI_AUTH';
+    if (status === 413) return 'AI_TOO_LARGE';
     if (status === 429) return 'AI_RATE_LIMIT';
     if (status === 404) return 'AI_MODEL';
     if (status >= 500) return 'AI_SERVER';
@@ -221,6 +224,143 @@
     };
   }
 
+  /*
+   * httpStream(url, opts, sink, { format: 'sse'|'ndjson', firstByteMs, idleMs, totalMs, tries, statusKey, networkKey,
+   *            timeoutKey, badJsonKey, log, label }) -> { streamed }
+   * Feeds every event to sink.event(obj). A server that ignores streaming and answers with one JSON body also works.
+   * Timeouts: until the answer starts, between pieces, and overall. Only failures before any data are retried.
+   */
+  function parseEvents(format, onEvent) {
+    let buf = '';
+    let data = [];
+    const dispatch = (s) => {
+      const t = s.trim();
+      if (!t || t === '[DONE]') return;
+      try {
+        onEvent(JSON.parse(t));
+      } catch (e) {
+        if (e instanceof SyntaxError) parseEvents.bad++;
+        else throw e;
+      }
+    };
+    const line = (l) => {
+      if (format === 'ndjson') return dispatch(l);
+      if (l === '' || l === '\r') {
+        if (data.length) dispatch(data.join('\n'));
+        data = [];
+      } else if (l.startsWith('data:')) data.push(l.slice(5).replace(/^ /, '').replace(/\r$/, ''));
+      return undefined; // SSE comments ("": OPENROUTER PROCESSING) and event names are ignored
+    };
+    return {
+      push(chunk) {
+        buf += chunk;
+        const parts = buf.split('\n');
+        buf = parts.pop();
+        parts.forEach(line);
+      },
+      end() {
+        if (buf) line(buf);
+        buf = '';
+        if (format !== 'ndjson' && data.length) dispatch(data.join('\n'));
+        data = [];
+      },
+    };
+  }
+  parseEvents.bad = 0;
+  // An extension API call resets Chrome's idle timer for the background worker during a long answer.
+  function keepWorkerAwake() {
+    const api = AJP.api;
+    if (!api || !api.runtime || !api.runtime.getPlatformInfo) return () => {};
+    const id = setInterval(() => {
+      Promise.resolve(api.runtime.getPlatformInfo()).catch(() => {});
+    }, 20000);
+    return () => clearInterval(id);
+  }
+  async function httpStream(url, opts = {}, sink, { format = 'sse', firstByteMs = 28000, idleMs = 30000, totalMs = 120000, tries = 2, statusKey = () => 'HTTP', networkKey = 'NETWORK', timeoutKey = 'NETWORK', badJsonKey = 'HTTP', log, label = 'stream' } = {}) {
+    let host = '';
+    try {
+      host = new URL(url).hostname;
+    } catch (_) {
+      host = ''; // relative URL (tests): host is only used in error details
+    }
+    return retry(
+      async () => {
+        sink.reset();
+        const ctrl = new AbortController();
+        let timer = setTimeout(() => ctrl.abort(), Math.min(firstByteMs, totalMs));
+        const overall = setTimeout(() => ctrl.abort(), totalMs);
+        const asleep = keepWorkerAwake();
+        const beat = () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => ctrl.abort(), idleMs);
+        };
+        const timedOut = (e) => err(timeoutKey, { host, timeoutMs: totalMs, seconds: Math.round(totalMs / 1000) }, e);
+        try {
+          let res;
+          try {
+            res = await fetch(url, { ...opts, signal: ctrl.signal });
+          } catch (e) {
+            if (e.name === 'AbortError') throw timedOut(e);
+            throw err(networkKey, { host, original: e.message }, e);
+          }
+          beat();
+          if (!res.ok) {
+            const text = await res.text();
+            const ra = parseInt((res.headers && res.headers.get && res.headers.get('retry-after')) || '', 10);
+            throw err(statusKey(res.status), { status: res.status, body: text.slice(0, 600), host, retryAfter: isNaN(ra) ? undefined : ra });
+          }
+          const type = String((res.headers && res.headers.get && res.headers.get('content-type')) || '');
+          const streaming = /event-stream|ndjson/i.test(type) && res.body && res.body.getReader;
+          if (!streaming) {
+            // One plain JSON body (or SSE text from a proxy that buffers).
+            const text = await res.text();
+            let whole;
+            try {
+              whole = JSON.parse(text);
+            } catch (_) {
+              whole = undefined;
+            }
+            if (whole !== undefined) sink.event(whole);
+            else {
+              let got = 0;
+              const p = parseEvents(/^\s*(data:|:)/.test(text) ? 'sse' : format, (ev) => {
+                got++;
+                sink.event(ev);
+              });
+              p.push(text);
+              p.end();
+              if (!got) throw err(badJsonKey, { reason: 'response was not JSON', body: text.slice(0, 200), host });
+            }
+            return { streamed: false };
+          }
+          const r = res.body.getReader();
+          const dec = new TextDecoder();
+          const p = parseEvents(format, (ev) => sink.event(ev));
+          try {
+            for (;;) {
+              const { value, done } = await r.read();
+              if (done) break;
+              beat();
+              p.push(dec.decode(value, { stream: true }));
+            }
+          } catch (e) {
+            if (e.name === 'AbortError') throw timedOut(e);
+            throw err(networkKey, { host, original: e.message, midStream: true }, e);
+          }
+          p.push(dec.decode());
+          p.end();
+          return { streamed: true };
+        } finally {
+          clearTimeout(timer);
+          clearTimeout(overall);
+          asleep();
+        }
+      },
+      { tries, log, label }
+    );
+  }
+
+  AJP.httpStream = httpStream;
   AJP.isTransient = isTransient;
   AJP.retry = retry;
   AJP.http = http;

@@ -18,8 +18,8 @@
     let html = await (await fetch(`../src/${dir}/${page}`, { cache: 'no-store' })).text();
     if (background) {
       html = dir === 'admin'
-        ? html.replace('<script src="tracker-view.js"></script>', '<script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>')
-        : html.replace('<script src="popup.js"></script>', '<script src="../lib/skills-dictionary.js"></script><script src="../lib/matcher.js"></script><script src="../lib/ai.js"></script><script src="../lib/resume-engine.js"></script><script src="../lib/tracks.js"></script><script src="../lib/issue-report.js"></script><script src="../lib/pdf-writer.js"></script><script src="../lib/radar-core.js"></script><script src="../lib/radar-detect.js"></script><script src="../lib/radar-boards.js"></script><script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="popup.js"></script>');
+        ? html.replace('<script src="tracker-view.js"></script>', '<script src="../lib/radar-scan.js"></script><script src="../lib/ai-check.js"></script><script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>')
+        : html.replace('<script src="popup.js"></script>', '<script src="../lib/skills-dictionary.js"></script><script src="../lib/matcher.js"></script><script src="../lib/ai-wire.js"></script><script src="../lib/ai.js"></script><script src="../lib/resume-engine.js"></script><script src="../lib/ai-check.js"></script><script src="../lib/tracks.js"></script><script src="../lib/issue-report.js"></script><script src="../lib/pdf-writer.js"></script><script src="../lib/radar-core.js"></script><script src="../lib/radar-detect.js"></script><script src="../lib/radar-boards.js"></script><script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="popup.js"></script>');
     }
     html = html.replace('<head>', `<head><base href="${new URL(`../src/${dir}/`, location.href).href}"><script>window.__SEED__=${JSON.stringify(seed)}</script>${before}`)
       .replace('<script src="../lib/core.js"></script>', '<script src="../../tests/mocks/browser-mock.js"></script><script>browser.storage.local.set(window.__SEED__)</script><script src="../lib/core.js"></script>');
@@ -716,6 +716,37 @@
       includes($('#prefs').textContent, 'Your defaults for every job');
       await waitFor(() => !$('#prefsTracksNote').hidden, { msg: 'note' });
       includes($('#prefsTracksNote').textContent, 'Data (Data Architect)');
+    });
+  }, { env: 'browser' });
+
+  describe('admin screens › Check my AI setup', () => {
+    afterEach(closeFrame);
+    const res = (body, status = 200) => ({ ok: status < 300, status, headers: { get: () => null }, text: async () => JSON.stringify(body) });
+    const seed = () => {
+      const st = AJP.clone(AJP.store.DEFAULTS.settings);
+      st.ai.provider = 'chrome';
+      st.ai.keys = { ...st.ai.keys, groq: 'gsk_test', mistral: 'bad', anthropic: 'ant' };
+      return { settings: st };
+    };
+    const net = () => (w.fetch = async (url, o) => {
+      if (/mistral/.test(url)) return res({ detail: 'Invalid API Key' }, 401);
+      if (/\/models/.test(url)) return res({ data: [{ id: 'llama-3.3-70b-versatile' }] });
+      const b = JSON.parse(o.body);
+      const text = JSON.stringify(b);
+      const content = /exactly this JSON/.test(text) ? '{"ok":true,"items":["a","b","c"]}' : b.response_format ? JSON.stringify({ requirements: [1, 2, 3].map((n) => ({ id: 'R' + n, text: 'r', priority: 'must', match: 'none', evidence: [] })), ats_keywords: [] }) : 'OK';
+      return res({ choices: [{ message: { content }, finish_reason: 'stop' }] });
+    });
+    it('checks each saved free key, shows Ready or the exact reason, leaves paid Claude out unless ticked; "Use for tailoring" sets it', async () => {
+      await load('admin.html', seed(), { hash: 'ai', background: true });
+      net();
+      $('#aiCheckRun').click();
+      await waitFor(() => !$('#aiCheckRun').disabled && /Mistral/.test($('#aiCheckOut').textContent) && /Failed/.test($('#aiCheckOut').textContent), { msg: 'done' });
+      const t = $('#aiCheckOut').textContent;
+      ['Groq', 'Ready', 'llama-3.3-70b-versatile', 'Invalid API Key', 'AJP-AI-401'].forEach((x) => includes(t, x));
+      notOk(/Anthropic/.test(t), 'Claude costs money: only when ticked');
+      notOk($('#aiCheckCopy').hidden);
+      $('[data-use="groq"]').click();
+      await waitFor(async () => (await stored('settings')).ai.tailorProvider === 'groq', { msg: 'chosen' });
     });
   }, { env: 'browser' });
 })();

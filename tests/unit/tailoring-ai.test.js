@@ -152,7 +152,7 @@
         new Response(JSON.stringify({ models: [{ name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] }, { name: 'models/gemini-3.0-flash', supportedGenerationMethods: ['generateContent'] }] })),
         new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] })));
       eq((await AJP.send('ai.test', { group: 'tailor' })).text, 'OK');
-      includes(calls[2].url, 'models/gemini-3.0-flash:generateContent');
+      includes(calls[2].url, 'models/gemini-3.0-flash:streamGenerateContent');
     });
     it('no usable model in the list → the coded "model not found" error', async () => {
       fake(notFound('llama-3.3-70b-versatile'), new Response(JSON.stringify({ data: [{ id: 'whisper-large-v3' }] })));

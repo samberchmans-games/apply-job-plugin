@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1318 automated + 159 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1344 automated + 161 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1318 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1318) · `./tests/run-tests.sh` (the 642 that need no browser) |
+| Automated tests: 1344 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1344) · `./tests/run-tests.sh` (the 650 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 159 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 161 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending, `feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |
 | 2026-11-21 | `bc06f86` | Fixed B42: NVIDIA default moved to a current fast model; ranking prefers fast chat models and keeps fallbacks; 410 Gone replaces the model in the same call; saved shortlists rebuilt once; 1318 tests |
 | 2026-11-21 | `f6f853d` | Fixed B41: a busy AI no longer holds tailoring for minutes (60 s per model, 75 s budget); the panel offers "Try with …" for your other keys, never switching providers by itself; 1315 tests |
 | 2026-11-21 | `54915b0` | Job Radar: a JD's general years and its leading / managing years are read separately; leadership years never filter a job out; cards show both; 1310 tests |

@@ -80,12 +80,13 @@
     radarSeen: {}, // { [jobKey]: firstSeenDate }
     radarScanState: {}, // internal: { lockedAt, queue[], position, lastSummary, stats }
     modelHealth: {}, // internal: per provider {ranked:[ids], at, last, ok:{model: lastSuccess}, bad:{model: until}, why:{model: gone|slow|busy|quota}} (ai.js model manager)
+    aiChecks: {}, // internal: last "Check my AI setup" per provider (models, steps, timing, error text; no keys, no prompts)
     aiCalls: [], // internal: last 30 AI calls {at, task, provider, model, label, ms, ok, code} — no prompts, no answers
     promptState: {}, // internal: crash-prompt bookkeeping {recent, last, never, pending}
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };
-  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'modelHealth', 'radarScanState']); // never exported or imported
+  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'aiChecks', 'modelHealth', 'radarScanState']); // never exported or imported
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();

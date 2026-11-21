@@ -231,12 +231,12 @@
       if (!r.ok) {
         tr.fail(r);
         // The AI is busy: offer the user's other keys. One click each, because the resume would go to that provider.
-        if (['AJP-AI-5XX', 'AJP-AI-TIME', 'AJP-AI-429', 'AJP-AI-NET'].includes(r.code)) {
+        if (/^AJP-AI-/.test(r.code || '') && !['AJP-AI-OFF', 'AJP-AI-KEY'].includes(r.code)) {
           const alt = await AJP.send('ai.alternatives', via ? { exclude: via } : {});
           if (alt && alt.ok !== false && alt.options.length) {
             const esc = AJP.panel.esc;
             return say(
-              `<b>${esc(alt.current)} is busy or not answering right now.</b> Try again shortly, or use another AI you set up (your resume and this job go to the one you pick):` +
+              `<b>${esc(alt.current)}: ${esc(r.error)}</b>${r.hint ? `<br><span class="muted">${esc(r.hint)}</span>` : ''}<br>You can use another AI you set up (your resume and this job go to the one you pick):` +
                 `<div class="btns">${alt.options.map((o) => `<button class="b small" data-act="tailor" data-arg="${esc(o.id)}">Try with ${esc(o.label)}${o.paid ? ' (paid)' : ''}</button>`).join('')}</div>` +
                 `<span class="muted code">(${esc(r.code)})</span>`,
               true

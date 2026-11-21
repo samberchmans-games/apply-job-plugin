@@ -34,30 +34,15 @@
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
   // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
   // tries: one retry of a temporary failure on the same model, then the model manager moves on to the next model.
-  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, tailorTimeoutMs: 60000, chainMs: 75000, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, tailorTimeoutMs: 120000, firstByteMs: 28000, idleMs: 30000, chainMs: 75000, pacing: true, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
-  // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
-  // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
-  // (each already waited CONFIG.timeoutMs).
+  // Network goes through the shared standard (errors.js AJP.httpStream / AJP.http): timeouts, coded errors, retries for
+  // temporary failures (server errors, network blips, short rate-limit waits).
   // "Free tier not available for this project / set up billing", "User location is not supported", or a quota of
   // "limit: 0" all mean the same to the user: this key can't be used for free. Say that, and point to Groq.
   const NO_FREE_TIER = /free tier is not available|set up billing|billing (account|is required|to upgrade)|enable billing|location is not supported|FAILED_PRECONDITION|limit:\s*0\b/i;
   // Anthropic: "Your credit balance is too low to access the Anthropic API" = the paid key has no credit left.
   const NO_CREDIT = /credit balance is too low/i;
-  async function fetchJson(url, opts) {
-    try {
-      return await request(url, opts);
-    } catch (e) {
-      const x = AJP.toAppError(e);
-      if (/^AJP-AI-(HTTP|401|429)$/.test(x.code) && NO_CREDIT.test(String((x.details && x.details.body) || ''))) {
-        throw AJP.err('AI_CREDIT', { status: x.details.status, host: x.details.host }, e);
-      }
-      if (/^AJP-AI-(429|HTTP|401|404)$/.test(x.code) && NO_FREE_TIER.test(String((x.details && x.details.body) || ''))) {
-        throw AJP.err('AI_BILLING', { status: x.details.status, host: x.details.host, body: x.details.body }, e);
-      }
-      throw e;
-    }
-  }
   function request(url, opts = {}) {
     const { timeoutMs, ...rest } = opts;
     return AJP.http(url, rest, {
@@ -72,128 +57,137 @@
     });
   }
 
-  // jsonMode false: the provider/model may reject response_format, so JSON is asked for in the prompt only
-  // (parseJsonLoose + the one JSON retry in complete() handle the rest).
-  async function callOpenAICompatible(url, key, model, system, prompt, json, { headers: extraHeaders = {}, jsonMode = true, timeoutMs } = {}) {
-    const body = {
-      model,
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-    };
-    if (json && jsonMode) body.response_format = { type: 'json_object' };
-    if (json && !jsonMode) body.messages[0].content += '\n\nReply with ONE valid JSON object only, no other text.';
-    const data = await fetchJson(url, {
-      timeoutMs,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, ...extraHeaders },
-      body: JSON.stringify(body),
+  /*
+   * One cloud call, for every provider (ai-wire.js knows the differences). The answer is streamed; how it ended decides:
+   *   cut off → once more with a larger output limit, then AJP-AI-CUT · refused → AJP-AI-REFUSED · error inside a 200 →
+   *   the matching coded error · a setting this model rejects → dropped, remembered for the model, asked again.
+   * Every provider error carries the provider's own words in its hint.
+   */
+  const W = () => AJP.aiWire;
+  function providerError(e) {
+    const x = AJP.toAppError(e);
+    const d = x.details || {};
+    const body = String(d.body || '');
+    let out = x;
+    // Gemini answers a bad key with HTTP 400 (seen on the live API).
+    if (x.code === 'AJP-AI-HTTP' && /API_KEY_INVALID|API key not valid/i.test(body)) out = AJP.err('AI_AUTH', { status: d.status, host: d.host, body }, e);
+    else if (/^AJP-AI-(HTTP|401|429)$/.test(x.code) && NO_CREDIT.test(body)) out = AJP.err('AI_CREDIT', { status: d.status, host: d.host, body }, e);
+    else if (/^AJP-AI-(429|HTTP|401|404)$/.test(x.code) && NO_FREE_TIER.test(body)) out = AJP.err('AI_BILLING', { status: d.status, host: d.host, body }, e);
+    else if (d.status === 402) out = AJP.err('AI_BILLING', { status: d.status, host: d.host, body }, e);
+    else if (x.code !== 'AJP-AI-BIG' && W().isTooLarge(x)) out = AJP.err('AI_TOO_LARGE', { status: d.status, host: d.host, body }, e);
+    const reason = W().reasonFrom(body);
+    if (reason && !out.reason) {
+      out.reason = AJP.scrub ? AJP.scrub(reason) : reason;
+      out.hint = `The provider said: “${out.reason}”. ${out.hint || ''}`.trim();
+    }
+    return out;
+  }
+  // A failure reported inside a successful (HTTP 200) reply.
+  function replyError(error, host) {
+    const status = Number(error.code) || 0;
+    const body = JSON.stringify({ error });
+    const key = status ? AJP.aiErrorForStatus(status) : 'AI_HTTP';
+    return providerError(AJP.err(key, { status: status || 200, body: body.slice(0, 600), host }));
+  }
+  const quirksOf = async (provider, model) => (((await AJP.store.get('modelHealth'))[provider] || {}).quirks || {})[model] || {};
+  async function rememberQuirk(provider, model, quirk) {
+    await AJP.store.update('modelHealth', (all) => {
+      const h = (all[provider] = all[provider] || {});
+      h.quirks = { ...(h.quirks || {}), [model]: { ...((h.quirks || {})[model] || {}), [quirk]: true } };
     });
-    return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+    AJP.logger('ai').info('Model does not take this setting; remembered', { provider, model, quirk });
   }
-
-  function geminiThinking(model) {
-    const m = String(model);
-    if (/^gemini-2\.5-flash/.test(m)) return { thinkingBudget: 0 }; // 2.5 Flash / Flash-Lite: thinking off
-    if (/^gemini-2\.5-pro/.test(m)) return { thinkingBudget: 128 }; // 2.5 Pro: the minimum
-    if (/^gemini-(flash|pro)/.test(m) || /^gemini-([3-9]|\d{2})/.test(m)) return { thinkingLevel: 'low' }; // Gemini 3+ and -latest aliases
-    return null;
+  // Free-tier pace: a provider with a per-minute token budget is not sent more than it allows; tailoring waits instead.
+  const spent = new Map();
+  // need = this prompt + its output allowance; what is counted afterwards is what was really used.
+  async function pace(provider, model, input, need, patient) {
+    const tpm = W().PROFILES[provider].tpm;
+    if (!tpm || !CONFIG.pacing) return null;
+    const key = `${provider}:${model}`;
+    const budget = tpm * 0.9;
+    for (let i = 0; i < 3; i++) {
+      const now = Date.now();
+      const recent = (spent.get(key) || []).filter((x) => now - x.at < 60000);
+      spent.set(key, recent);
+      const used = recent.reduce((n, x) => n + x.n, 0);
+      if (!patient || !recent.length || used + need <= budget) break;
+      const wait = Math.min(CONFIG.patienceMs, recent[0].at + 60000 - now + 250);
+      AJP.logger('ai').info('Pacing for the free per-minute limit', { provider, model, waitMs: wait });
+      await new Promise((r) => setTimeout(r, wait));
+    }
+    const entry = { at: Date.now(), n: input };
+    spent.set(key, [...(spent.get(key) || []), entry]);
+    return entry;
   }
-  const ANTHROPIC_FALLBACK = /^claude-(fable-5-[12]|opus-5(-5)?|sonnet-5-5)$/; // models with server-side refusal fallback
-  const CALLERS = {
-    async gemini(cfg, model, system, prompt, json) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-      const body = {
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, ...(json ? { responseMimeType: 'application/json' } : {}) },
-      };
-      // Newer Gemini models think at a high level by default, which on the free tier can take over a minute even for
-      // "Say OK" (report R-20261121-XX1QF). Resume work doesn't need deep thinking: ask for a low level (2.5: a small budget).
-      const thinking = geminiThinking(model);
-      if (thinking) body.generationConfig.thinkingConfig = thinking;
-      const send = (b) => fetchJson(url, {
-        timeoutMs: cfg.timeoutMs,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.keys.gemini },
-        body: JSON.stringify(b),
-      });
-      let data;
+  async function callWire(provider, cfg, model, system, prompt, json) {
+    const wire = W();
+    const prof = wire.PROFILES[provider];
+    const quirks = { ...(await quirksOf(provider, model)) };
+    let enlarged = false;
+    let paced = null;
+    for (let round = 0; round < 5; round++) {
+      const req = wire.build({ provider, key: cfg.keys && cfg.keys[provider], model, system, prompt, json, baseUrl: cfg.ollamaUrl, quirks });
+      const sink = wire.reader(provider);
+      const total = cfg.timeoutMs;
+      const input = Math.ceil((system.length + prompt.length) / 4);
+      if (round === 0) paced = await pace(provider, model, input, input + (quirks.maxOutput || prof.maxOutput || 0), cfg.patient);
       try {
-        data = await send(body);
+        await AJP.httpStream(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body) }, sink, {
+          format: req.format,
+          // Local models can take a while to load; cloud answers must start before Chrome's 30 s limit.
+          firstByteMs: prof.local ? total : Math.min(total, CONFIG.firstByteMs),
+          idleMs: prof.local ? total : Math.min(total, CONFIG.idleMs),
+          totalMs: total,
+          tries: CONFIG.tries,
+          statusKey: AJP.aiErrorForStatus,
+          networkKey: 'AI_NETWORK',
+          timeoutKey: 'AI_TIMEOUT',
+          badJsonKey: 'AI_BAD_RESPONSE',
+          label: 'ai request',
+          log: AJP.logger('ai'),
+        });
       } catch (e) {
-        // A model that doesn't accept this thinking setting answers 400: ask again without it, once.
         const x = AJP.toAppError(e);
-        if (!thinking || !/thinking/i.test(String((x.details && x.details.body) || ''))) throw e;
-        AJP.logger('ai').info('Gemini model rejected the thinking setting; retrying without it', { model });
-        delete body.generationConfig.thinkingConfig;
-        data = await send(body);
+        const fix = wire.fixFor(x);
+        if (fix && !quirks[fix]) {
+          quirks[fix] = true;
+          await rememberQuirk(provider, model, fix);
+          continue;
+        }
+        throw providerError(x);
       }
-      const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-      return parts.map((p) => p.text || '').join('');
-    },
-    groq(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', cfg.keys.groq, model, system, prompt, json, { timeoutMs: cfg.timeoutMs });
-    },
-    openrouter(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', cfg.keys.openrouter, model, system, prompt, json, {
-        headers: { 'X-Title': 'Apply Job Assistant' },
-        timeoutMs: cfg.timeoutMs,
-      });
-    },
-    nvidia(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://integrate.api.nvidia.com/v1/chat/completions', cfg.keys.nvidia, model, system, prompt, json, { jsonMode: false, timeoutMs: cfg.timeoutMs });
-    },
-    mistral(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://api.mistral.ai/v1/chat/completions', cfg.keys.mistral, model, system, prompt, json, { timeoutMs: cfg.timeoutMs });
-    },
-    // Anthropic Messages API. Raw HTTP through AJP.http (no build step, so no SDK bundle), from the background only.
-    // Current models think adaptively; only the text blocks are the answer. A safety refusal (HTTP 200,
-    // stop_reason "refusal") is a coded error; models that support it get Anthropic's server-side fallback.
-    async anthropic(cfg, model, system, prompt, json) {
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': cfg.keys.anthropic,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true', // the call is made from the extension, with the user's own key
-      };
-      const body = {
-        model,
-        max_tokens: 16000,
-        system: json ? system + '\n\nReply with ONE valid JSON object only, no other text.' : system,
-        messages: [{ role: 'user', content: prompt }],
-      };
-      if (ANTHROPIC_FALLBACK.test(model)) {
-        headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
-        body.fallbacks = 'default';
+      const r = sink.result();
+      if (paced) paced.n = input + Math.ceil(r.text.length / 4);
+      if (r.error) throw replyError(r.error, new URL(req.url).hostname);
+      if (r.finish === 'refused') throw AJP.err('AI_REFUSED', { provider, category: r.category || null });
+      if (r.finish === 'error') throw AJP.err('AI_SERVER', { provider, status: 200 });
+      if (r.finish === 'length') {
+        // Thinking models can spend the whole allowance before answering. A complete JSON answer is still fine.
+        let usable = !json && !!r.text.trim();
+        if (json && r.text.trim()) {
+          try {
+            parseJsonLoose(r.text);
+            usable = true;
+          } catch (_) {
+            usable = false;
+          }
+        }
+        if (usable) return r.text;
+        const now = quirks.maxOutput || prof.maxOutput;
+        if (!enlarged && prof.maxOutputCap && now < prof.maxOutputCap) {
+          enlarged = true;
+          quirks.maxOutput = Math.min(now * 2, prof.maxOutputCap);
+          AJP.logger('ai').info('Answer was cut off; asking again with more room', { provider, model, maxOutput: quirks.maxOutput, thinking: r.thinking });
+          continue;
+        }
+        throw AJP.err('AI_CUT', { provider, model, thinking: r.thinking, chars: r.text.length });
       }
-      const data = await fetchJson('https://api.anthropic.com/v1/messages', { timeoutMs: cfg.timeoutMs, method: 'POST', headers, body: JSON.stringify(body) });
-      if (data.stop_reason === 'refusal') {
-        throw AJP.err('AI_REFUSED', { provider: 'anthropic', category: (data.stop_details && data.stop_details.category) || null });
-      }
-      return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('');
-    },
-    async ollama(cfg, model, system, prompt, json) {
-      const base = (cfg.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
-      const data = await fetchJson(base + '/api/chat', {
-        timeoutMs: cfg.timeoutMs,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          ...(json ? { format: 'json' } : {}),
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: prompt },
-          ],
-        }),
-      });
-      return (data.message && data.message.content) || '';
-    },
-  };
+      return r.text;
+    }
+    throw AJP.err('AI_BAD_RESPONSE', { reason: 'no usable answer' });
+  }
+  const CALLERS = {};
+  for (const k of ['gemini', 'groq', 'openrouter', 'nvidia', 'mistral', 'anthropic', 'ollama']) CALLERS[k] = (cfg, model, system, prompt, json) => callWire(k, cfg, model, system, prompt, json);
 
   // ---- Chrome built-in AI (Prompt API) ------------------------------------------------------------
   // Current API: global LanguageModel (Chrome 138+, Edge). Older builds: ai.languageModel with capabilities().
@@ -469,6 +463,7 @@
       h.why = { ...(h.why || {}), [model]: why };
       if (h.last === model) h.last = '';
       if (why === 'gone' && h.ok) delete h.ok[model];
+      if (why === 'gone' && h.verified) delete h.verified[model];
     });
   }
   async function worked(provider, model) {
@@ -524,7 +519,7 @@
    * group 'tailor' uses settings.ai.tailorProvider when set (e.g. Chrome built-in AI for everyday tasks, Gemini or Groq
    * for resume tailoring). patient: wait out one free-tier rate limit of up to CONFIG.patienceMs, then retry.
    */
-  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false, timeoutMs, via = '' }) {
+  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false, timeoutMs, via = '', exactModel = '' }) {
     const settings = await AJP.store.get('settings');
     const cfg = { ...settings.ai, timeoutMs: timeoutMs || CONFIG.timeoutMs };
     // via: a provider the user just picked for this job ("Try with Groq"). Never chosen automatically: resume text only
@@ -541,7 +536,18 @@
     // Cloud tailoring gives up on one model sooner, so a busy provider doesn't hold the panel for minutes.
     if (patient && !timeoutMs && !p.local && provider !== 'ollama') cfg.timeoutMs = Math.min(cfg.timeoutMs, CONFIG.tailorTimeoutMs);
     const health = await AJP.store.get('modelHealth');
+    cfg.patient = patient;
     let list = candidates(provider, pinned, cfg, health);
+    // Tailoring stays on models that passed "Check my AI setup" (when it has been run): no jumping to untested ones.
+    const verified = Object.entries((health[provider] || {}).verified || {}).sort((a, b) => b[1] - a[1]).map(([m]) => m);
+    const locked = !!exactModel || (group === 'tailor' && patient && !chosen && verified.length > 0);
+    if (exactModel) list = [exactModel];
+    else if (locked) {
+      const bad = (health[provider] || {}).bad || {};
+      const all = [...new Set([pinned, ...verified].filter(Boolean))];
+      const good = all.filter((m) => !(bad[m] > Date.now()));
+      list = good.length ? good : all;
+    }
     let model = list[0];
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
     const t0 = performance.now();
@@ -572,7 +578,7 @@
           return await once(text);
         } catch (e) {
           const x = AJP.toAppError(e);
-          const why = PREFER[provider] ? switchReason(x, provider) : null;
+          const why = PREFER[provider] && !exactModel ? switchReason(x, provider) : null;
           if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
           tried.add(model);
           await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x) : undefined);
@@ -581,7 +587,7 @@
             throw e; // the provider is having a bad moment: tell the user now instead of trying more models
           }
           let next = list.find((m) => !tried.has(m));
-          if (!refreshed && (why === 'gone' || stale || !next)) {
+          if (!locked && !refreshed && (why === 'gone' || stale || !next)) {
             refreshed = true;
             try {
               await refreshModels(cfg, provider);
@@ -615,7 +621,7 @@
         }
       } else result = out.trim();
       tr.end({ provider, model, outChars: out.length });
-      if (PREFER[provider]) await worked(provider, model);
+      if (PREFER[provider] && !exactModel) await worked(provider, model);
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true, ...(path.length ? { path } : {}) });
       return result;
     } catch (e) {
@@ -630,9 +636,12 @@
     const cfg = (await AJP.store.get('settings')).ai;
     const current = exclude || cfg.tailorProvider || cfg.provider;
     const name = (k) => (PROVIDERS[k] ? PROVIDERS[k].label.replace(/\s*\(.*$/, '') : k);
+    const checks = await AJP.store.get('aiChecks');
+    const ready = (k) => !!(checks[k] && checks[k].status === 'ready');
     const options = ['groq', 'nvidia', 'mistral', 'gemini', 'openrouter', 'anthropic']
-      .filter((k) => k !== current && cfg.keys && cfg.keys[k])
-      .map((k) => ({ id: k, label: name(k), paid: !!PROVIDERS[k].paid }));
+      .filter((k) => k !== current && cfg.keys && cfg.keys[k] && !(checks[k] && checks[k].status === 'failed'))
+      .map((k) => ({ id: k, label: name(k), paid: !!PROVIDERS[k].paid, ready: ready(k) }))
+      .sort((a, b) => Number(b.ready) - Number(a.ready));
     return { current: name(current), options };
   }
 

@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js', '../lib/radar-core.js', '../lib/radar-detect.js', '../lib/radar-boards.js', '../lib/radar-scan.js', '../lib/radar-directory.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai-wire.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/ai-check.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js', '../lib/radar-core.js', '../lib/radar-detect.js', '../lib/radar-boards.js', '../lib/radar-scan.js', '../lib/radar-directory.js');
 }
 
 (function () {
@@ -724,6 +724,13 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Chrome built-in AI as the background sees it (that's where AI calls run).
+    // "Check my AI setup": one provider per message, so each stays well under Chrome's 5-minute limit per request.
+    async 'ai.check'({ provider } = {}) {
+      return { result: await AJP.aiCheck.run(provider) };
+    },
+    async 'ai.check.report'({ results = [] } = {}) {
+      return { text: AJP.aiCheck.report(results) };
+    },
     async 'ai.alternatives'({ exclude } = {}) {
       return AJP.ai.alternatives(exclude);
     },
