@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Job Radar levels near your experience: with 8+ years Senior / Lead / Staff / Principal (no junior roles), years asked near yours, management titles only via a management track; "asks N+ yrs" on cards; 1305 tests |
+| 2026-11-21 | `e902f9d` | Job Radar levels near your experience: with 8+ years Senior / Lead / Staff / Principal (no junior roles), years asked near yours, management titles only via a management track; "asks N+ yrs" on cards; 1305 tests |
 | 2026-11-21 | `a039d1f` | Job Radar relevance (B40): a listed job must share at least 2 of your technical skills (soft skills don't count); "data center" / "data entry" aren't data work; listed jobs re-scored and re-checked once; 1300 tests |
 | 2026-11-21 | `ceb7a46` | Job Radar: level words ignored in titles (B39); scans end after 4 min and resume, heartbeat lock, Stop clears a dead scan's lock (B38); 25 jobs per page; listed jobs re-checked once when rules change; 1293 tests |
 | 2026-11-21 | `f8bad11` | **Job Radar accuracy + control**: career-track locations; Job preferences = defaults for all tracks; stricter title rule; remote jobs limited to other countries filtered; title-only jobs unscored + description backfill; "N of M skills" like the panel; list re-checked when preferences change, ■ Stop and Restart search; one card per job posted in several places; fixed B33–B37; 1288 tests |
