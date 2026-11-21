@@ -530,8 +530,16 @@
 
   // ---- AI ----------------------------------------------------------------------------------------
   function updateModelPlaceholder() {
-    const p = AJP.ai.PROVIDERS[settings.ai.provider];
+    const P = AJP.ai.PROVIDERS;
+    const p = P[$('#aiProvider').value || settings.ai.provider];
     $('#aiModel').placeholder = (p && p.defaultModel) || '';
+    const tk = $('#aiTailor').value || '';
+    const t = P[tk];
+    const tm = $('#aiTailorModel');
+    tm.placeholder = t && t.defaultModel ? t.defaultModel : 'uses the model above';
+    tm.disabled = !t || tk === ($('#aiProvider').value || settings.ai.provider);
+    // Paying per use is never a surprise: say so whenever Claude does any of the work.
+    $('#aiPaidNote').hidden = !((p && p.paid) || (t && t.paid));
   }
   function initAI() {
     $('#aiProvider').innerHTML = Object.entries(AJP.ai.PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join('');
@@ -546,7 +554,8 @@
       renderAiCalls();
     });
     updateModelPlaceholder();
-    $('#aiProvider').addEventListener('change', () => setTimeout(renderLocalAI, 0));
+    $('#aiProvider').addEventListener('change', () => setTimeout(() => (updateModelPlaceholder(), renderLocalAI()), 0));
+    $('#aiTailor').addEventListener('change', () => setTimeout(updateModelPlaceholder, 0));
     $('#aiLocalUse').addEventListener('click', AJP.guard('admin.useLocalAI', async () => {
       $('#aiProvider').value = 'chrome';
       $('#aiProvider').dispatchEvent(new Event('change', { bubbles: true }));

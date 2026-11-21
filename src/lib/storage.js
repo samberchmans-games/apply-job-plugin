@@ -50,8 +50,9 @@
       ai: {
         provider: 'none', // none | gemini | groq | openrouter | ollama
         model: '',
-        keys: { gemini: '', groq: '', openrouter: '' },
+        keys: { gemini: '', groq: '', openrouter: '', nvidia: '', mistral: '', anthropic: '' },
         tailorProvider: '', // '' = same as provider; e.g. 'gemini' for tailoring while 'chrome' does the rest
+        tailorModel: '', // '' = the tailoring provider's default (e.g. claude-haiku-5-5 to spend less with Claude)
         resolvedModels: {}, // provider -> model found by discovery when the default was retired (see ai.js)
         ollamaUrl: 'http://localhost:11434',
       },
@@ -151,7 +152,7 @@
 
     async exportAll({ includeKeys = false, includeLogs = false } = {}) {
       const data = await this.getMany(this.KEYS.filter((k) => (includeLogs && k === 'logs') || !INTERNAL.has(k)));
-      if (!includeKeys && data.settings) data.settings.ai.keys = { gemini: '', groq: '', openrouter: '' };
+      if (!includeKeys && data.settings) data.settings.ai.keys = Object.fromEntries(Object.keys(data.settings.ai.keys || {}).map((k) => [k, '']));
       return { app: 'apply-job-plugin', version: AJP.VERSION, exportedAt: new Date().toISOString(), data };
     },
 

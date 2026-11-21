@@ -168,9 +168,12 @@
         <li><b>Chrome built-in AI</b> — no key, no account; runs on this computer, so nothing leaves it. Needs a recent desktop Chrome and a one-time model download. Smaller than the cloud models: fine for answers and skills, slower and simpler for resume tailoring.</li>
         <li><b>Google Gemini</b> — free API key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (sign in with a personal Google account → Create API key). Generous free limits, <b>but Google doesn't offer the free tier to every account or region</b>: if AI Studio asks you to "set up billing", use Groq instead.</li>
         <li><b>Groq</b> — free API key: <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Free with no billing or card. Very fast; its free tier has a per-minute limit, so tailoring may pause for a few seconds and retry automatically.</li>
-        <li><b>OpenRouter</b> — free key at openrouter.ai/keys; use models ending in <code>:free</code>.</li>
+        <li><b>OpenRouter</b> — free key at openrouter.ai/keys; use models ending in <code>:free</code>. Some free models may log prompts.</li>
+        <li><b>NVIDIA NIM</b> — free API key: <a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com</a> (free NVIDIA Developer account → Get API Key). Generous free limits and strong open models: a good backup for tailoring.</li>
+        <li><b>Mistral</b> — free plan API key: <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai</a>. A monthly free allowance. <b>Privacy:</b> on the free plan Mistral may train on your prompts; turn that off in its privacy settings, because your resume is personal.</li>
         <li><b>Ollama</b> — runs models on this computer; fully private. Start it with <code>OLLAMA_ORIGINS="*" ollama serve</code>.</li>
       </ul>
+      <p class="hint"><b>Anthropic Claude (paid, optional)</b> — for people who prefer Claude. <b>Not free:</b> an API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> is billed per use from credit you add there; a Claude.ai or Claude Code subscription does not cover it. Default model <code>claude-opus-5-5</code> (best rewrites, roughly $0.20 per tailored resume). To spend less, type <code>claude-sonnet-5-5</code> (roughly $0.10) or <code>claude-haiku-5-5</code> (under a cent) as the model.</p>
       <p class="hint">Why not log into free ChatGPT / Claude / Gemini chat websites? Automating those consumer chat apps breaks their terms and stops working whenever their UI changes. Free API keys are the supported, reliable way.</p>
       <div id="aiLocalOffer" class="banner" hidden>✨ Chrome's built-in AI is ready on this computer: no key needed, and nothing leaves your computer. <button id="aiLocalUse">Use it</button></div>
       <div class="grid">
@@ -179,6 +182,9 @@
         <label>Gemini API key<input type="password" data-settings="ai.keys.gemini" autocomplete="off"></label>
         <label>Groq API key<input type="password" data-settings="ai.keys.groq" autocomplete="off"></label>
         <label>OpenRouter API key<input type="password" data-settings="ai.keys.openrouter" autocomplete="off"></label>
+        <label>NVIDIA NIM API key<input type="password" data-settings="ai.keys.nvidia" autocomplete="off"></label>
+        <label>Mistral API key<input type="password" data-settings="ai.keys.mistral" autocomplete="off"></label>
+        <label>Anthropic Claude API key (paid)<input type="password" data-settings="ai.keys.anthropic" autocomplete="off"></label>
         <label>Ollama URL<input data-settings="ai.ollamaUrl"></label>
       </div>
       <div id="aiLocal" class="card" hidden>
@@ -188,8 +194,10 @@
       <div class="row"><button id="aiTest" class="primary">Test connection</button><span id="aiTestOut" class="hint"></span></div>
       <div class="grid">
         <label>AI for resume tailoring<select data-settings="ai.tailorProvider" id="aiTailor"></select></label>
+        <label>Tailoring model (blank = default)<input data-settings="ai.tailorModel" id="aiTailorModel"></label>
       </div>
-      <p class="hint">Tailoring needs a capable model. Keep everyday tasks on one provider (e.g. Chrome built-in AI) and tailor with <b>Gemini</b> or <b>Groq</b>: add that key above, choose it here and test it.</p>
+      <p class="hint">Tailoring needs a capable model. Keep everyday tasks on one provider (e.g. Chrome built-in AI) and tailor with a free <b>Gemini</b>, <b>Groq</b>, <b>NVIDIA NIM</b> or <b>Mistral</b> key, or a paid <b>Claude</b> key: add that key above, choose it here and test it.</p>
+      <p id="aiPaidNote" class="hint warn" hidden>💳 Claude is paid per use: each tailoring run takes a little from your Anthropic API credit.</p>
       <div class="row"><button id="aiTailorTest">Test tailoring AI</button><span id="aiTailorOut" class="hint"></span></div>
       <h3>Recent AI calls</h3>
       <p class="hint">Which AI did each job, and how it went. Only the provider, model, task and timing are kept: never your resume, the job text or the answer.</p>

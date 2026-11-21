@@ -16,6 +16,8 @@
   const ERRORS = {
     AI_OFF: ['AJP-AI-OFF', 'AI is turned off.', 'Pick a free provider in Admin → AI settings.'],
     AI_NO_KEY: ['AJP-AI-KEY', 'No API key saved for this AI provider.', 'Add the key in Admin → AI settings, then click Test connection.'],
+    AI_CREDIT: ['AJP-AI-CREDIT', 'Your Anthropic account has no API credit left.', 'Claude API keys are paid per use: add credit at console.anthropic.com → Billing, or choose a free provider (Groq, Gemini, NVIDIA NIM, Mistral) in Admin → AI settings.'],
+    AI_REFUSED: ['AJP-AI-REFUSED', 'The AI declined to answer this request.', 'Try again; if it keeps happening, choose another provider or model in Admin → AI settings.'],
     AI_AUTH: ['AJP-AI-401', 'The AI provider rejected the API key.', 'Check the key in Admin → AI settings (copy it again from the provider).'],
     AI_RATE_LIMIT: ['AJP-AI-429', 'The free AI limit was reached.', 'Wait a minute and try again, or switch provider in Admin → AI settings.'],
     AI_MODEL: ['AJP-AI-404', 'The AI model name was not found, and no replacement could be found.', 'Clear the Model field in Admin → AI settings and try again; if it keeps failing, the provider may have changed its models: try another provider.'],

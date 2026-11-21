@@ -23,7 +23,7 @@ Only in these cases, and only after you set them up or click:
 
 | When | What is sent | To whom |
 |---|---|---|
-| You choose a **cloud AI provider** (Google Gemini, Groq, OpenRouter) in AI settings, add **your own** API key, and click an AI button (AI deep analysis, Tailor resume, Draft answer, Test connection) | The job description, your resume text, your skills, and the question being answered. **Never** your EEO answers, passwords or API keys of other providers | The AI provider you chose, under their terms and privacy policy |
+| You choose a **cloud AI provider** (Google Gemini, Groq, OpenRouter, NVIDIA NIM, Mistral, Anthropic Claude) in AI settings, add **your own** API key, and click an AI button (AI deep analysis, Tailor resume, Draft answer, Test connection) | The job description, your resume text, your skills, and the question being answered. **Never** your EEO answers, passwords or API keys of other providers | The AI provider you chose, under their terms and privacy policy |
 | You choose **Ollama** or **Chrome built-in AI** | The same text, but it is processed **on your computer**. Nothing leaves it | Nobody |
 | You click **Report on GitHub** and submit the form yourself | A short summary you can read and edit first: the error code, browser and extension version. Emails, phone numbers, links and keys are removed. Logs are never included in public issues | GitHub (public issue on the project) |
 | You open **My reports** or the report dialog | A search for the error code or report id (no personal data) | GitHub's public API |

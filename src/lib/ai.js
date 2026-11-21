@@ -25,6 +25,10 @@
     groq: { label: 'Groq (free tier API key)', defaultModel: 'llama-3.3-70b-versatile', needsKey: true },
     openrouter: { label: 'OpenRouter (free models)', defaultModel: 'meta-llama/llama-3.3-70b-instruct:free', needsKey: true },
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
+    nvidia: { label: 'NVIDIA NIM (free API key)', defaultModel: 'meta/llama-3.3-70b-instruct', needsKey: true },
+    mistral: { label: 'Mistral (free plan API key)', defaultModel: 'mistral-medium-latest', needsKey: true },
+    // Not free: billed per use from the user's prepaid Anthropic API credit (a Claude.ai / Claude Code plan doesn't cover it).
+    anthropic: { label: 'Anthropic Claude (paid API key, pay per use)', defaultModel: 'claude-opus-5-5', needsKey: true, paid: true },
   };
 
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
@@ -36,11 +40,16 @@
   // "Free tier not available for this project / set up billing", "User location is not supported", or a quota of
   // "limit: 0" all mean the same to the user: this key can't be used for free. Say that, and point to Groq.
   const NO_FREE_TIER = /free tier is not available|set up billing|billing (account|is required|to upgrade)|enable billing|location is not supported|FAILED_PRECONDITION|limit:\s*0\b/i;
+  // Anthropic: "Your credit balance is too low to access the Anthropic API" = the paid key has no credit left.
+  const NO_CREDIT = /credit balance is too low/i;
   async function fetchJson(url, opts) {
     try {
       return await request(url, opts);
     } catch (e) {
       const x = AJP.toAppError(e);
+      if (/^AJP-AI-(HTTP|401|429)$/.test(x.code) && NO_CREDIT.test(String((x.details && x.details.body) || ''))) {
+        throw AJP.err('AI_CREDIT', { status: x.details.status, host: x.details.host }, e);
+      }
       if (/^AJP-AI-(429|HTTP|401|404)$/.test(x.code) && NO_FREE_TIER.test(String((x.details && x.details.body) || ''))) {
         throw AJP.err('AI_BILLING', { status: x.details.status, host: x.details.host }, e);
       }
@@ -60,7 +69,9 @@
     });
   }
 
-  async function callOpenAICompatible(url, key, model, system, prompt, json, extraHeaders = {}) {
+  // jsonMode false: the provider/model may reject response_format, so JSON is asked for in the prompt only
+  // (parseJsonLoose + the one JSON retry in complete() handle the rest).
+  async function callOpenAICompatible(url, key, model, system, prompt, json, extraHeaders = {}, jsonMode = true) {
     const body = {
       model,
       temperature: 0.3,
@@ -69,7 +80,8 @@
         { role: 'user', content: prompt },
       ],
     };
-    if (json) body.response_format = { type: 'json_object' };
+    if (json && jsonMode) body.response_format = { type: 'json_object' };
+    if (json && !jsonMode) body.messages[0].content += '\n\nReply with ONE valid JSON object only, no other text.';
     const data = await fetchJson(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, ...extraHeaders },
@@ -78,6 +90,7 @@
     return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
   }
 
+  const ANTHROPIC_FALLBACK = /^claude-(fable-5-[12]|opus-5(-5)?|sonnet-5-5)$/; // models with server-side refusal fallback
   const CALLERS = {
     async gemini(cfg, model, system, prompt, json) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
@@ -101,6 +114,38 @@
       return callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', cfg.keys.openrouter, model, system, prompt, json, {
         'X-Title': 'Apply Job Assistant',
       });
+    },
+    nvidia(cfg, model, system, prompt, json) {
+      return callOpenAICompatible('https://integrate.api.nvidia.com/v1/chat/completions', cfg.keys.nvidia, model, system, prompt, json, {}, false);
+    },
+    mistral(cfg, model, system, prompt, json) {
+      return callOpenAICompatible('https://api.mistral.ai/v1/chat/completions', cfg.keys.mistral, model, system, prompt, json);
+    },
+    // Anthropic Messages API. Raw HTTP through AJP.http (no build step, so no SDK bundle), from the background only.
+    // Current models think adaptively; only the text blocks are the answer. A safety refusal (HTTP 200,
+    // stop_reason "refusal") is a coded error; models that support it get Anthropic's server-side fallback.
+    async anthropic(cfg, model, system, prompt, json) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.keys.anthropic,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true', // the call is made from the extension, with the user's own key
+      };
+      const body = {
+        model,
+        max_tokens: 16000,
+        system: json ? system + '\n\nReply with ONE valid JSON object only, no other text.' : system,
+        messages: [{ role: 'user', content: prompt }],
+      };
+      if (ANTHROPIC_FALLBACK.test(model)) {
+        headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+        body.fallbacks = 'default';
+      }
+      const data = await fetchJson('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+      if (data.stop_reason === 'refusal') {
+        throw AJP.err('AI_REFUSED', { provider: 'anthropic', category: (data.stop_details && data.stop_details.category) || null });
+      }
+      return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('');
     },
     async ollama(cfg, model, system, prompt, json) {
       const base = (cfg.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
@@ -272,8 +317,11 @@
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
     gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash$/, /^gemini-2\.5-flash-lite$/, /^gemini-[\d.]+-flash-lite$/, /^gemini-[\d.]+-pro$/],
     openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek.*:free$/, /qwen.*:free$/, /:free$/],
+    nvidia: [/^meta\/llama-3\.3-70b-instruct$/, /^openai\/gpt-oss-120b$/, /^qwen\/qwen3/, /^deepseek-ai\/deepseek/, /^meta\/llama-4/, /^mistralai\/mistral-(medium|large)/, /instruct$/],
+    mistral: [/^mistral-medium-latest$/, /^mistral-small-latest$/, /^mistral-large-latest$/, /^mistral-(medium|small|large)/],
+    anthropic: [/^claude-opus-5-5$/, /^claude-sonnet-5-5$/, /^claude-opus-\d/, /^claude-sonnet-\d/, /^claude-haiku-\d/],
   };
-  const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n/i;
+  const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n|ocr|moderation|rerank|retriever|safety|parakeet|clip|pixtral|voxtral/i;
   async function availableModels(cfg, provider) {
     if (provider === 'groq') {
       const d = await request('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.groq}` } });
@@ -285,6 +333,20 @@
     }
     if (provider === 'openrouter') {
       const d = await request('https://openrouter.ai/api/v1/models', {});
+      return (d.data || []).map((m) => m.id);
+    }
+    if (provider === 'nvidia') {
+      const d = await request('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.nvidia}` } });
+      return (d.data || []).map((m) => m.id);
+    }
+    if (provider === 'mistral') {
+      const d = await request('https://api.mistral.ai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.mistral}` } });
+      return (d.data || []).filter((m) => !m.capabilities || m.capabilities.completion_chat !== false).map((m) => m.id);
+    }
+    if (provider === 'anthropic') {
+      const d = await request('https://api.anthropic.com/v1/models?limit=100', {
+        headers: { 'x-api-key': cfg.keys.anthropic, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      });
       return (d.data || []).map((m) => m.id);
     }
     return [];
@@ -330,9 +392,10 @@
     const p = PROVIDERS[provider];
     if (!p || provider === 'none') throw AJP.err('AI_OFF');
     if (p.needsKey && !cfg.keys[provider]) throw AJP.err('AI_NO_KEY', { provider });
-    // The Model field belongs to the main provider; a model found by discovery (resolvedModels) replaces a retired default.
+    // The Model field belongs to the main provider, "Tailoring model" to the tailoring provider; a model found by
+    // discovery (resolvedModels) replaces a retired default.
     const resolved = (cfg.resolvedModels || {})[provider];
-    let model = own ? resolved || p.defaultModel : cfg.model || resolved || p.defaultModel;
+    let model = own ? cfg.tailorModel || resolved || p.defaultModel : cfg.model || resolved || p.defaultModel;
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
     const t0 = performance.now();
     let discovered = false;

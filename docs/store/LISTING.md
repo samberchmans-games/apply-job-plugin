@@ -63,7 +63,7 @@ Help a job seeker evaluate job postings against their own profile and fill job a
 | `contextMenus` | Adds "Apply Job: analyze selection" to the right-click menu. |
 | `alarms` | Follow-up reminders for tracked applications; periodic status check of problems the user reported on GitHub. |
 | Content scripts on job sites (LinkedIn, Indeed, Greenhouse, Lever, Workday, Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS, Workable) | Show the match badge and fill application forms on those sites. |
-| `generativelanguage.googleapis.com`, `api.groq.com`, `openrouter.ai` | Only when the user chooses that AI provider and adds their own key: send the job post and resume text for the AI features they click. |
+| `generativelanguage.googleapis.com`, `api.groq.com`, `openrouter.ai`, `integrate.api.nvidia.com`, `api.mistral.ai`, `api.anthropic.com` | Only when the user chooses that AI provider and adds their own key: send the job post and resume text for the AI features they click. |
 | `localhost:11434` / `127.0.0.1:11434` | Ollama running on the user's own computer (optional AI). |
 | `api.github.com` | Public search for a problem report's status and similar reports (error code / report id only). |
 

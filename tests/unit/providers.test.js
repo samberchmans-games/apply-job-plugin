@@ -1,0 +1,192 @@
+/*
+ * More AI providers: Anthropic Claude (paid, optional, bring your own key), NVIDIA NIM and Mistral (free keys).
+ * Every call is faked: no real network, no charges.
+ */
+(function () {
+  const { describe, it, eq, ok, notOk, includes, excludes, beforeEach, afterEach, rejects } = globalThis.AJPTest;
+  const AJP = globalThis.AJP;
+  const mock = globalThis.browser;
+  let realFetch;
+  let calls;
+  const saved = {};
+  const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status });
+  const claude = (text, extra = {}) => json({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text }], stop_reason: 'end_turn', ...extra });
+  const openai = (content) => json({ choices: [{ message: { content } }] });
+  function fake(...replies) {
+    calls = [];
+    let i = 0;
+    globalThis.fetch = async (url, opts) => {
+      const h = (opts && opts.headers) || {};
+      calls.push({ url: String(url), headers: h instanceof Headers ? Object.fromEntries(h.entries()) : h, body: opts && opts.body ? JSON.parse(opts.body) : null });
+      const r = replies[Math.min(i++, replies.length - 1)];
+      return typeof r === 'function' ? r() : r;
+    };
+  }
+  async function before() {
+    await mock.__reset();
+    realFetch = globalThis.fetch;
+    Object.assign(saved, AJP.ai.CONFIG);
+    AJP.ai.CONFIG.tries = 1;
+  }
+  function after() {
+    globalThis.fetch = realFetch;
+    Object.assign(AJP.ai.CONFIG, saved);
+  }
+  const settings = (ai) => AJP.store.update('settings', (s) => void Object.assign(s.ai, ai));
+  const KEYS = { gemini: '', groq: '', openrouter: '', nvidia: 'nvapi-test', mistral: 'mis-test', anthropic: 'sk-ant-test' };
+  const REQ = { requirements: Array.from({ length: 6 }, (_, i) => ({ id: 'R' + i, text: 'r' + i, priority: 'must', match: 'none', evidence: [] })), ats_keywords: [] };
+  const JD = 'Requirements\n- AWS\n- Snowflake\n- Python\n- Kafka\n- Airflow\n- dbt';
+
+  describe('providers › Anthropic Claude (paid, optional)', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'anthropic', model: '', tailorProvider: '', tailorModel: '', resolvedModels: {}, keys: { ...KEYS } });
+    });
+    afterEach(after);
+    it('is listed as paid, with Claude Opus 5.5 as its default model', () => {
+      const p = AJP.ai.PROVIDERS.anthropic;
+      eq([p.paid, p.needsKey, p.defaultModel], [true, true, 'claude-opus-5-5']);
+      includes(p.label, 'paid');
+    });
+    it('calls the Messages API with the key, version and browser-access headers; returns only the text blocks', async () => {
+      fake(claude('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK', 'the empty thinking block is ignored');
+      eq(calls[0].url, 'https://api.anthropic.com/v1/messages');
+      eq([calls[0].headers['x-api-key'], calls[0].headers['anthropic-version'], calls[0].headers['anthropic-dangerous-direct-browser-access']], ['sk-ant-test', '2023-06-01', 'true']);
+      eq([calls[0].body.model, calls[0].body.max_tokens, calls[0].body.messages[0].role], ['claude-opus-5-5', 16000, 'user']);
+      notOk('temperature' in calls[0].body, 'no sampling parameters');
+    });
+    it('Opus 5.5 gets the server-side refusal fallback; Haiku 5.5 (no fallback support) does not', async () => {
+      fake(claude('OK'));
+      await AJP.ai.tasks.test();
+      eq([calls[0].body.fallbacks, calls[0].headers['anthropic-beta']], ['default', 'server-side-fallback-2026-07-01']);
+      await settings({ model: 'claude-haiku-5-5' });
+      fake(claude('OK'));
+      await AJP.ai.tasks.test();
+      eq([calls[0].body.model, 'fallbacks' in calls[0].body, 'anthropic-beta' in calls[0].headers], ['claude-haiku-5-5', false, false]);
+    });
+    it('JSON tasks ask for JSON in the system prompt and parse the reply', async () => {
+      fake(claude(JSON.stringify(REQ)));
+      eq((await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' })).requirements.length, 6);
+      includes(calls[0].body.system, 'ONE valid JSON object');
+    });
+    it('a safety refusal → AJP-AI-REFUSED (not an empty answer)', async () => {
+      fake(json({ content: [], stop_reason: 'refusal', stop_details: { type: 'refusal', category: 'cyber' } }));
+      const e = await rejects(() => AJP.ai.tasks.test());
+      eq([e.code, e.details.category], ['AJP-AI-REFUSED', 'cyber']);
+    });
+    it('"credit balance is too low" → AJP-AI-CREDIT with a pointer to billing and the free providers, no retry', async () => {
+      AJP.ai.CONFIG.tries = 3;
+      fake(json({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } }, 400));
+      const e = await rejects(() => AJP.ai.tasks.test());
+      eq(e.code, 'AJP-AI-CREDIT');
+      includes(e.hint, 'console.anthropic.com');
+      includes(e.hint, 'Groq');
+      eq(calls.length, 1);
+    });
+    it('a wrong key → AJP-AI-401', async () => {
+      fake(json({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, 401));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-401');
+    });
+    it('no key → AJP-AI-KEY naming Anthropic', async () => {
+      await settings({ keys: { ...KEYS, anthropic: '' } });
+      const e = await rejects(() => AJP.ai.tasks.test());
+      eq([e.code, e.details.provider], ['AJP-AI-KEY', 'anthropic']);
+    });
+    it('a retired model → reads /v1/models, picks the best Claude model offered, remembers it', async () => {
+      fake(json({ type: 'error', error: { type: 'not_found_error', message: 'model: claude-opus-5-5' } }, 404),
+        json({ data: [{ id: 'claude-haiku-5-5' }, { id: 'claude-sonnet-5-5' }] }), claude('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[1].url, 'api.anthropic.com/v1/models');
+      eq(calls[1].headers['x-api-key'], 'sk-ant-test');
+      eq(calls[2].body.model, 'claude-sonnet-5-5');
+      eq((await AJP.store.get('settings')).ai.resolvedModels.anthropic, 'claude-sonnet-5-5');
+    });
+    it('Recent AI calls name it "Anthropic Claude · model"', async () => {
+      fake(claude('OK'));
+      await AJP.ai.tasks.test();
+      eq((await AJP.store.get('aiCalls'))[0].label, 'Anthropic Claude · claude-opus-5-5');
+    });
+  }, { env: 'browser' });
+
+  describe('providers › Claude only for tailoring, with its own model', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'groq', model: 'llama-x', tailorProvider: 'anthropic', tailorModel: '', resolvedModels: {}, keys: { ...KEYS, groq: 'gsk' } });
+    });
+    afterEach(after);
+    it('everyday tasks stay on the free provider; tailoring goes to Claude', async () => {
+      fake(openai('OK'), claude(JSON.stringify(REQ)));
+      await AJP.ai.tasks.test();
+      await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' });
+      includes(calls[0].url, 'api.groq.com');
+      includes(calls[1].url, 'api.anthropic.com');
+      eq(calls[1].body.model, 'claude-opus-5-5', 'the main Model field does not leak into tailoring');
+    });
+    it('"Tailoring model" picks a cheaper Claude model for tailoring only', async () => {
+      await settings({ tailorModel: 'claude-haiku-5-5' });
+      fake(claude(JSON.stringify(REQ)), openai('OK'));
+      await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' });
+      await AJP.ai.tasks.test();
+      eq([calls[0].body.model, calls[1].body.model], ['claude-haiku-5-5', 'llama-x']);
+    });
+  }, { env: 'browser' });
+
+  describe('providers › NVIDIA NIM and Mistral (free keys)', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ model: '', tailorProvider: '', tailorModel: '', resolvedModels: {}, keys: { ...KEYS } });
+    });
+    afterEach(after);
+    it('NVIDIA: OpenAI-style call with its key and default model; JSON asked in the prompt, not response_format', async () => {
+      await settings({ provider: 'nvidia' });
+      fake(openai('Here you go: ' + JSON.stringify(REQ)));
+      eq((await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' })).requirements.length, 6);
+      eq(calls[0].url, 'https://integrate.api.nvidia.com/v1/chat/completions');
+      eq(calls[0].headers.Authorization, 'Bearer nvapi-test');
+      eq(calls[0].body.model, 'meta/llama-3.3-70b-instruct');
+      notOk('response_format' in calls[0].body);
+      includes(calls[0].body.messages[0].content, 'ONE valid JSON object');
+    });
+    it('Mistral: OpenAI-style call with JSON mode', async () => {
+      await settings({ provider: 'mistral' });
+      fake(openai(JSON.stringify(REQ)));
+      await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' });
+      eq(calls[0].url, 'https://api.mistral.ai/v1/chat/completions');
+      eq([calls[0].headers.Authorization, calls[0].body.model, calls[0].body.response_format.type], ['Bearer mis-test', 'mistral-medium-latest', 'json_object']);
+    });
+    it('NVIDIA: a retired model is replaced from its model list (skipping non-chat models)', async () => {
+      await settings({ provider: 'nvidia' });
+      fake(json({ error: 'Function not found for account' }, 404),
+        json({ data: [{ id: 'nvidia/nv-embedqa-e5-v5' }, { id: 'nvidia/llama-3.1-nemoguard-8b-content-safety' }, { id: 'openai/gpt-oss-120b' }] }), openai('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      eq(calls[2].body.model, 'openai/gpt-oss-120b');
+    });
+    it('Mistral: a free-plan rate limit is an ordinary AJP-AI-429', async () => {
+      await settings({ provider: 'mistral' });
+      fake(json({ message: 'Requests rate limit exceeded' }, 429));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-429');
+    });
+  }, { env: 'browser' });
+
+  describe('providers › keys stay private', () => {
+    beforeEach(before);
+    afterEach(after);
+    it('a backup leaves out every key, the new ones included (unless asked)', async () => {
+      await settings({ keys: { ...KEYS, groq: 'gsk_x' } });
+      const out = await AJP.store.exportAll();
+      eq(Object.values(out.data.settings.ai.keys).filter(Boolean), []);
+      eq(Object.keys(out.data.settings.ai.keys).sort(), ['anthropic', 'gemini', 'groq', 'mistral', 'nvidia', 'openrouter']);
+      eq((await AJP.store.exportAll({ includeKeys: true })).data.settings.ai.keys.anthropic, 'sk-ant-test');
+    });
+    it('logs mask Anthropic and NVIDIA keys', () => {
+      const s = AJP.scrub('key sk-ant-api03-AbCdEfGhIjKlMnOpQrSt and nvapi-AbCdEfGhIjKlMnOpQrSt');
+      excludes(s, 'AbCdEfGhIjKlMnOpQrSt');
+      includes(s, '[key]');
+    });
+    it('the manifest allows exactly the three new AI hosts', async () => {
+      const m = await (await realFetch('../manifest.json', { cache: 'no-store' })).json();
+      for (const h of ['https://api.anthropic.com/*', 'https://integrate.api.nvidia.com/*', 'https://api.mistral.ai/*']) ok(m.host_permissions.includes(h), h);
+    });
+  }, { env: 'browser' });
+})();

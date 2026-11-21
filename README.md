@@ -71,6 +71,9 @@ Quick test of a package: Firefox → `about:debugging` → This Firefox → **Lo
 | Groq | Free tier | https://console.groq.com/keys |
 | OpenRouter | Free `:free` models | https://openrouter.ai/keys |
 | Ollama | Free, runs locally, fully private | https://ollama.com, then start it with `OLLAMA_ORIGINS="*" ollama serve` |
+| NVIDIA NIM | Free API key (NVIDIA Developer account) | https://build.nvidia.com |
+| Mistral | Free plan API key (turn off training on your prompts in its privacy settings) | https://console.mistral.ai/api-keys |
+| Anthropic Claude | **Paid, optional**: per use from prepaid API credit (a Claude.ai / Claude Code plan doesn't cover it). Default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` cost less | https://console.anthropic.com/settings/keys |
 
 The extension does **not** log into the free ChatGPT, Claude or Gemini chat websites. Automating those consumer apps violates their terms, and it breaks whenever their UI changes. Free API keys are the supported route. API keys are stored locally and are used only from the background script, never inside web pages.
 
@@ -120,7 +123,7 @@ docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md
 ```
 
 - **Checks:** `sh tests/check.sh` (manifest, files, syntax). **CI** runs checks + all tests on every push (badge above).
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1105) in headless Chrome. `./tests/run-tests.sh` runs the 557 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1126) in headless Chrome. `./tests/run-tests.sh` runs the 557 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.

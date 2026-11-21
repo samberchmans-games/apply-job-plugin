@@ -457,4 +457,28 @@
       ok(/\(AJP-[A-Z0-9-]+\)/.test($('#err').textContent), $('#err').textContent);
     });
   }, { env: 'browser' });
+  // ---- AI settings: Claude (paid), NVIDIA NIM and Mistral ----------------------------------------------
+  describe('admin screens › AI providers', () => {
+    afterEach(closeFrame);
+    it('has key fields for NVIDIA NIM, Mistral and Claude; a typed key is saved', async () => {
+      await load('admin.html', {}, { hash: 'ai' });
+      for (const k of ['nvidia', 'mistral', 'anthropic']) ok($(`[data-settings="ai.keys.${k}"]`), k);
+      eq($('[data-settings="ai.keys.anthropic"]').type, 'password');
+      type($('[data-settings="ai.keys.anthropic"]'), 'sk-ant-xyz');
+      await waitFor(async () => (await stored('settings')).ai.keys.anthropic === 'sk-ant-xyz', { msg: 'saved' });
+      ok([...$('#aiProvider').options].some((o) => o.value === 'anthropic' && /paid/.test(o.textContent)), 'listed as paid');
+    });
+    it('choosing Claude for tailoring shows the pay-per-use note and its default model; a free provider hides the note', async () => {
+      await load('admin.html', {}, { hash: 'ai' });
+      ok($('#aiPaidNote').hidden, 'hidden while everything is free');
+      change($('#aiTailor'), 'anthropic');
+      await waitFor(() => !$('#aiPaidNote').hidden, { msg: 'paid note' });
+      eq([$('#aiTailorModel').placeholder, $('#aiTailorModel').disabled], ['claude-opus-5-5', false]);
+      type($('#aiTailorModel'), 'claude-haiku-5-5');
+      await waitFor(async () => (await stored('settings')).ai.tailorModel === 'claude-haiku-5-5', { msg: 'tailor model saved' });
+      change($('#aiTailor'), 'nvidia');
+      await waitFor(() => $('#aiPaidNote').hidden, { msg: 'note hidden' });
+      eq($('#aiTailorModel').placeholder, 'meta/llama-3.3-70b-instruct');
+    });
+  }, { env: 'browser' });
 })();
