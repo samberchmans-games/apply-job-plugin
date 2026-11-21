@@ -23,6 +23,7 @@
   const MAX_STR = 1500;
   const VALUE_PATTERNS = [
     [/\b(AIza[0-9A-Za-z_-]{30,}|gsk_[A-Za-z0-9]{16,}|sk-or-v1-[A-Za-z0-9]{16,}|nvapi-[A-Za-z0-9_-]{16,}|sk-(?:ant-|proj-)?[A-Za-z0-9_-]{16,}|xox[abp]-[A-Za-z0-9-]{10,})\b/g, '[key]'],
+    [/\b(account|organization|org|project)(\s+id)?(\s*[:=]?\s*)(['"`])[A-Za-z0-9_-]{8,}\4/gi, '$1$2$3$4[id]$4'],
     [/\bBearer\s+[A-Za-z0-9._~+/=-]{6,}/gi, 'Bearer [key]'],
     [/([?&](?:key|api_key|apikey|token|access_token)=)[^&\s"']+/gi, '$1[key]'],
     [/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]'],

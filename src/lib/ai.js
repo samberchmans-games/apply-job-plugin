@@ -34,7 +34,7 @@
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
   // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
   // tries: one retry of a temporary failure on the same model, then the model manager moves on to the next model.
-  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, tailorTimeoutMs: 120000, firstByteMs: 28000, idleMs: 30000, chainMs: 75000, pacing: true, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, tailorTimeoutMs: 120000, firstByteMs: 28000, idleMs: 30000, chainMs: 75000, cutRetryMs: 30000, pacing: true, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.httpStream / AJP.http): timeouts, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits).
@@ -129,6 +129,7 @@
       const req = wire.build({ provider, key: cfg.keys && cfg.keys[provider], model, system, prompt, json, baseUrl: cfg.ollamaUrl, quirks });
       const sink = wire.reader(provider);
       const total = cfg.timeoutMs;
+      const started = Date.now();
       const input = Math.ceil((system.length + prompt.length) / 4);
       if (round === 0) paced = await pace(provider, model, input, input + (quirks.maxOutput || prof.maxOutput || 0), cfg.patient);
       try {
@@ -174,7 +175,8 @@
         }
         if (usable) return r.text;
         const now = quirks.maxOutput || prof.maxOutput;
-        if (!enlarged && prof.maxOutputCap && now < prof.maxOutputCap) {
+        const slowThinker = !r.text.trim() && Date.now() - started > CONFIG.cutRetryMs;
+        if (!enlarged && !slowThinker && prof.maxOutputCap && now < prof.maxOutputCap) {
           enlarged = true;
           quirks.maxOutput = Math.min(now * 2, prof.maxOutputCap);
           AJP.logger('ai').info('Answer was cut off; asking again with more room', { provider, model, maxOutput: quirks.maxOutput, thinking: r.thinking });

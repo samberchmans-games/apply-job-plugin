@@ -733,7 +733,7 @@
       if (/\/models/.test(url)) return res({ data: [{ id: 'llama-3.3-70b-versatile' }] });
       const b = JSON.parse(o.body);
       const text = JSON.stringify(b);
-      const content = /exactly this JSON/.test(text) ? '{"ok":true,"items":["a","b","c"]}' : b.response_format ? JSON.stringify({ requirements: [1, 2, 3].map((n) => ({ id: 'R' + n, text: 'r', priority: 'must', match: 'none', evidence: [] })), ats_keywords: [] }) : 'OK';
+      const content = /exactly this JSON/.test(text) ? '{"ok":true,"items":["a","b","c"]}' : b.response_format ? JSON.stringify({ requirements: [1, 2, 3, 4, 5, 6].map((n) => ({ id: 'R' + n, text: 'r', priority: 'must', match: 'strong', evidence: ['Built a Python and Airflow pipeline platform'] })), ats_keywords: [] }) : 'OK';
       return res({ choices: [{ message: { content }, finish_reason: 'stop' }] });
     });
     it('checks each saved free key, shows Ready or the exact reason, leaves paid Claude out unless ticked; "Use for tailoring" sets it', async () => {

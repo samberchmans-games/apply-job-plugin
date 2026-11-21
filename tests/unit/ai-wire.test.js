@@ -206,7 +206,7 @@
     beforeEach(() => before({ provider: 'groq', model: '' }));
     afterEach(after);
     const models = () => http(200, { data: [{ id: 'llama-3.3-70b-versatile' }, { id: 'openai/gpt-oss-120b' }] });
-    const REQ = JSON.stringify({ requirements: [1, 2, 3, 4].map((i) => ({ id: 'R' + i, text: 'r', priority: 'must', match: 'none', evidence: [] })), ats_keywords: [] });
+    const REQ = JSON.stringify({ requirements: [1, 2, 3, 4, 5, 6].map((i) => ({ id: 'R' + i, text: 'r', priority: 'must', match: 'strong', evidence: ['Built a Python and Airflow pipeline platform'] })), ats_keywords: [] });
     const answer = (c) => {
       if (/\/models/.test(c.url)) return models();
       if (/strict JSON only/.test(c.body.messages[0].content) && /exactly this JSON/.test(c.body.messages[1].content)) return oai('{"ok":true,"items":["a","b","c"]}');
@@ -228,6 +228,36 @@
       const r = (await AJP.send('ai.check', { provider: 'groq' })).result;
       eq([r.status, r.verified], ['ready', ['openai/gpt-oss-120b']]);
       eq(r.models[0].steps[0].reason, 'This model is decommissioned');
+    });
+    it('quality gate (real result: a tiny model passed on valid JSON alone): too few requirements or invented quotes fail', async () => {
+      const weak = JSON.stringify({ requirements: [1, 2, 3].map((i) => ({ id: 'R' + i, text: 'r', priority: 'must', match: 'strong', evidence: ['Built a Python and Airflow pipeline platform'] })), ats_keywords: [] });
+      const fake = JSON.stringify({ requirements: [1, 2, 3, 4, 5, 6].map((i) => ({ id: 'R' + i, text: 'r', priority: 'must', match: 'strong', evidence: ['Invented a quantum database at NASA'] })), ats_keywords: [] });
+      net((c) => (c.body && c.body.response_format && !/exactly this JSON/.test(JSON.stringify(c.body)) ? oai(c.body.model === 'llama-3.3-70b-versatile' ? weak : fake) : answer(c)));
+      const r = (await AJP.send('ai.check', { provider: 'groq' })).result;
+      eq([r.status, r.verified], ['failed', []]);
+      includes(r.models[0].steps[2].reason, 'only 3');
+      includes(r.models[1].steps[2].reason, 'real quotes');
+    });
+    it('very small models are tried last', async () => {
+      net((c) => (/\/models/.test(c.url) ? http(200, { data: [{ id: 'allam-2-7b' }, { id: 'openai/gpt-oss-120b' }, { id: 'llama-3.3-70b-versatile' }] }) : answer(c)));
+      const r = (await AJP.send('ai.check', { provider: 'groq' })).result;
+      notOk(r.verified.includes('allam-2-7b'), r.verified.join());
+    });
+    it('a slow thinking model that used its allowance is not asked again for minutes more', async () => {
+      AJP.ai.CONFIG.cutRetryMs = -1;
+      net(() => sse([{ choices: [{ delta: { reasoning: 'thinking…' }, finish_reason: 'length' }] }]));
+      eq((await rejects(() => ask({ exactModel: 'm1' }))).code, 'AJP-AI-CUT');
+      eq(calls.length, 1);
+    });
+    it('Groq’s real "Failed to generate JSON" → asked again with JSON in the prompt', async () => {
+      net((c, n) => (n === 1 ? http(400, { error: { message: "Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.", code: 'json_validate_failed' } }) : oai('{"ok":1}')));
+      eq(await ask({ json: true, exactModel: 'gpt-x' }), { ok: 1 });
+      notOk('response_format' in calls[1].body);
+    });
+    it('the NVIDIA account id in its real 404 is masked', () => {
+      const t = AJP.scrub("Function 'ee47df99': Not found for account 'n3_W4dg1_irKRr9NyLHoxs3MLg'");
+      notOk(t.includes('n3_W4dg1'), t);
+      includes(t, 'Not found for account');
     });
     it('a wrong key stops at once with AJP-AI-401; nothing is verified', async () => {
       net(() => http(401, { error: { message: 'Invalid API Key' } }));

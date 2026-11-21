@@ -8,7 +8,7 @@
   const AJP = globalThis.AJP;
   if (AJP.aiCheck) return;
 
-  const CONFIG = { maxModels: 4, wantVerified: 2, deadlineMs: 240000, secondModelMs: 120000, shortMs: 30000 };
+  const CONFIG = { maxModels: 4, wantVerified: 2, deadlineMs: 240000, secondModelMs: 120000, shortMs: 30000, minRequirements: 6, minEvidence: 4 };
 
   const SAMPLE_RESUME = `# Alex Example
 Senior Data Engineer · alex@example.com
@@ -96,7 +96,11 @@ Nice to have
       (await run('full', async () => {
         const p = AJP.resumeEngine.analyzePrompt({ jd: SAMPLE_JOB, resumeText: SAMPLE_RESUME });
         const out = await AJP.ai.complete({ ...base, task: 'check.full', json: true, timeoutMs: AJP.ai.CONFIG.tailorTimeoutMs, ...p });
-        if (!out || !Array.isArray(out.requirements) || out.requirements.length < 3) throw badReply('tailoring answer had too few requirements');
+        // Quality, not just valid JSON: the sample job has 13 requirements and the resume has evidence for most of them.
+        const v = AJP.resumeEngine.verifyRequirements(out && out.requirements, SAMPLE_RESUME).requirements;
+        const backed = v.filter((r) => r.evidence.length).length;
+        if (v.length < CONFIG.minRequirements) throw badReply(`found only ${v.length} of the job's requirements`);
+        if (backed < CONFIG.minEvidence) throw badReply(`only ${backed} requirements had real quotes from the resume`);
       }));
     return { model, ok: !!ok, steps };
   }
@@ -116,7 +120,10 @@ Nice to have
     }
     const typed = [cfg.tailorProvider === provider && cfg.tailorModel, cfg.provider === provider && cfg.model];
     const models = [...new Set([...typed, h.last, ...Object.keys(h.verified || {}), ...ranked, ...(ranked.length ? [] : [P.defaultModel])].filter(Boolean))];
-    return { models: models.slice(0, CONFIG.maxModels), listError };
+    // Very small models (up to 8B) are tried last: they rarely tailor well.
+    const tiny = (m) => /[-/]\d(?:\.\d)?b(?:[-:]|$)/i.test(m);
+    const ordered = [...models.filter((m) => !tiny(m)), ...models.filter(tiny)];
+    return { models: ordered.slice(0, CONFIG.maxModels), listError };
   }
 
   async function run(provider) {

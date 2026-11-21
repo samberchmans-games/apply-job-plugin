@@ -41,11 +41,11 @@
     const rows = ids.map((k) => ({ provider: k, label: name(k), status: 'running', models: [], verified: [] }));
     paint(rows);
     try {
-      for (let i = 0; i < ids.length; i++) {
-        const r = await AJP.send('ai.check', { provider: ids[i] });
-        rows[i] = r && r.ok !== false ? r.result : { provider: ids[i], label: name(ids[i]), status: 'failed', models: [], verified: [], code: r && r.code, reason: (r && r.error) || 'No answer from the extension background' };
+      await Promise.all(ids.map(async (id, i) => {
+        const r = await AJP.send('ai.check', { provider: id });
+        rows[i] = r && r.ok !== false ? r.result : { provider: id, label: name(id), status: 'failed', models: [], verified: [], code: r && r.code, reason: (r && r.error) || 'No answer from the extension background' };
         paint(rows);
-      }
+      }));
       last = rows;
     } finally {
       running = false;

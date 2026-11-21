@@ -186,7 +186,7 @@
     const status = x && x.details && x.details.status;
     if (![400, 404, 422].includes(status)) return null;
     const b = String((x.details && x.details.body) || '');
-    if (/response_format|json_object|json mode|responseMimeType|response mime|structured output/i.test(b)) return 'noJsonMode';
+    if (/response_format|json_object|json mode|responseMimeType|response mime|structured output|json_validate_failed|failed to generate json/i.test(b)) return 'noJsonMode';
     if (/thinking/i.test(b)) return 'noThinking';
     if (/temperature/i.test(b)) return 'noTemperature';
     return null;

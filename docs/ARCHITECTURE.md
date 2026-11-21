@@ -392,7 +392,7 @@ For sites other than Workday. A section = a heading ("Employment", "Experience",
 - **Every cloud call streams.** Chrome can stop an extension's background worker when a fetch answer takes over 30 s to arrive, so answers must start early. Limits: 28 s to the first byte, 30 s between pieces, a total per task; an extension API ping every 20 s keeps the worker awake.
 - **How the answer ended decides the outcome:** cut off → once more with a larger output limit, then `AJP-AI-CUT`; refused → `AJP-AI-REFUSED`; an error inside HTTP 200 → the matching code; a setting the model rejects (JSON mode, temperature, thinking) → dropped, retried, remembered per model (`modelHealth.quirks`); too large → `AJP-AI-BIG`. Provider errors carry the provider's own words in their hint.
 - **Pace:** providers with a per-minute token budget (Groq) are paced during tailoring.
-- **Check my AI setup** (`ai-check.js`, Admin → AI settings): real calls with each saved key using a sample resume and job: a reply, valid JSON, a full tailoring-size request. Models that pass are `modelHealth.verified`, and tailoring then stays on them (no jumping to untested models). Claude only when ticked. Results (`aiChecks`, internal) hold models, timing and error text; **Copy results** masks keys.
+- **Check my AI setup** (`ai-check.js`, Admin → AI settings): real calls with each saved key using a sample resume and job: a reply, valid JSON, a full tailoring-size request. The full-size step also checks quality (at least 6 requirements, at least 4 with quotes really in the sample resume); very small models are tried last; providers run side by side. Models that pass are `modelHealth.verified`, and tailoring then stays on them (no jumping to untested models). Claude only when ticked. Results (`aiChecks`, internal) hold models, timing and error text; **Copy results** masks keys.
 
 **Busy provider:** cloud tailoring waits at most 60 s per model (`CONFIG.tailorTimeoutMs`) and stops trying more models after 75 s (`chainMs`). It never moves resume text to another provider by itself: the panel offers one "Try with …" button per other key (`ai.alternatives`), and the pick applies to that job only (`resume.enhance { via }`, kept on the draft for adding skills).
 
@@ -557,7 +557,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1344 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1349 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
