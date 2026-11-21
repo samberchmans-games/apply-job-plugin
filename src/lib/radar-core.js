@@ -180,7 +180,13 @@
   // A job title fits a target title when most of its words are there: all of a 2-word title, 2 of 3, 3 of 4…
   // ("Data Engineer" ≠ "Senior Software Engineer"). Word forms count ("engineer" ~ "engineering", "sr" = "senior").
   const STOP = new Set(['and', 'the', 'of', 'for', 'remote', 'hybrid', 'a', 'an', 'to', 'in', 'at', 'with']);
-  const words = (s) => AJP.normKey(String(s || '').replace(/\bsr\b\.?/gi, 'senior').replace(/\bjr\b\.?/gi, 'junior')).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
+  // Phrases that only look like data work: "Data Center ... Engineer" is a facility job, "Data Entry" is clerical.
+  const PHRASES = [[/\bdata\s*cent(?:er|re)s?\b/gi, 'datacenter'], [/\bdata\s*entry\b/gi, 'dataentry']];
+  const words = (s) => {
+    let t = String(s || '').replace(/\bsr\b\.?/gi, 'senior').replace(/\bjr\b\.?/gi, 'junior');
+    for (const [re, w] of PHRASES) t = t.replace(re, w);
+    return AJP.normKey(t).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
+  };
   // Level words say how senior, not what the job is: "Senior Data Engineer" must match on Data + Engineer.
   const LEVEL = new Set(['senior', 'junior', 'lead', 'staff', 'principal', 'chief', 'head', 'associate', 'intern', 'entry', 'mid', 'level', 'ii', 'iii', 'iv', 'vp', 'svp', 'avp', 'director', 'distinguished', 'fellow']);
   const core = (ws) => {
@@ -315,7 +321,23 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 4;
+  const RULES_VERSION = 5;
 
-  AJP.radar.core = { RULES_VERSION, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  /*
+   * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
+   * communication or leadership don't count). A title can say "Data Engineer" while the job is physical security of
+   * data center sites: the description decides. Fewer than 2 technical skills in your profile → that many.
+   */
+  const MIN_TECH_SKILLS = 2;
+  const SOFT = new Set(['leadership', 'people management', 'mentoring', 'communication', 'cross-functional collaboration', 'problem solving', 'presentation skills', 'negotiation', 'customer service', 'stakeholder management', 'requirements gathering', 'agile', 'jira', 'confluence', 'project management', 'program management', 'roadmapping'].map((s) => AJP.normKey(s)));
+  const isSoft = (name) => SOFT.has(AJP.normKey(name));
+  const techMatches = (analysis) => ((analysis && analysis.matched) || []).filter((m) => !isSoft(m.skill)).length;
+  function relevant(job, profile) {
+    if (job.descriptionLevel !== 'full' || job.techMatched == null) return true; // not judged yet (title only): keep
+    const mineTech = ((profile && profile.skills) || []).filter((s) => !isSoft(s.name || s)).length;
+    if (!mineTech) return true; // no technical skills in your profile yet: nothing to compare
+    return job.techMatched >= Math.min(MIN_TECH_SKILLS, Math.max(1, mineTech));
+  }
+
+  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

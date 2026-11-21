@@ -121,7 +121,7 @@
     const best = r.results.find((x) => x.track.id === r.bestId) || r.results[0];
     const a = best && best.analysis;
     // Same numbers as the job page's panel: score, and "N of M skills match".
-    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0 };
+    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0, techMatched: AJP.radar.core.techMatches(a) };
   }
 
   async function scanCompany(entry, { fetchImpl, counter, settings, profile, resumes, seen, now }) {
@@ -204,7 +204,10 @@
     }
 
     // Score
-    const jobs = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
+    const scored = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
+    // The description decides: too few of your technical skills → not your kind of job (it stays "seen").
+    const jobs = scored.filter((j) => C.relevant(j, profile));
+    if (scored.length > jobs.length) log.debug('Jobs left out: too few of your technical skills', { board: e.board, count: scored.length - jobs.length });
     return { entry: e, total, listedKeys, jobs, details };
   }
 
@@ -402,13 +405,18 @@
         const d = adapter.parseDetail(body, { ...j, id }, entry);
         const merged = C.normalize({ ...j, id, ...d, raw: { workplaceType: j.remote }, postedAt: d.postedAt || j.postedAt, foundAt: j.foundAt }, entry);
         if (merged.descriptionLevel !== 'full') continue;
+        const sc = bestScore(merged, profile, resumes);
+        if (!C.relevant({ ...merged, ...sc }, profile)) {
+          done[j.key] = 'drop'; // its description shows it isn't your kind of job
+          continue;
+        }
         done[j.key] = { ...merged, key: j.key, status: j.status, notifiedAt: j.notifiedAt, ...bestScore(merged, profile, resumes), eligibility: C.eligibility(merged.description, profile) };
       } catch (err) {
         if (err && err.budget) break;
         log.debug('Description could not be fetched yet', { board: j.board, code: AJP.toAppError(err).code });
       }
     }
-    if (Object.keys(done).length) await serial(() => AJP.store.update('radarJobs', (l) => l.map((j) => done[j.key] || j)));
+    if (Object.keys(done).length) await serial(() => AJP.store.update('radarJobs', (l) => l.filter((j) => done[j.key] !== 'drop').map((j) => done[j.key] || j)));
     return Object.keys(done).length;
   }
 
@@ -436,5 +444,5 @@
     return { entry: e, openJobs: out.total != null ? out.total : out.jobs.length, companyName: (named && named.companyName) || out.companyName || null };
   }
 
-  AJP.radar.scan = { CONFIG, run, probe, request, cancel, isActive, clearStaleLock };
+  AJP.radar.scan = { CONFIG, run, probe, request, cancel, isActive, clearStaleLock, score: bestScore };
 })();

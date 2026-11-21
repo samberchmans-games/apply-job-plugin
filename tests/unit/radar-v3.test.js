@@ -113,7 +113,7 @@
     beforeEach(() => seed());
     afterEach(restore);
     it('changing a track’s titles removes listed jobs that no longer fit and offers Restart', async () => {
-      globalThis.fetch = async (url) => (/jobs\/\d+$/.test(url) ? res({ content: 'Python' }) : res(list(['Data Engineer', 'Senior Data Engineer'])));
+      globalThis.fetch = async (url) => (/jobs\/\d+$/.test(url) ? res({ content: 'Python and SQL' }) : res(list(['Data Engineer', 'Senior Data Engineer'])));
       await AJP.send('radar.scanNow', {});
       eq((await AJP.send('radar.jobs', {})).jobs.length, 2);
       await AJP.store.update('profile', (p) => void (p.tracks = [{ id: 't', name: 'Cloud', targetTitles: ['Cloud Architect'], skills: [] }]));
@@ -159,7 +159,7 @@
       ok(st.queue.filter((k) => !st.done.includes(k)).length >= 2, 'the rest wait');
     });
     it('Restart: forgets which jobs were seen and scans again with the current preferences', async () => {
-      globalThis.fetch = async (url) => (/jobs\/\d+$/.test(url) ? res({ content: 'Python' }) : res(list(['Data Engineer', 'Lead Data Engineer'])));
+      globalThis.fetch = async (url) => (/jobs\/\d+$/.test(url) ? res({ content: 'Python and SQL' }) : res(list(['Data Engineer', 'Lead Data Engineer'])));
       await AJP.send('radar.scanNow', {});
       await AJP.send('radar.job.update', { key: (await AJP.send('radar.jobs', {})).jobs[0].key, status: 'dismissed' });
       await AJP.store.update('radarJobs', (l) => l.filter((j) => j.status === 'dismissed')); // e.g. removed by an earlier re-check

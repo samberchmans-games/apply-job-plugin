@@ -375,21 +375,22 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   }
   // Preferences changed (titles, places, work types, tracks, work authorization, Job Radar filters): re-check the jobs
   // already listed with them (local, instant), and remember it so Admin can offer "Restart search".
-  const radarPrefsSig = (p, rs) => JSON.stringify([p.targetRoles, p.areas, p.workTypes, (p.tracks || []).map((t) => [t.id, t.targetTitles, t.areas, t.workTypes]), p.autoApply && [p.autoApply.requireSponsorship, p.autoApply.citizen], rs.locations, rs.remote, rs.minSalary]);
+  const radarPrefsSig = (p, rs) => JSON.stringify([(p.skills || []).map((s) => s.name), p.targetRoles, p.areas, p.workTypes, (p.tracks || []).map((t) => [t.id, t.targetTitles, t.areas, t.workTypes]), p.autoApply && [p.autoApply.requireSponsorship, p.autoApply.citizen], rs.locations, rs.remote, rs.minSalary]);
   async function radarRefilter() {
-    const [profile, rs] = await Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings')]);
+    const [profile, rs, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings'), AJP.store.get('resumes')]);
     const C = AJP.radar.core;
     let removed = 0;
     await serialRadar(() =>
       AJP.store.update('radarJobs', (list) =>
         list
+          // New jobs: score again with your current skills and tracks (same numbers as a job page), then the filters.
+          .map((j) => (j.status === 'new' ? { ...j, ...AJP.radar.scan.score(j, profile, resumes), eligibility: C.eligibility(j.description, profile) } : j))
           .filter((j) => {
             if (j.status !== 'new') return true;
-            const ok = C.quickFilter(j, rs, profile).pass;
+            const ok = C.quickFilter(j, rs, profile).pass && C.relevant(j, profile);
             if (!ok) removed++;
             return ok;
           })
-          .map((j) => (j.status === 'new' ? { ...j, eligibility: C.eligibility(j.description, profile), ...(j.descriptionLevel === 'title' ? { score: null } : {}) } : j))
       )
     );
     await AJP.store.update('radarScanState', (s) => void ((s.prefsSig = radarPrefsSig(profile, rs)), (s.prefsChangedAt = Date.now())));

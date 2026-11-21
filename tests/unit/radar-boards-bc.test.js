@@ -138,7 +138,7 @@
     Object.assign(saved, AJP.radar.scan.CONFIG);
     Object.assign(AJP.radar.scan.CONFIG, { hostGapMs: 0, retryWaitMaxMs: 5 });
     const p = AJP.clone(AJP.store.DEFAULTS.profile);
-    Object.assign(p, { targetRoles: [], skills: [{ name: 'Python' }] }, profile);
+    Object.assign(p, { targetRoles: [], skills: [] }, profile); // no skills: the relevance check (tested elsewhere) stays out of the way
     await AJP.store.set('profile', p);
     await AJP.store.set('radarWatchlist', watch.map((w) => ({ key: AJP.radar.detect.keyOf(w), paused: false, failuresInRow: 0, lastScanAt: null, ...w })));
   }

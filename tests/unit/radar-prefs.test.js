@@ -114,7 +114,7 @@
     });
     it('each job keeps its eligibility; "likely not eligible" jobs are listed but left out of matches, alerts and the badge', async () => {
       await seed({ requireSponsorship: 'Yes' });
-      globalThis.fetch = async () => res(gh([{ title: 'Data Engineer', text: 'Python. We are unable to sponsor visas.' }, { title: 'Lead Data Engineer', text: 'Python SQL. Visa sponsorship is available.' }]));
+      globalThis.fetch = async () => res(gh([{ title: 'Data Engineer', text: 'Python and SQL. We are unable to sponsor visas.' }, { title: 'Lead Data Engineer', text: 'Python SQL. Visa sponsorship is available.' }]));
       const s = (await AJP.send('radar.scanNow', {})).summary;
       eq([s.new, s.matches.length], [2, 1]);
       const jobs = (await AJP.send('radar.jobs', {})).jobs;
@@ -127,7 +127,7 @@
     });
     it('sort: best match first, or newest first', async () => {
       await seed();
-      globalThis.fetch = async () => res(gh([{ title: 'Data Engineer', text: 'Python SQL Airflow', posted: '2026-11-01T08:00:00Z' }, { title: 'Senior Data Engineer', text: 'Kafka Scala Spark Java', posted: '2026-11-21T08:00:00Z' }]));
+      globalThis.fetch = async () => res(gh([{ title: 'Data Engineer', text: 'Python SQL Airflow', posted: '2026-11-01T08:00:00Z' }, { title: 'Senior Data Engineer', text: 'Python SQL Kafka Scala Spark Java Rust Go', posted: '2026-11-21T08:00:00Z' }]));
       await AJP.send('radar.scanNow', {});
       eq((await AJP.send('radar.jobs', { sort: 'match' })).jobs[0].title, 'Data Engineer');
       eq((await AJP.send('radar.jobs', { sort: 'newest' })).jobs[0].title, 'Senior Data Engineer');
