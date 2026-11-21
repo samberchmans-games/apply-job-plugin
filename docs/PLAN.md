@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Fixed B29: Gemini / Groq / NVIDIA count free limits per model, so one model out of quota (429, or Gemini "limit: 0") moves to the next model and is set aside until its quota resets (daily → 24 h); tailoring tries another model before waiting; 1147 tests |
+| 2026-11-21 | `db5671d` | Fixed B29: Gemini / Groq / NVIDIA count free limits per model, so one model out of quota (429, or Gemini "limit: 0") moves to the next model and is set aside until its quota resets (daily → 24 h); tailoring tries another model before waiting; 1147 tests |
 | 2026-11-21 | `e3e2992` | Fixed B28: a server error / "overloaded" on one model moves to the next model (one retry first, not three); Gemini ranks numbered stable flash models above the `-latest` alias; 1144 tests |
 | 2026-11-21 | `c1b277b` | **Model manager**: no manual model fixes. Daily model-list check per provider in use; each call falls back through up to 3 models when one is retired, deprecated, slow or busy; failing models cool down (24 h / 6 h / 1 h) then get another chance; the last working model is remembered; Admin shows "Now using …"; 1142 tests |
 | 2026-11-21 | `01cfcd4` | Gemini asked to think less (Gemini 3+ / -latest `thinkingLevel: low`, 2.5 Flash budget 0): default high thinking made even "Say OK" take 30–90 s+ on the free tier (still AJP-AI-TIME after the model fix); a model rejecting the setting is retried without it; 1138 tests |
