@@ -52,6 +52,17 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-AI-FMT` | Couldn't understand the AI's answer | Retry, or use a larger model |
 | `AJP-AI-BILLING` | The provider says the free tier isn't available for this key's account / project (Gemini: "set up billing", "location not supported", quota "limit: 0") | Use Groq (free, no card), another personal Google account, or enable billing with the provider |
 | `AJP-AI-CREDIT` | Anthropic Claude (paid, optional): "Your credit balance is too low". Claude API keys are billed per use from prepaid credit; a Claude.ai / Claude Code subscription doesn't cover them | Add credit at console.anthropic.com → Billing, or switch to a free provider (Groq, Gemini, NVIDIA NIM, Mistral) in Admin → AI settings |
+| `AJP-RADAR-UNSUP` | Job Radar: This careers page uses a job board Job Radar can't read yet. | Supported: Greenhouse, Lever, Ashby, Workable, Recruitee, Personio, SmartRecruiters, Workday, Breezy HR, Teamtailor, Rippling. |
+| `AJP-RADAR-404` | Job Radar: No job board was found for this company. | Check the company name in the careers URL; SmartRecruiters and Workday names are case-sensitive. |
+| `AJP-RADAR-PERM` | Job Radar: The browser did not allow access to this job board. | Add the company again in Admin → Job Radar and click Allow. |
+| `AJP-RADAR-429` | Job Radar: The job board asked us to slow down. | Nothing to do; it is retried on the next scan. |
+| `AJP-RADAR-5XX` | Job Radar: The job board had a server error. | It is retried on the next scan. |
+| `AJP-RADAR-NET` | Job Radar: Could not reach the job board. | Check your internet connection. |
+| `AJP-RADAR-TIME` | Job Radar: The job board took too long to answer. | It is retried on the next scan. |
+| `AJP-RADAR-FMT` | Job Radar: The job board's answer could not be read. | The board may have changed its format; please report it from Logs & support. |
+| `AJP-RADAR-PAUSED` | Job Radar: This company was paused after 5 failed scans in a row. | Check its URL, then resume it in the watchlist. |
+| `AJP-RADAR-LIST` | Job Radar: Some lines in the list could not be added. | Each skipped line shows the reason; check the URL or add it by hand. |
+| `AJP-RADAR-BUSY` | Job Radar: A Job Radar scan is already running. | Wait for it to finish; the results appear in Job Radar → New jobs. |
 | `AJP-AI-REFUSED` | The AI declined the request (Claude: `stop_reason: "refusal"`; the category, e.g. `cyber`, is in the log). Rare for resume work | Try again; if it repeats, choose another model (Admin → AI settings → Tailoring model) or provider |
 | `AJP-AI-LOCAL-NONE` | The browser has no built-in AI (Firefox, Safari, older Chrome) | Use desktop Chrome 138+ or another free provider |
 | `AJP-AI-LOCAL-OFF` | Chrome's on-device model can't run (hardware, disk space, policy, unsupported language). `details.name/reason` say why | Check chrome://on-device-internals; about 22 GB free disk space; or another provider |

@@ -72,13 +72,19 @@
     evaluations: [], // last 300 analyzed jobs with a score per track (track insights)
     reports: [], // problem reports opened on GitHub: [{reportId, createdAt, codes, title, status, number, url, version, checkedAt, seen}]
     suggestions: { dismissed: {} }, // profile suggestions from learned answers: { dismissed: { [id]: isoDate } }
+    // Job Radar (docs/JOB-FINDER.md §10). radarScanState is internal (not exported).
+    radarSettings: { enabled: true, intervalHours: 3, threshold: 60, locations: [], remote: 'any', minSalary: '', notify: 'digest', lastDigestAt: null },
+    radarWatchlist: [], // [{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]
+    radarJobs: [], // [job] (radar-core.normalize + score, bestTrackId, foundAt, status new|saved|dismissed)
+    radarSeen: {}, // { [jobKey]: firstSeenDate }
+    radarScanState: {}, // internal: { lockedAt, queue[], position, lastSummary, stats }
     modelHealth: {}, // internal: per provider {ranked:[ids], at, last, ok:{model: lastSuccess}, bad:{model: until}, why:{model: gone|slow|busy|quota}} (ai.js model manager)
     aiCalls: [], // internal: last 30 AI calls {at, task, provider, model, label, ms, ok, code} — no prompts, no answers
     promptState: {}, // internal: crash-prompt bookkeeping {recent, last, never, pending}
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };
-  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'modelHealth']); // never exported or imported
+  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'modelHealth', 'radarScanState']); // never exported or imported
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();
