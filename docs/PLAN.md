@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | **Model manager**: no manual model fixes. Daily model-list check per provider in use; each call falls back through up to 3 models when one is retired, deprecated, slow or busy; failing models cool down (24 h / 6 h / 1 h) then get another chance; the last working model is remembered; Admin shows "Now using …"; 1142 tests |
+| 2026-11-21 | `c1b277b` | **Model manager**: no manual model fixes. Daily model-list check per provider in use; each call falls back through up to 3 models when one is retired, deprecated, slow or busy; failing models cool down (24 h / 6 h / 1 h) then get another chance; the last working model is remembered; Admin shows "Now using …"; 1142 tests |
 | 2026-11-21 | `01cfcd4` | Gemini asked to think less (Gemini 3+ / -latest `thinkingLevel: low`, 2.5 Flash budget 0): default high thinking made even "Say OK" take 30–90 s+ on the free tier (still AJP-AI-TIME after the model fix); a model rejecting the setting is retried without it; 1138 tests |
 | 2026-11-21 | `1420fc4` | Gemini default moved to `gemini-3.6-flash` (Google deprecated 2.5-flash: 404 for newer keys, the 2 errors in AI Studio's chart); a replacement is the newest flash version; Admin model placeholders show the model actually in use; 1136 tests |
 | 2026-11-21 | `af18130` | Fixed B27 (report R-20261121-XX1QF): model replacement never picks slow special models (deep research, robotics…); a slow auto-picked model is forgotten; Test connection gives up after 30 s and names the model; Admin shows auto-picked models with Reset; 1135 tests |
