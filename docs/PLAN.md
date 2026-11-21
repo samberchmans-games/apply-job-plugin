@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Fixed B27 (report R-20261121-XX1QF): model replacement never picks slow special models (deep research, robotics…); a slow auto-picked model is forgotten; Test connection gives up after 30 s and names the model; Admin shows auto-picked models with Reset; 1135 tests |
+| 2026-11-21 | `af18130` | Fixed B27 (report R-20261121-XX1QF): model replacement never picks slow special models (deep research, robotics…); a slow auto-picked model is forgotten; Test connection gives up after 30 s and names the model; Admin shows auto-picked models with Reset; 1135 tests |
 | 2026-11-21 | `8fafc85` | Fixed B26: OpenRouter picks capable free models (never small "flash" ones first, never paid), and a free model busy upstream is swapped for another free model instead of failing; 1130 tests |
 | 2026-11-21 | `6c96c9a` | **More AI providers**: Anthropic Claude (paid, optional, bring your own key; default Opus 5.5, "Tailoring model" for Sonnet / Haiku; refusal and no-credit errors; server-side fallback), NVIDIA NIM and Mistral (free keys); model discovery for all three; backups blank every key; 1126 tests |
 | 2026-11-20 | `d37a86a` | **Which AI did the work**: Recent AI calls in Admin (task, provider · model, time, result; no prompts); test buttons, panel (tailoring, deep analysis, drafted answers) and review screen name the provider · model; 1105 tests |
