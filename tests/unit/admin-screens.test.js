@@ -553,6 +553,34 @@
       w.location.hash = 'radar';
       await waitFor(async () => !!(await stored('radarSettings')).lastViewedAt, { msg: 'viewed' });
     });
+    it("a company's own careers page: asks for that site, finds the embedded board, then 'Allow and add'", async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      w.fetch = async (url) => {
+        if (url === 'https://careers.acme.example/jobs') return { ok: true, status: 200, headers: { get: () => null }, text: async () => '<html><script src="https://boards.greenhouse.io/embed/job_board/js?for=acme"></script></html>' };
+        return /boards\/acme\//.test(url) ? res(gh) : res({}, 404);
+      };
+      type($('#radarUrl'), 'https://careers.acme.example/jobs');
+      $('#radarAdd').click();
+      await waitFor(() => $('#radarAllowAdd'), { msg: 'found' });
+      includes($('#radarAddOut').textContent, 'Greenhouse');
+      ok(w.browser.__granted.has('https://careers.acme.example/*'), 'the one site asked for');
+      notOk(w.browser.__granted.has('https://boards-api.greenhouse.io/*'), 'the board waits for the second click');
+      $('#radarAllowAdd').click();
+      await waitFor(() => /Watching Acme Corp/.test($('#radarAddOut').textContent), { msg: 'added' });
+      eq((await stored('radarWatchlist'))[0].key, 'greenhouse:acme');
+    });
+    it('a careers page with no supported board, and job sites without a feed, say so', async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      w.fetch = async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => '<html><p>Email us your CV</p></html>' });
+      type($('#radarUrl'), 'https://small.example/careers');
+      $('#radarAdd').click();
+      await waitFor(() => /No supported job board was found/.test($('#radarAddOut').textContent), { msg: 'none' });
+      w.browser.__granted.clear();
+      type($('#radarUrl'), 'https://www.indeed.com/viewjob?jk=1');
+      $('#radarAdd').click();
+      await waitFor(() => /AJP-RADAR-UNSUP/.test($('#radarAddOut').textContent), { msg: 'no feed' });
+      eq(w.browser.__granted.size, 0, 'no permission asked for Indeed');
+    });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });

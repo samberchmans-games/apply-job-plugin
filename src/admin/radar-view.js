@@ -117,20 +117,69 @@
           .join('')}</tbody></table>`
       : '<p class="hint">No companies yet. Paste a careers page link above (for example https://boards.greenhouse.io/company).</p>';
   }
+  const unsupported = () => `❌ ${AJP.ERRORS.RADAR_UNSUPPORTED[1]} ${AJP.ERRORS.RADAR_UNSUPPORTED[2]} (AJP-RADAR-UNSUP)`;
+  // A company's own careers page (e.g. acme.com/careers): ask for that one site, read the page once, and look for the
+  // job board it embeds (links, iframes, scripts; Teamtailor by its assets). The board itself needs a second click.
+  let pending = null;
+  async function fromCareersPage(url, out) {
+    const page = AJP.radar.detect.parseUrl(url);
+    // Job sites without a public feed: say so at once (no point reading the page).
+    if (!page || /(^|\.)(linkedin|indeed|glassdoor|ziprecruiter|icims|monster|dice)\.[a-z.]+$/i.test(page.hostname)) return void (out.textContent = unsupported());
+    if (!(await askSite(page))) return void (out.textContent = `❌ ${AJP.ERRORS.RADAR_PERMISSION[1]} (AJP-RADAR-PERM)`);
+    out.textContent = 'Reading the careers page…';
+    let html = '';
+    try {
+      html = await AJP.http(page.href, { credentials: 'omit' }, { json: false, timeoutMs: 15000, tries: 1, networkKey: 'RADAR_NETWORK', timeoutKey: 'RADAR_TIMEOUT', statusKey: () => 'RADAR_BOARD_NOT_FOUND', label: 'careers page', log });
+    } catch (e) {
+      const d = AJP.describeError(e);
+      return void (out.textContent = `❌ ${d.message} ${d.hint || ''} (${d.code})`);
+    }
+    const hit = AJP.radar.detect.fromHtml(html, page.href);
+    if (!hit || !AJP.radar.boards.get(hit.board)) {
+      log.info('No job board found on a careers page', { host: page.hostname });
+      return void (out.textContent = `❌ No supported job board was found on this page. Open one of its job posts and paste that link instead (it usually shows the board). (AJP-RADAR-UNSUP)`);
+    }
+    pending = hit;
+    out.innerHTML = `Found its <b>${esc(boardLabel(hit.board))}</b> job board (<code>${esc(hit.company)}</code>). <button id="radarAllowAdd" class="primary">Allow and add</button>`;
+    $('#radarAllowAdd').addEventListener('click', AJP.guard('radar.allowAdd', addPending, { mod: 'admin', onError: (d) => ui.toast(`${d.message} (${d.code})`) }));
+  }
+  async function askSite(page) {
+    if (!api.permissions || !api.permissions.request) return true;
+    try {
+      return await api.permissions.request({ origins: [`${page.protocol}//${page.hostname}/*`] });
+    } catch (e) {
+      log.warn('Site permission request failed', { error: e.message });
+      return false;
+    }
+  }
+  async function addPending() {
+    const out = $('#radarAddOut');
+    const entry = pending;
+    if (!entry) return;
+    if (!(await allow([entry]))) return void (out.textContent = `❌ ${AJP.ERRORS.RADAR_PERMISSION[1]} (AJP-RADAR-PERM)`);
+    out.textContent = 'Checking the job board…';
+    pending = null;
+    return finishAdd(await AJP.send('radar.watch.add', entry));
+  }
+  function finishAdd(r) {
+    const out = $('#radarAddOut');
+    if (r && r.ok === false) return void (out.textContent = `❌ ${fail(r)}`);
+    out.textContent = r.exists ? `Already watching ${r.entry.companyName}.` : `✅ Watching ${r.entry.companyName} (${boardLabel(r.entry.board)}): ${r.entry.openJobs} open job${r.entry.openJobs === 1 ? '' : 's'} today. New ones that fit you will appear above.`;
+    $('#radarUrl').value = '';
+    renderWatch();
+    renderStatus();
+  }
+
   async function addOne() {
     const input = $('#radarUrl');
     const url = input.value.trim();
     const out = $('#radarAddOut');
     const entry = AJP.radar.detect.fromUrl(url);
-    if (!entry) return void (out.textContent = `❌ ${AJP.describeError(AJP.err('RADAR_UNSUPPORTED')).message} ${AJP.ERRORS.RADAR_UNSUPPORTED[2]}`);
+    if (!entry) return fromCareersPage(url, out);
+    if (!AJP.radar.boards.get(entry.board)) return void (out.textContent = unsupported());
     if (!(await allow([entry]))) return void (out.textContent = `❌ ${AJP.ERRORS.RADAR_PERMISSION[1]} (AJP-RADAR-PERM)`);
     out.textContent = 'Checking the job board…';
-    const r = await AJP.send('radar.watch.add', { url });
-    if (r && r.ok === false) return void (out.textContent = `❌ ${fail(r)}`);
-    out.textContent = r.exists ? `Already watching ${r.entry.companyName}.` : `✅ Watching ${r.entry.companyName} (${boardLabel(r.entry.board)}): ${r.entry.openJobs} open job${r.entry.openJobs === 1 ? '' : 's'} today. New ones that fit you will appear above.`;
-    input.value = '';
-    renderWatch();
-    renderStatus();
+    return finishAdd(await AJP.send('radar.watch.add', { url }));
   }
   async function addList() {
     const text = $('#radarList').value;
