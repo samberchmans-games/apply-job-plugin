@@ -112,5 +112,13 @@
     },
   });
 
-  AJP.radar.boards = { register, get, all };
+  // Host permissions an entry needs (optional_host_permissions). Teamtailor on a custom domain also needs that domain.
+  function hostsFor(entry) {
+    const a = registry[entry && entry.board];
+    const hosts = a ? [...a.hosts] : [];
+    if (entry.board === 'teamtailor' && entry.domain && !/\.teamtailor\.com$/.test(entry.domain)) hosts.push(`https://${entry.domain}/*`);
+    return hosts;
+  }
+
+  AJP.radar.boards = { register, get, all, hostsFor };
 })();

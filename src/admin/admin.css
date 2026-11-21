@@ -153,3 +153,10 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 .tailored-group { margin: 8px 0; } .tailored-group > summary { cursor: pointer; padding: 6px 0; font-weight: 600; }
 .lift.over b { color: #b45309; }
 .hint.warn { color: #b45309; font-weight: 600; }
+
+/* Job Radar */
+.radar-job { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line, #e5e7eb); }
+.radar-job .radar-main { flex: 1; min-width: 0; }
+.radar-act { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill.good { background: #dcfce7; color: #166534; }
+input.wide { flex: 1; min-width: 240px; }

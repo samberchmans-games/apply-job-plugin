@@ -16,7 +16,7 @@
     let html = await (await fetch(`../src/${dir}/${page}`, { cache: 'no-store' })).text();
     if (background) {
       html = dir === 'admin'
-        ? html.replace('<script src="tracker-view.js"></script>', '<script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>')
+        ? html.replace('<script src="tracker-view.js"></script>', '<script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>')
         : html.replace('<script src="popup.js"></script>', '<script src="../lib/skills-dictionary.js"></script><script src="../lib/matcher.js"></script><script src="../lib/ai.js"></script><script src="../lib/resume-engine.js"></script><script src="../lib/tracks.js"></script><script src="../lib/issue-report.js"></script><script src="../lib/pdf-writer.js"></script><script src="../background/background.js"></script>\n<script src="popup.js"></script>');
     }
     html = html.replace('<head>', `<head><base href="${new URL(`../src/${dir}/`, location.href).href}"><script>window.__SEED__=${JSON.stringify(seed)}</script>${before}`)
@@ -488,6 +488,74 @@
       $('#aiAutoReset').click();
       await waitFor(async () => !(await stored('modelHealth')).gemini.last, { msg: 'cleared' });
       await waitFor(() => !/Now using/.test($('#aiAuto').textContent), { msg: 'no model pinned any more' });
+    });
+  }, { env: 'browser' });
+
+  // ---- Job Radar ---------------------------------------------------------------------------------------
+  describe('admin screens › Job Radar', () => {
+    afterEach(closeFrame);
+    const res = (body, status = 200) => ({ ok: status < 300, status, headers: { get: () => null }, text: async () => JSON.stringify(body) });
+    const gh = { jobs: [{ id: 1, title: 'Data Engineer', company_name: 'Acme Corp', location: { name: 'Remote' }, absolute_url: 'https://boards.greenhouse.io/acme/jobs/1', content: 'Python' }, { id: 2, title: 'Designer', company_name: 'Acme Corp', location: { name: 'NYC' }, absolute_url: 'https://boards.greenhouse.io/acme/jobs/2', content: 'Figma' }] };
+    const net = () => (w.fetch = async (url) => (/boards\/acme\//.test(url) ? res(gh) : res({}, 404)));
+    const job = (o) => ({ key: 'greenhouse:acme:' + o.id, board: 'greenhouse', company: 'acme', companyName: 'Acme Corp', title: 'Job ' + o.id, locations: ['Remote'], remote: 'remote', url: 'https://boards.greenhouse.io/acme/jobs/' + o.id, postedAt: new Date().toISOString(), salary: null, description: 'Python SQL', descriptionLevel: 'full', score: 50, bestTrackId: 'general', foundAt: new Date().toISOString(), status: 'new', ...o });
+    it('add a careers link: asks for that board only, checks it, shows the open-job count; it appears in the watchlist', async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      net();
+      type($('#radarUrl'), 'https://boards.greenhouse.io/acme');
+      $('#radarAdd').click();
+      await waitFor(() => /Watching Acme Corp/.test($('#radarAddOut').textContent), { msg: 'added' });
+      includes($('#radarAddOut').textContent, '2 open jobs');
+      eq([...w.browser.__granted], ['https://boards-api.greenhouse.io/*']);
+      await waitFor(() => /Acme Corp/.test($('#radarWatch').textContent), { msg: 'listed' });
+      includes($('#radarWatch').textContent, 'Greenhouse');
+    });
+    it('permission refused → AJP-RADAR-PERM; an unsupported link → AJP-RADAR-UNSUP message; nothing saved', async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      net();
+      w.browser.__refuse = true;
+      type($('#radarUrl'), 'https://jobs.lever.co/globex');
+      $('#radarAdd').click();
+      await waitFor(() => /AJP-RADAR-PERM/.test($('#radarAddOut').textContent), { msg: 'perm' });
+      type($('#radarUrl'), 'https://www.linkedin.com/jobs/view/1');
+      $('#radarAdd').click();
+      await waitFor(() => /can't read yet/.test($('#radarAddOut').textContent), { msg: 'unsup' });
+      eq((await stored('radarWatchlist')).length, 0);
+    });
+    it('new jobs: highest match first, "title match only" label, Save → Applications, Dismiss hides it', async () => {
+      await load('admin.html', { radarJobs: [job({ id: 1, score: 40 }), job({ id: 2, score: 90, descriptionLevel: 'title', title: 'Top Job' })] }, { hash: 'radar', background: true });
+      await waitFor(() => $$('.radar-job').length === 2, { msg: 'jobs' });
+      eq($$('.radar-job b').map((b) => b.textContent), ['Top Job', 'Job 1']);
+      includes($$('.radar-job')[0].textContent, 'title match only');
+      $$('.radar-job')[0].querySelector('[data-act="saved"]').click();
+      await waitFor(async () => (await stored('applications')).length === 1, { msg: 'saved' });
+      eq((await stored('applications'))[0].title, 'Top Job');
+      await waitFor(() => $$('.radar-job').length === 1, { msg: 'saved one leaves New' });
+      $$('.radar-job')[0].querySelector('[data-act="dismissed"]').click();
+      await waitFor(async () => (await stored('radarJobs')).find((j) => j.title === 'Job 1').status === 'dismissed', { msg: 'dismissed' });
+      await waitFor(() => $$('.radar-job').length === 0, { msg: 'gone from New' });
+    });
+    it('settings are saved (and kept in range)', async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      await waitFor(() => $('#radarSettings').threshold.value, { msg: 'settings shown' });
+      const f = $('#radarSettings');
+      f.threshold.value = '75';
+      f.intervalHours.value = '6';
+      f.notify.value = 'perScan';
+      f.locations.value = 'Austin; Remote';
+      $('#radarSettingsSave').click();
+      await waitFor(async () => (await stored('radarSettings')).threshold === 75, { msg: 'saved' });
+      const st = await stored('radarSettings');
+      eq([st.intervalHours, st.notify, st.locations], [6, 'perScan', ['Austin', 'Remote']]);
+    });
+    it('the menu shows how many new matches are waiting; opening Job Radar marks them seen', async () => {
+      await load('admin.html', { radarJobs: [job({ id: 1, score: 80 })] }, { hash: 'profile', background: true });
+      await waitFor(() => !$('#radarCount').hidden && $('#radarCount').textContent === '1', { msg: 'count' });
+      w.location.hash = 'radar';
+      await waitFor(async () => !!(await stored('radarSettings')).lastViewedAt, { msg: 'viewed' });
+    });
+    it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
+      await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
+      await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });
     });
   }, { env: 'browser' });
 })();

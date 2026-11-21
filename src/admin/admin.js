@@ -51,6 +51,11 @@
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
     if (id === 'tracks') AJP.tracksView.render();
+    if (id === 'radar') {
+      const add = new URLSearchParams((location.hash.split('?')[1] || '')).get('add');
+      AJP.radarView.prefill(add);
+      AJP.radarView.render();
+    }
   }
   window.addEventListener('hashchange', route);
 
@@ -958,6 +963,7 @@
     else if (changes.modelHealth && on === 'ai') renderAutoModels();
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
+    if (changes.radarJobs || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();
   });
 
@@ -976,6 +982,7 @@
     initSuggestions();
     AJP.trackerView.init({ toast, download });
     AJP.tracksView.init({ toast });
+    AJP.radarView.init({ toast });
     AJP.enhanceView.init({
       toast,
       onCreated: (resume) => {

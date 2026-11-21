@@ -322,12 +322,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     return jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
   }
   // Host permissions a watchlist entry needs (optional_host_permissions, asked for in Admin on the first company).
-  function radarHosts(entry) {
-    const a = AJP.radar.boards.get(entry.board);
-    const hosts = a ? [...a.hosts] : [];
-    if (entry.board === 'teamtailor' && entry.domain && !/\.teamtailor\.com$/.test(entry.domain)) hosts.push(`https://${entry.domain}/*`);
-    return hosts;
-  }
+  const radarHosts = (entry) => AJP.radar.boards.hostsFor(entry);
   async function radarAllowed(entry) {
     const origins = radarHosts(entry);
     if (!origins.length || !api.permissions || !api.permissions.contains) return true;
