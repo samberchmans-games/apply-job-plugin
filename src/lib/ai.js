@@ -33,7 +33,7 @@
 
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
   // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
-  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, maxSwitches: 2, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
@@ -339,8 +339,7 @@
     }
   }
 
-  // ---- Model discovery: providers retire free models; when one answers "model not found", ask which models it offers
-  // now, pick the best fit, remember it (settings.ai.resolvedModels) and retry. Preferences first, then any suitable model.
+  // ---- Model preferences per provider (best first), used by the model manager below.
   const PREFER = {
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
     gemini: [/^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
@@ -354,29 +353,31 @@
   };
   const UPSTREAM_BUSY = /rate-limited upstream|temporarily rate.?limited|provider returned error/i;
   const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n|ocr|moderation|rerank|retriever|safety|parakeet|clip|pixtral|voxtral/i;
+  // Model lists are small: a short timeout, so a slow list never holds up the call that needs it.
+  const listRequest = (url, opts = {}) => request(url, { ...opts, timeoutMs: CONFIG.listTimeoutMs });
   async function availableModels(cfg, provider) {
     if (provider === 'groq') {
-      const d = await request('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.groq}` } });
+      const d = await listRequest('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.groq}` } });
       return (d.data || []).filter((m) => m.active !== false).map((m) => m.id);
     }
     if (provider === 'gemini') {
-      const d = await request('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': cfg.keys.gemini } });
+      const d = await listRequest('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': cfg.keys.gemini } });
       return (d.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => String(m.name).replace(/^models\//, ''));
     }
     if (provider === 'openrouter') {
-      const d = await request('https://openrouter.ai/api/v1/models', {});
+      const d = await listRequest('https://openrouter.ai/api/v1/models', {});
       return (d.data || []).map((m) => m.id).filter((id) => /:free$/.test(id)); // never switch a free user to a paid model
     }
     if (provider === 'nvidia') {
-      const d = await request('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.nvidia}` } });
+      const d = await listRequest('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.nvidia}` } });
       return (d.data || []).map((m) => m.id);
     }
     if (provider === 'mistral') {
-      const d = await request('https://api.mistral.ai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.mistral}` } });
+      const d = await listRequest('https://api.mistral.ai/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.mistral}` } });
       return (d.data || []).filter((m) => !m.capabilities || m.capabilities.completion_chat !== false).map((m) => m.id);
     }
     if (provider === 'anthropic') {
-      const d = await request('https://api.anthropic.com/v1/models?limit=100', {
+      const d = await listRequest('https://api.anthropic.com/v1/models?limit=100', {
         headers: { 'x-api-key': cfg.keys.anthropic, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       });
       return (d.data || []).map((m) => m.id);
@@ -387,16 +388,85 @@
   // in time: never picked, even as a last resort (report R-20261121-XX1QF: a key without the default ended in AJP-AI-TIME).
   const SLOW = /deep-?research|robotics|computer-use|live|native-audio|veo|lyria|imagen|nano-banana|-exp\b|-exp-|experimental|deep-?think/i;
   const ver = (id) => parseFloat((String(id).match(/-(\d+(?:\.\d+)?)-/) || [0, 0])[1]) || 0;
-  async function discoverModel(cfg, provider, failed) {
-    let ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id) && !SLOW.test(id));
-    // Gemini: the newest version first (gemini-3.6-flash before gemini-3.5-flash before gemini-2.5-flash).
+  // The provider's current models, best first: preferences in order (Gemini: newest version first), slow / special /
+  // non-chat models never. Up to 6.
+  async function rankModels(cfg, provider) {
+    let ids = (await availableModels(cfg, provider)).filter((id) => !NOT_CHAT.test(id) && !SLOW.test(id));
     if (provider === 'gemini') ids = ids.slice().sort((a, b) => ver(b) - ver(a));
-    for (const re of PREFER[provider] || []) {
-      const hit = ids.find((id) => re.test(id));
-      if (hit) return hit;
+    const out = [];
+    for (const re of PREFER[provider] || []) for (const id of ids) if (re.test(id) && !out.includes(id)) out.push(id);
+    if (!out.length) out.push(...(provider === 'gemini' ? ids.filter((id) => /^gemini-.*(flash|pro)/.test(id)) : ids));
+    return out.slice(0, 6);
+  }
+
+  /*
+   * ---- Model manager: providers retire, rename and throttle models all the time; nobody should have to fix the Model
+   * field by hand. State lives in `modelHealth` (internal): per provider the ranked shortlist (refreshed daily and
+   * whenever a model disappears) and models set aside for a while ("cooldown").
+   *   order tried:  the model you typed (if any) → the last one that worked (settings.ai.resolvedModels) → the
+   *                 shortlist → the built-in default; models cooling down are skipped (unless nothing else is left)
+   *   switch when:  gone (404, "deprecated / no longer available") · slow (timeout, once per call: each costs time) ·
+   *                 busy upstream (OpenRouter free models); up to CONFIG.maxSwitches per call
+   *   cooldown:     gone 24 h · slow 6 h · busy 1 h, then the model gets another chance
+   *   on success:   that model is remembered and its cooldown cleared
+   */
+  const DAY = 24 * 3600 * 1000;
+  const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000 };
+  function switchReason(x) {
+    const body = String((x.details && x.details.body) || '');
+    if (x.code === 'AJP-AI-404') return 'gone';
+    if (x.code === 'AJP-AI-HTTP' && /deprecat|no longer (available|supported)|decommission|not (found|supported|available) for|unknown model|invalid model|model .*(not exist|unavailable)/i.test(body)) return 'gone';
+    if (x.code === 'AJP-AI-TIME') return 'slow';
+    if (x.code === 'AJP-AI-429' && UPSTREAM_BUSY.test(body)) return 'busy';
+    return null;
+  }
+  function candidates(provider, pinned, cfg, health) {
+    const h = health[provider] || {};
+    const bad = h.bad || {};
+    const all = [...new Set([pinned, (cfg.resolvedModels || {})[provider], ...(h.ranked || []), PROVIDERS[provider].defaultModel].filter(Boolean))];
+    const ok = all.filter((m) => !(bad[m] > Date.now()));
+    return ok.length ? ok : all;
+  }
+  async function refreshModels(cfg, provider) {
+    const ranked = await rankModels(cfg, provider);
+    // An empty or odd list (provider hiccup) never wipes a good shortlist.
+    await AJP.store.update('modelHealth', (all) => void (all[provider] = { ...(all[provider] || {}), ...(ranked.length ? { ranked } : {}), at: Date.now() }));
+    return ranked;
+  }
+  async function setAside(provider, model, why) {
+    await AJP.store.update('modelHealth', (all) => {
+      const h = (all[provider] = all[provider] || {});
+      const now = Date.now();
+      h.bad = Object.fromEntries(Object.entries(h.bad || {}).filter(([, until]) => until > now));
+      h.bad[model] = now + COOLDOWN[why];
+      h.why = { ...(h.why || {}), [model]: why };
+    });
+    await AJP.store.update('settings', (s) => void ((s.ai.resolvedModels || {})[provider] === model && (s.ai.resolvedModels[provider] = '')));
+  }
+  async function worked(provider, model, cfg) {
+    if ((cfg.resolvedModels || {})[provider] !== model) await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: model }));
+    const h = (await AJP.store.get('modelHealth'))[provider];
+    if (h && h.bad && h.bad[model]) await AJP.store.update('modelHealth', (all) => void delete all[provider].bad[model]);
+  }
+  // Daily (background alarm) and from Admin "Re-check models now": refresh the shortlist of every provider in use.
+  async function refreshAll({ reset = false } = {}) {
+    const settings = await AJP.store.get('settings');
+    const cfg = settings.ai;
+    const used = [...new Set([cfg.provider, cfg.tailorProvider].filter((k) => k && PREFER[k] && (!PROVIDERS[k].needsKey || cfg.keys[k])))];
+    if (reset) {
+      await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
+      await AJP.store.update('modelHealth', (all) => void used.forEach((k) => all[k] && (all[k].bad = {})));
     }
-    if (provider === 'gemini') return ids.find((id) => /^gemini-.*(flash|pro)/.test(id)) || null;
-    return ids[0] || null;
+    const out = {};
+    for (const k of used) {
+      try {
+        out[k] = await refreshModels({ ...cfg, timeoutMs: CONFIG.listTimeoutMs }, k);
+      } catch (e) {
+        out[k] = { error: AJP.toAppError(e).code };
+        AJP.logger('ai').warn('Model list could not be refreshed', { provider: k, code: out[k].error });
+      }
+    }
+    return out;
   }
 
   // How long a rate-limited provider asked us to wait (Retry-After header, or "try again in 7.66s" in Groq's message).
@@ -431,50 +501,59 @@
     const p = PROVIDERS[provider];
     if (!p || provider === 'none') throw AJP.err('AI_OFF');
     if (p.needsKey && !cfg.keys[provider]) throw AJP.err('AI_NO_KEY', { provider });
-    // The Model field belongs to the main provider, "Tailoring model" to the tailoring provider; a model found by
-    // discovery (resolvedModels) replaces a retired default.
-    const resolved = (cfg.resolvedModels || {})[provider];
-    let model = own ? cfg.tailorModel || resolved || p.defaultModel : cfg.model || resolved || p.defaultModel;
+    // The Model field belongs to the main provider, "Tailoring model" to the tailoring provider; the model manager
+    // (above) picks the rest and moves on by itself when a model is gone, slow or busy.
+    const pinned = own ? cfg.tailorModel : cfg.model;
+    const health = await AJP.store.get('modelHealth');
+    let list = candidates(provider, pinned, cfg, health);
+    let model = list[0];
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
     const t0 = performance.now();
-    let discovered = false;
-    let switched = false;
-    // Swap to another model the provider offers (retired, or busy upstream), remember it, retry once.
-    const switchModel = async (why, text) => {
-      let next = null;
-      try {
-        next = await discoverModel(cfg, provider, model);
-      } catch (d) {
-        tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
-      }
-      if (!next) return null;
-      tr.log.info(`ai.${task} model "${model}" ${why}; using "${next}"`, { provider, from: model, to: next });
-      model = next;
-      await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: next }));
-      return { out: await CALLERS[provider](cfg, model, system, text, json) };
-    };
-    const call = async (text) => {
+    const tried = new Set();
+    let switches = 0;
+    let slowSwitched = false;
+    let refreshed = false;
+    const stale = !(health[provider] && health[provider].at > Date.now() - DAY);
+    // One model, waiting out a short free-tier rate limit once when patient.
+    const once = async (text) => {
       try {
         return await CALLERS[provider](cfg, model, system, text, json);
       } catch (e) {
         const x = AJP.toAppError(e);
-        // "Model not found": the provider retired it. Find the one it offers now, remember it, retry once.
-        if (x.code === 'AJP-AI-404' && !discovered && PREFER[provider]) {
-          discovered = true;
-          const r = await switchModel('not offered any more', text);
-          if (r) return r.out;
-        }
-        // OpenRouter: one free model "temporarily rate-limited upstream" (its host is busy, not your limit) → another free model.
-        if (x.code === 'AJP-AI-429' && provider === 'openrouter' && !switched && UPSTREAM_BUSY.test(String((x.details && x.details.body) || ''))) {
-          switched = true;
-          const r = await switchModel('is busy upstream', text);
-          if (r) return r.out;
-        }
-        const wait = x.code === 'AJP-AI-429' && patient ? waitAsked(x) : null;
+        const wait = x.code === 'AJP-AI-429' && patient && !UPSTREAM_BUSY.test(String((x.details && x.details.body) || '')) ? waitAsked(x) : null;
         if (wait == null || wait > CONFIG.patienceMs) throw e;
         tr.log.info(`ai.${task} free-tier limit reached; waiting ${Math.ceil(wait / 1000)}s, then retrying once`, { provider, waitMs: Math.round(wait) });
         await new Promise((r) => setTimeout(r, wait + 250));
         return CALLERS[provider](cfg, model, system, text, json);
+      }
+    };
+    const call = async (text) => {
+      for (;;) {
+        try {
+          return await once(text);
+        } catch (e) {
+          const x = AJP.toAppError(e);
+          const why = PREFER[provider] ? switchReason(x) : null;
+          if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
+          tried.add(model);
+          await setAside(provider, model, why);
+          let next = list.find((m) => !tried.has(m));
+          if (!refreshed && (why === 'gone' || stale || !next)) {
+            refreshed = true;
+            try {
+              await refreshModels(cfg, provider);
+              list = [...new Set([...candidates(provider, pinned, { ...cfg, resolvedModels: {} }, await AJP.store.get('modelHealth')), ...list])];
+              next = list.find((m) => !tried.has(m));
+            } catch (d) {
+              tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
+            }
+          }
+          if (!next) throw e;
+          switches++;
+          if (why === 'slow') slowSwitched = true;
+          tr.log.info(`ai.${task} model "${model}" ${why === 'gone' ? 'not offered any more' : why === 'slow' ? 'too slow' : 'busy upstream'}; trying "${next}"`, { provider, from: model, to: next, why });
+          model = next;
+        }
       }
     };
     try {
@@ -492,15 +571,11 @@
         }
       } else result = out.trim();
       tr.end({ provider, model, outChars: out.length });
+      if (PREFER[provider]) await worked(provider, model, cfg);
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true });
       return result;
     } catch (e) {
       const x = tr.fail(e, { provider, model });
-      // An auto-picked model that is too slow is forgotten: the next call starts from the default again.
-      if (x.code === 'AJP-AI-TIME' && (cfg.resolvedModels || {})[provider] === model) {
-        await AJP.store.update('settings', (st) => void (st.ai.resolvedModels = { ...(st.ai.resolvedModels || {}), [provider]: '' }));
-        tr.log.info(`ai.${task} auto-picked model "${model}" was too slow; forgotten`, { provider, model });
-      }
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: false, code: x.code });
       throw x;
     }
@@ -580,5 +655,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels }, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
 })();

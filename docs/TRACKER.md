@@ -15,7 +15,7 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 40** (5 Job Finder components added as planned) |
 | Components not started | **2**: resume export, CI · **+5 planned**: Job Finder C40–C44 |
-| Automated tests | **1138 / 1138 passing** (557 also run without a browser), incl. convention checks |
+| Automated tests | **1142 / 1142 passing** (557 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 110 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
@@ -105,7 +105,7 @@ Columns:
 | C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ⬜ | — | — | Tasks J14–J20 |
 | C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ⬜ | — | — | Tasks J21–J26, J36 |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) + **4** (OpenRouter busy / weak free models, B26) + **5** (slow auto-picked models, test timeout, Gemini default and thinking level, B27) + **2** = **1138**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) + **4** (OpenRouter busy / weak free models, B26) + **5** (slow auto-picked models, test timeout, Gemini default and thinking level, B27) + **2** + **4** (model manager: fallback chain, cooldown, daily check) = **1142**
 
 ---
 
@@ -141,6 +141,7 @@ Columns:
 | W23 | Decide the 6 Job Finder choices (task J01 in §2b) | 19 | **You** | ⏳ Waiting on you | W22 |
 | W24 | **Build Job Finder** (tasks J02–J37, J39 in §2b) | 19 | Claude | ⬜ Not started | W23 |
 | W26 | **More AI providers**: Anthropic Claude (paid, optional, own key), NVIDIA NIM and Mistral (free keys); "Tailoring model" field; pay-per-use note; AJP-AI-CREDIT / AJP-AI-REFUSED | — | Claude | ✅ Done (against faked APIs) | — |
+| W27 | **Model manager**: models chosen and checked automatically (daily model-list check, fallback chain up to 3 models per call on retired / slow / busy, cooldowns, last working model remembered); Admin "Now using …" + optional Re-check | — | Claude | ✅ Done | — |
 | W26b | Try NVIDIA NIM and Mistral tailoring; optionally Claude with a little credit (D14–D17, test area T18) | — | **You** | ⏳ Waiting on you | W26 |
 | W25 | Test Job Finder in the 4 browsers (task J38, test area T17 in §2a) | 19 | **You** | ⬜ After W24 | W24 |
 

@@ -212,6 +212,23 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       log.warn('Retention alarm unavailable', { error: e.message });
     }
   }
+  // AI model manager (ai.js): re-check each provider's current models once a day (model lists only, no AI usage),
+  // so retired or renamed models are replaced before anyone hits them.
+  async function refreshModelsIfStale() {
+    const h = await AJP.store.get('modelHealth');
+    const s = (await AJP.store.get('settings')).ai;
+    const stale = [s.provider, s.tailorProvider].filter(Boolean).some((k) => !(h[k] && h[k].at > Date.now() - 24 * 3600 * 1000));
+    if (stale) await AJP.ai.models.refreshAll();
+  }
+  refreshModelsIfStale().catch((e) => log.warn('Model check failed', { error: e.message }));
+  if (api.alarms) {
+    try {
+      api.alarms.create('ajp-models', { periodInMinutes: 24 * 60 });
+      api.alarms.onAlarm.addListener((a) => a.name === 'ajp-models' && AJP.ai.models.refreshAll().catch((e) => log.warn('Model check failed', { error: e.message })));
+    } catch (e) {
+      log.warn('Model check alarm unavailable', { error: e.message });
+    }
+  }
   if (api.alarms) {
     try {
       api.alarms.create('ajp-followups', { periodInMinutes: 60 });
@@ -644,6 +661,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       if (!job) return {};
       await serialData(() => AJP.store.update('tabJobs', (all) => void (all.__pending = { job: { ...job, jobKey: AJP.tracker.jobKey(job.url) }, at: Date.now() })));
       return {};
+    },
+
+    // Admin → AI settings → "Re-check models now": forget remembered / set-aside models, read the current lists.
+    async 'ai.refreshModels'() {
+      return { models: await AJP.ai.models.refreshAll({ reset: true }) };
     },
 
     async pruneHistory() {

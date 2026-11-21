@@ -621,24 +621,34 @@
     return c && !c.ok && Date.now() - Date.parse(c.at) < 5 * 60000 ? `${c.label}: ` : '';
   }
   // Models picked automatically because a default was retired or unavailable: shown, with a way to start over.
+  // Models are chosen automatically (ai.js model manager): show what is in use and what is set aside, nothing to fix.
   async function renderAutoModels() {
     const box = $('#aiAuto');
     if (!box) return;
-    const r = ((await AJP.store.get('settings')).ai || {}).resolvedModels || {};
-    const list = Object.entries(r).filter(([, m]) => m);
-    box.hidden = !list.length;
-    box.innerHTML = list.length
-      ? `Picked automatically (the default model wasn't available to your key): ${list.map(([p, m]) => `<b>${esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p)} · ${esc(m)}</b>`).join(', ')}. <button id="aiAutoReset" type="button">Reset model choice</button>`
-      : '';
-    const b = $('#aiAutoReset');
-    if (b) b.addEventListener('click', AJP.guard('admin.resetModels', async () => {
+    const st = (await AJP.store.get('settings')).ai || {};
+    const health = await AJP.store.get('modelHealth');
+    const name = (p) => esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p);
+    const using = Object.entries(st.resolvedModels || {}).filter(([, m]) => m).map(([p, m]) => `<b>${name(p)} · ${esc(m)}</b>`);
+    const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy' };
+    const aside = Object.entries(health).flatMap(([p, h]) => Object.entries((h && h.bad) || {}).filter(([, until]) => until > Date.now())
+      .map(([m, until]) => `${name(p)} · ${esc(m)} (${WHY[(h.why || {})[m]] || 'failing'}, retried after ${esc(new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))})`));
+    box.hidden = false;
+    box.innerHTML = 'Models are chosen and checked automatically: if one is retired, slow or busy, the next best is used by itself.' +
+      (using.length ? ` Now using: ${using.join(', ')}.` : '') +
+      (aside.length ? ` Set aside for now: ${aside.join('; ')}.` : '') +
+      ' <button id="aiAutoReset" type="button">Re-check models now</button>';
+    $('#aiAutoReset').addEventListener('click', AJP.guard('admin.recheckModels', async () => {
       await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
+      await AJP.store.update('modelHealth', (all) => void Object.values(all).forEach((h) => h && (h.bad = {})));
       settings.ai.resolvedModels = {};
       updateModelPlaceholder();
       renderAutoModels();
-      toast('Model choice reset: the next AI call uses the default model again.');
+      const r = await AJP.send('ai.refreshModels').catch(() => null); // reads the current model lists (no AI usage)
+      renderAutoModels();
+      toast(r && r.ok !== false ? 'Models re-checked: the best current model will be used.' : 'Model choice reset: the next AI call picks the best current model.');
     }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
   }
+
 
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
@@ -941,7 +951,7 @@
     const on = (location.hash || '#profile').slice(1).split('?')[0];
     if (changes.promptState) renderCrashBanner();
     if (changes.reports && on === 'logs') renderReports();
-    if (changes.aiCalls && on === 'ai') renderAiCalls();
+    if (changes.aiCalls && on === 'ai') (renderAiCalls(), renderAutoModels());
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();

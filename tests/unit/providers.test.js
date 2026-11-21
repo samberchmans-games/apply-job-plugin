@@ -183,17 +183,44 @@
       eq(await AJP.ai.tasks.test(), 'OK');
       eq(calls[2].body.model, 'meta-llama/llama-3.3-70b-instruct:free');
     });
-    it('a free model busy upstream → switches to another free model by itself (the reported AJP-AI-429)', async () => {
+    it('a free model busy upstream → the next model by itself (the reported AJP-AI-429), remembered', async () => {
+      await AJP.store.set('modelHealth', { openrouter: { ranked: ['meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-oss-120b:free'], at: Date.now() } });
       await settings({ resolvedModels: { openrouter: 'inclusionai/ling-3.2-flash:free' } });
-      fake(busy('inclusionai/ling-3.2-flash:free'), LIST(), openai('OK'));
+      fake(busy('inclusionai/ling-3.2-flash:free'), openai('OK'));
       eq(await AJP.ai.tasks.test(), 'OK');
-      eq(calls[2].body.model, 'meta-llama/llama-3.3-70b-instruct:free');
+      eq(calls[1].body.model, 'meta-llama/llama-3.3-70b-instruct:free', 'no model list needed: the shortlist is fresh');
       eq((await AJP.store.get('settings')).ai.resolvedModels.openrouter, 'meta-llama/llama-3.3-70b-instruct:free', 'remembered');
+      ok((await AJP.store.get('modelHealth')).openrouter.bad['inclusionai/ling-3.2-flash:free'] > Date.now(), 'busy one set aside for a while');
     });
-    it('the replacement busy too → AJP-AI-429 (switches only once)', async () => {
-      fake(busy('meta-llama/llama-3.3-70b-instruct:free'), LIST(), busy('openai/gpt-oss-120b:free'));
+    it('tries up to 3 models in one call, then AJP-AI-429', async () => {
+      fake(busy('a'), LIST(), busy('b'), busy('c'));
       eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-429');
-      eq(calls.length, 3);
+      eq(calls.length, 4, 'default, model list, 2 more models');
+    });
+    it('a model set aside is skipped next time; after its cooldown it gets another chance', async () => {
+      await AJP.store.set('modelHealth', { openrouter: { ranked: ['meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-oss-120b:free'], at: Date.now(), bad: { 'meta-llama/llama-3.3-70b-instruct:free': Date.now() + 3600e3 } } });
+      fake(openai('OK'));
+      await AJP.ai.tasks.test();
+      eq(calls[0].body.model, 'openai/gpt-oss-120b:free');
+      await AJP.store.set('modelHealth', { openrouter: { ranked: ['meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-oss-120b:free'], at: Date.now(), bad: { 'meta-llama/llama-3.3-70b-instruct:free': Date.now() - 1 } } });
+      await settings({ resolvedModels: {} });
+      fake(openai('OK'));
+      await AJP.ai.tasks.test();
+      eq(calls[0].body.model, 'meta-llama/llama-3.3-70b-instruct:free');
+    });
+    it('an empty model list (provider hiccup) never wipes a good shortlist', async () => {
+      await AJP.store.set('modelHealth', { openrouter: { ranked: ['openai/gpt-oss-120b:free'], at: 0 } });
+      fake(json({ data: [] }));
+      await AJP.ai.models.refreshAll();
+      eq((await AJP.store.get('modelHealth')).openrouter.ranked, ['openai/gpt-oss-120b:free']);
+    });
+    it('the daily check refreshes the shortlist of the providers in use (model lists only, no AI usage)', async () => {
+      fake(LIST());
+      const r = await AJP.ai.models.refreshAll();
+      eq(r.openrouter[0], 'meta-llama/llama-3.3-70b-instruct:free');
+      excludes(r.openrouter.join(' '), 'anthropic/claude', 'never a paid model');
+      includes(calls[0].url, 'openrouter.ai/api/v1/models');
+      ok((await AJP.store.get('modelHealth')).openrouter.at > Date.now() - 5000);
     });
     it('your own daily free limit (not upstream) → AJP-AI-429, no model switch', async () => {
       fake(json({ error: { message: 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day', code: 429 } }, 429));
@@ -243,18 +270,30 @@
     });
     it('Test connection gives up after CONFIG.testTimeoutMs (not the 90 s of a tailoring call)', async () => {
       AJP.ai.CONFIG.testTimeoutMs = 60;
+      AJP.ai.CONFIG.listTimeoutMs = 60;
       calls = [];
       globalThis.fetch = (url, opts) => (calls.push({ url }), hang()(url, opts));
       const t0 = performance.now();
       eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-TIME');
       ok(performance.now() - t0 < 2000, 'fast');
     });
-    it('an auto-picked model that times out is forgotten (the default is tried again next time)', async () => {
+    it('a slow model is set aside and the next one is tried in the same call', async () => {
       AJP.ai.CONFIG.testTimeoutMs = 60;
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.6-flash'], at: Date.now() } });
       await settings({ resolvedModels: { gemini: 'gemini-slow-model' } });
-      globalThis.fetch = (url, opts) => hang()(url, opts);
-      await rejects(() => AJP.ai.tasks.test());
-      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, '');
+      calls = [];
+      globalThis.fetch = (url, opts) => (calls.push({ url: String(url) }), /gemini-slow-model/.test(url) ? hang()(url, opts) : Promise.resolve(ok()));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      ok((await AJP.store.get('modelHealth')).gemini.bad['gemini-slow-model'] > Date.now());
+      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash');
+    });
+    it('a model the provider calls deprecated (HTTP 400/410) is replaced too', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.7-flash'], at: Date.now() } });
+      await settings({ resolvedModels: { gemini: 'gemini-3.6-flash' } });
+      fake(json({ error: { code: 400, message: 'Model gemini-3.6-flash is deprecated and no longer available.' } }, 400), ok);
+      eq(await AJP.ai.tasks.test(), 'OK');
+      eq(calls.map((c) => c.url.replace(/^.*\/models/, '')), ['/gemini-3.6-flash:generateContent', '?pageSize=200', '/gemini-3.7-flash:generateContent'], 'gone → list re-checked → next model');
     });
   }, { env: 'browser' });
 

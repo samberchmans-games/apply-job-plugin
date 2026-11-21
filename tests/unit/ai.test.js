@@ -39,6 +39,7 @@
     afterEach(() => {
       globalThis.fetch = realFetch;
       AJP.ai.CONFIG.timeoutMs = 90000;
+      AJP.ai.CONFIG.listTimeoutMs = 15000;
       AJP.ai.CONFIG.tries = 3;
     });
 
@@ -109,6 +110,7 @@
     it('slow providers time out → AJP-AI-TIME', async () => {
       await setProvider('groq');
       AJP.ai.CONFIG.timeoutMs = 50;
+      AJP.ai.CONFIG.listTimeoutMs = 50; // the model manager also checks the model list once
       globalThis.fetch = (url, opts) => new Promise((_, rej) => opts.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError'))));
       eq((await rejects(() => AJP.ai.complete({ system: 's', prompt: 'p' }), /too long/)).code, 'AJP-AI-TIME');
     });

@@ -44,10 +44,10 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-AI-KEY` | No API key saved for the chosen provider | Add the key, then Test connection |
 | `AJP-AI-401` | The provider rejected the key (401/403) | Copy the key again from the provider; check for extra spaces |
 | `AJP-AI-429` | Free-tier rate limit reached | Wait a minute, or switch provider (e.g. Groq ↔ Gemini) |
-| `AJP-AI-404` | Model name not found | Clear the Model field to use the default |
+| `AJP-AI-404` | Model not found, and no other usable model was found (the extension already tried the provider's current models by itself) | If you typed a model in Model / Tailoring model, clear it; otherwise the provider has no usable model for your key right now: try another provider |
 | `AJP-AI-5XX` | The provider had a server error | Retry later |
 | `AJP-AI-HTTP` | Other HTTP error | See `details.status` / `details.body` in the log |
-| `AJP-AI-TIME` | No answer within 90 s (30 s for Test connection). The failed test names the provider · model | Retry; very long job descriptions or resumes are slower. If the model shown was **picked automatically** (AI settings shows it), click **Reset model choice**; a slow auto-picked model is also forgotten by itself. Still slow → try another provider |
+| `AJP-AI-TIME` | No answer within 90 s (30 s for Test connection), even after trying the next model. The message names the provider · model | Retry; very long job descriptions or resumes are slower. Slow models are set aside for 6 h and the next best is used by itself (AI settings shows what's in use; **Re-check models now** is optional). Still slow → try another provider |
 | `AJP-AI-NET` | Couldn't reach the provider | Internet or firewall. Ollama: is it running, and started with `OLLAMA_ORIGINS="*"`? |
 | `AJP-AI-FMT` | Couldn't understand the AI's answer | Retry, or use a larger model |
 | `AJP-AI-BILLING` | The provider says the free tier isn't available for this key's account / project (Gemini: "set up billing", "location not supported", quota "limit: 0") | Use Groq (free, no card), another personal Google account, or enable billing with the provider |
