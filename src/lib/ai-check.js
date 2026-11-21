@@ -62,7 +62,7 @@ Nice to have
 
   const describeFail = (e) => {
     const x = AJP.toAppError(e);
-    const said = x.reason || AJP.aiWire.reasonFrom(x.details && x.details.body);
+    const said = x.reason || (x.details && x.details.reason) || AJP.aiWire.reasonFrom(x.details && x.details.body);
     return { code: x.code, reason: said ? (AJP.scrub ? AJP.scrub(said) : said) : x.message };
   };
   async function step(name, fn) {
