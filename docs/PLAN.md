@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Job Radar relevance (B40): a listed job must share at least 2 of your technical skills (soft skills don't count); "data center" / "data entry" aren't data work; listed jobs re-scored and re-checked once; 1300 tests |
+| 2026-11-21 | `a039d1f` | Job Radar relevance (B40): a listed job must share at least 2 of your technical skills (soft skills don't count); "data center" / "data entry" aren't data work; listed jobs re-scored and re-checked once; 1300 tests |
 | 2026-11-21 | `ceb7a46` | Job Radar: level words ignored in titles (B39); scans end after 4 min and resume, heartbeat lock, Stop clears a dead scan's lock (B38); 25 jobs per page; listed jobs re-checked once when rules change; 1293 tests |
 | 2026-11-21 | `f8bad11` | **Job Radar accuracy + control**: career-track locations; Job preferences = defaults for all tracks; stricter title rule; remote jobs limited to other countries filtered; title-only jobs unscored + description backfill; "N of M skills" like the panel; list re-checked when preferences change, ■ Stop and Restart search; one card per job posted in several places; fixed B33–B37; 1288 tests |
 | 2026-11-21 | `4ce1ba5` | **Job Radar built-in company directory**: 322 companies (Greenhouse, Lever, Ashby) checked live by `tools/build_radar_directory.py`, on by default, scanned a slice at a time (all about once a day) on allowed boards, quiet failures, 50 MB download budget; Greenhouse light lists with descriptions only for matching jobs; Hide company; 1274 tests |
