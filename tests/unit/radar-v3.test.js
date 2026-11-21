@@ -33,10 +33,10 @@
   describe('radar v3 › remote jobs limited to another country', () => {
     const p = { targetRoles: ['Data Engineer'], areas: ['Austin, TX'], workTypes: { remote: true, hybrid: true, onsite: true }, tracks: [] };
     it('"Remote Canada" does not fit a US search; "Remote US" and plain "Remote" do', () => {
-      eq(C.quickFilter(job({ locations: ['Remote Canada'], raw: { workplaceType: 'remote' } }), {}, p).reason, 'location');
+      eq(C.quickFilter(job({ locations: ['Remote Canada'], raw: { workplaceType: 'remote' } }), {}, p).reason, 'restricted');
       ok(C.quickFilter(job({ locations: ['Remote US'], raw: { workplaceType: 'remote' } }), {}, p).pass);
       ok(C.quickFilter(job({ locations: ['Remote'], raw: { workplaceType: 'remote' } }), {}, p).pass);
-      eq(C.quickFilter(job({ locations: ['Remote - EMEA'], raw: { workplaceType: 'remote' } }), {}, p).reason, 'location');
+      eq(C.quickFilter(job({ locations: ['Remote - EMEA'], raw: { workplaceType: 'remote' } }), {}, p).reason, 'restricted');
     });
     it('places without a country say nothing about it: remote jobs anywhere pass', () => {
       ok(C.quickFilter(job({ locations: ['Remote Canada'], raw: { workplaceType: 'remote' } }), {}, { ...p, areas: ['Remote'] }).pass);

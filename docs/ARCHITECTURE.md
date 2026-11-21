@@ -124,6 +124,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | `radarWatchlist` | `[{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]` | Admin / panel | Exported |
 | `radarJobs` | `[job]` (radar-core.normalize + score, bestTrackId, foundAt, status new\|saved\|dismissed, notifiedAt); 500 newest | Background scan | Exported |
 | `radarSeen` | `{ [jobKey]: firstSeenDate }`, pruned after 60 days | Background scan | Exported |
+| `radarFiltered` | Jobs left out, with `{ reason, detail, filteredAt }`; 5000 newest, 60 days | Background scan | **Internal** |
 | `radarScanState` | `{ lockedAt, queue[], done[], lastSummary }` | Background scan | **Internal** (not exported) |
 | `modelHealth` | per AI provider `{ ranked[], at, last, ok{}, bad{}, why{} }` (model manager) | Background | **Internal** |
 | `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,enhancementId?,coverage?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
@@ -557,7 +558,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1370 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1395 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

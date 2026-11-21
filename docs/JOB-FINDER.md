@@ -253,8 +253,12 @@ filter. Most companies cost one or two requests per scan.
    `radarScanState.queue` + `position`, so a worker stopped mid-scan resumes on the next alarm.
 3. **List stage** (3 companies at a time; requests to one host 1 s apart): `listRequest` → `parseList`, following
    `next` until null or the page cap. Workday: one search per track keyword (max 3).
-4. **Normalize + filter**: `normalize`; drop keys already in `radarSeen`; `quickFilter`. Filtered-out jobs are still
-   marked seen, so they are not re-checked every scan.
+4. **Normalize + filter**: `normalize`; drop keys already in `radarSeen`; `quickFilter`. Jobs left out are saved to
+   `radarFiltered` with their reason and marked seen, so they are not re-checked every scan. After the description is
+   read, `postFilter` checks years asked, technical skills and stated remote limits.
+   **Remote** (`matcher.remoteRestriction`): `open` and `listed` (names other countries, no stated limit) stay in
+   Matched, `listed` with a note to confirm; `check` (limited to states, yours unknown) stays with a note; `limited`
+   ("Remote Canada", "not available in NJ", "must live in CA, TX or WA" for someone elsewhere) goes to Filtered.
 5. **Detail stage** (SmartRecruiters, Rippling, Workday): best title fit first, up to the per-company budget. Jobs
    over budget keep `descriptionLevel: 'title'`.
 6. **Score**: `AJP.tracks.analyzeAll({ jdText: description || title, jobTitle, jobLocation, profile, resumes })`.
@@ -319,6 +323,7 @@ Every route ends with the same check: fetch the board once, show the company nam
 | `radarWatchlist` | `[{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError?, failuresInRow, openJobs }]` | expect < 300 | yes |
 | `radarJobs` | `[job]` (§7.1) | 500 newest; dismissed pruned after 30 days | yes |
 | `radarSeen` | `{ [key]: firstSeenISODate }` | pruned after 60 days | yes |
+| `radarFiltered` | `[job + { reason, detail, filteredAt }]`; description kept only for the newest 500 | 5000 newest, 60 days | **no** (internal) |
 | `radarScanState` | `{ lockedAt?, queue[], position, lastSummary }` | small | **no** (internal, like `logs`) |
 
 Writes go through the background with `AJP.serial()`, like every other key.

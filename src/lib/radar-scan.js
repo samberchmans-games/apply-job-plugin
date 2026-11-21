@@ -187,9 +187,11 @@
     const listedKeys = [...byKey.keys()];
     const fresh = [...byKey.values()].filter(({ j }) => !seen[j.key]);
     const years = C.userYears(profile, resumes);
+    const filtered = []; // every job left out is kept with its reason (Job Radar → Filtered)
     const passing = fresh.filter((item) => {
       const f = C.quickFilter(item.j, settings, profile, { years });
       item.trackId = f.trackId;
+      if (!f.pass) filtered.push(C.toFiltered(item.j, f.reason, f.detail, now));
       return f.pass;
     });
 
@@ -217,10 +219,15 @@
 
     // Score
     const scored = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
-    // The description decides: too few of your technical skills → not your kind of job (it stays "seen").
-    const jobs = scored.filter((j) => C.relevant(j, profile));
-    if (scored.length > jobs.length) log.debug('Jobs left out: too few of your technical skills', { board: e.board, count: scored.length - jobs.length });
-    return { entry: e, total, listedKeys, jobs, details };
+    // The description decides: years asked, your technical skills, and any stated remote limit.
+    const jobs = [];
+    for (const j of scored) {
+      const v = C.postFilter(j, settings, profile);
+      if (v.pass) jobs.push({ ...j, remoteNote: v.note || null });
+      else filtered.push(C.toFiltered(j, v.reason, v.detail, now, true));
+    }
+    if (scored.length > jobs.length) log.debug('Jobs left out after reading the description', { board: e.board, count: scored.length - jobs.length });
+    return { entry: e, total, listedKeys, jobs, filtered, details };
   }
 
   // ---- Saving -----------------------------------------------------------------------------------------
@@ -233,6 +240,7 @@
           return [...result.jobs.filter((j) => !have.has(j.key)), ...list];
         });
       }
+      if ((result.filtered || []).length) await AJP.store.update('radarFiltered', (list) => C.mergeFiltered(list, result.filtered, now));
       if (result.listedKeys.length) await AJP.store.update('radarSeen', (seen) => C.markSeen(seen, result.listedKeys, now));
       await AJP.store.update('radarWatchlist', (list) =>
         list.map((w) => (w.key === result.key ? {
@@ -387,6 +395,7 @@
         const p = AJP.radar.core.prune({ jobs, seen: seenNow }, now);
         await AJP.store.set('radarJobs', p.jobs);
         await AJP.store.set('radarSeen', p.seen);
+        await AJP.store.update('radarFiltered', (list) => AJP.radar.core.mergeFiltered(list, [], now));
       });
       summary.ms = Date.now() - t0;
       // One summary line per scan (never job descriptions).
@@ -402,7 +411,8 @@
   // fetch their descriptions now, a few per scan, and score them like the job page.
   async function backfill({ fetchImpl, counter, now }) {
     const C = AJP.radar.core;
-    const [profile, resumes, list] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes'), AJP.store.get('radarJobs')]);
+    const [profile, resumes, list, settings] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes'), AJP.store.get('radarJobs'), AJP.store.get('radarSettings')]);
+    const moved = [];
     const todo = list.filter((j) => j.status === 'new' && j.descriptionLevel === 'title' && AJP.radar.boards.get(j.board) && AJP.radar.boards.get(j.board).detailRequest).slice(0, CONFIG.backfillPerScan);
     const done = {};
     for (const j of todo) {
@@ -418,17 +428,24 @@
         const merged = C.normalize({ ...j, id, ...d, raw: { workplaceType: j.remote }, postedAt: d.postedAt || j.postedAt, foundAt: j.foundAt }, entry);
         if (merged.descriptionLevel !== 'full') continue;
         const sc = bestScore(merged, profile, resumes);
-        if (!C.relevant({ ...merged, ...sc }, profile)) {
-          done[j.key] = 'drop'; // its description shows it isn't your kind of job
+        const v = j.override ? { pass: true } : C.postFilter({ ...merged, ...sc }, settings, profile);
+        if (!v.pass) {
+          done[j.key] = 'drop'; // its description shows it doesn't fit: it moves to Filtered with the reason
+          moved.push(C.toFiltered({ ...merged, ...sc, key: j.key, status: 'new' }, v.reason, v.detail, now, true));
           continue;
         }
-        done[j.key] = { ...merged, key: j.key, status: j.status, notifiedAt: j.notifiedAt, ...bestScore(merged, profile, resumes), eligibility: C.eligibility(merged.description, profile) };
+        done[j.key] = { ...merged, key: j.key, status: j.status, notifiedAt: j.notifiedAt, ...(j.override ? { override: true } : {}), remoteNote: v.note || null, ...sc, eligibility: j.override ? j.eligibility : C.eligibility(merged.description, profile) };
       } catch (err) {
         if (err && err.budget) break;
         log.debug('Description could not be fetched yet', { board: j.board, code: AJP.toAppError(err).code });
       }
     }
-    if (Object.keys(done).length) await serial(() => AJP.store.update('radarJobs', (l) => l.filter((j) => done[j.key] !== 'drop').map((j) => done[j.key] || j)));
+    if (Object.keys(done).length) {
+      await serial(async () => {
+        await AJP.store.update('radarJobs', (l) => l.filter((j) => done[j.key] !== 'drop').map((j) => done[j.key] || j));
+        if (moved.length) await AJP.store.update('radarFiltered', (l) => C.mergeFiltered(l, moved, now));
+      });
+    }
     return Object.keys(done).length;
   }
 

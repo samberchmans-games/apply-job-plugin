@@ -8,6 +8,7 @@
   const AJP = globalThis.AJP;
   const log = AJP.logger('radar-view');
   const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const api = AJP.api;
   let ui = { toast() {} };
@@ -84,6 +85,10 @@
   let sort = 'match';
   let page = 0;
   const PER_PAGE = 25;
+  let tab = 'matched';
+  let fReason = 'all';
+  let fSort = 'newest';
+  let fPage = 0;
   let tracksById = {};
   function card(j, thr) {
     const el = j.eligibility || { status: 'ok', reasons: [], flags: {} };
@@ -99,6 +104,8 @@
       j.descriptionLevel === 'title' ? '<span class="pill warn" title="This board gives no job description: the match uses the title only">title match only</span>' : '',
       el.flags && el.flags.sponsors ? '<span class="pill good">Sponsors visas</span>' : '',
       el.status === 'check' ? `<span class="pill warn" title="${esc(el.reasons.join('; '))}">Check: ${esc(el.reasons[0])}</span>` : '',
+      j.remoteNote ? `<span class="pill warn" title="Remote: confirm you can work from where you live">${esc(j.remoteNote)}</span>` : '',
+      j.override ? '<span class="pill" title="You moved this job back from Filtered">Moved by you</span>' : '',
     ].filter(Boolean).join(' ');
     return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}" data-keys="${esc((j.keys || [j.key]).join(' '))}">
       <span class="pill ${j.score != null && j.score >= thr ? 'good' : ''}" title="${j.score == null ? 'No job description to score: open it to judge' : `Best fit: ${esc(track ? track.name : 'your profile')}`}">${j.score == null ? '–' : j.score + '%'}</span>
@@ -107,6 +114,45 @@
       <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
     </div>`;
   }
+  // A job left out: what it is, why, and a way to bring it back.
+  function filteredCard(j) {
+    const label = AJP.radar.core.FILTER_REASONS[j.reason] || j.reason;
+    const meta = [esc(j.companyName), esc((j.locations || []).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}` : ''].filter(Boolean).join(' · ');
+    return `<div class="radar-job" data-fkey="${esc(j.key)}">
+      <span class="pill">${j.score == null ? '–' : j.score + '%'}</span>
+      <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> <span class="pill warn">${esc(label)}</span>
+        <div class="hint">${meta}</div>${j.detail ? `<div class="hint warn">${esc(j.detail)}</div>` : ''}</div>
+      <div class="radar-act"><button data-restore>Move to Matched</button></div>
+    </div>`;
+  }
+  async function renderFiltered() {
+    let r = await AJP.send('radar.filtered', { reason: fReason, sort: fSort, offset: fPage * PER_PAGE, limit: PER_PAGE });
+    if (!r || r.ok === false) return void ($('#radarFilteredJobs').textContent = r ? fail(r) : '');
+    const pages = Math.max(1, Math.ceil(r.total / PER_PAGE));
+    if (fPage > pages - 1) {
+      fPage = pages - 1;
+      r = await AJP.send('radar.filtered', { reason: fReason, sort: fSort, offset: fPage * PER_PAGE, limit: PER_PAGE });
+      if (!r || r.ok === false) return;
+    }
+    $('#radarFilteredN').textContent = `(${r.all})`;
+    const names = AJP.radar.core.FILTER_REASONS;
+    $('#radarReason').innerHTML = `<option value="all">All reasons (${r.all})</option>` + Object.keys(names).filter((k) => r.counts[k] || k === fReason).map((k) => `<option value="${k}">${esc(names[k])} (${r.counts[k] || 0})</option>`).join('');
+    $('#radarReason').value = fReason;
+    if (tab !== 'filtered') return;
+    const pager = r.total > PER_PAGE ? `<div class="row radar-pager"><button data-fpage="-1" ${fPage ? '' : 'disabled'}>‹ Previous</button><span class="hint">${fPage * PER_PAGE + 1}–${fPage * PER_PAGE + r.jobs.length} of ${r.total}</span><button data-fpage="1" ${fPage < pages - 1 ? '' : 'disabled'}>Next ›</button></div>` : '';
+    $('#radarFilteredJobs').innerHTML = r.jobs.length ? r.jobs.map(filteredCard).join('') + pager : '<p class="hint">Nothing filtered yet. Jobs a scan leaves out appear here with the reason. Click Restart search to check every company again.</p>';
+  }
+  function showTab(next) {
+    tab = next;
+    const f = tab === 'filtered';
+    $$('#radarTabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+    $('#radarMatchedBar').hidden = f;
+    $('#radarJobs').hidden = f;
+    $('#radarFilteredBar').hidden = !f;
+    $('#radarFilteredJobs').hidden = !f;
+    return renderFiltered();
+  }
+
   // The built-in company directory: how big, which boards are allowed, on/off.
   async function renderDirectory() {
     const box = $('#radarDir');
@@ -125,7 +171,7 @@
     cachedResumes = await AJP.store.get('resumes');
     tracksById = Object.fromEntries(AJP.tracks.list(profile).map((t) => [t.id, t]));
     renderTracks(profile);
-    const r = await AJP.send('radar.jobs', { status: filter, sort });
+    const r = await AJP.send('radar.jobs', { status: filter, sort, limit: 1000 });
     const box = $('#radarJobs');
     if (!r || r.ok === false) return void (box.textContent = r ? fail(r) : '');
     const thr = Number($('#radarSettings').threshold.value) || 60;
@@ -142,14 +188,14 @@
     }
     r.jobs = [...groups.values()];
     const ok = r.jobs.filter((j) => !isBlocked(j));
-    const blocked = r.jobs.filter(isBlocked);
     const pages = Math.max(1, Math.ceil(ok.length / PER_PAGE));
     page = Math.min(page, pages - 1);
     const shown = ok.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+    $('#radarMatchedN').textContent = `(${ok.length})`;
     const pager = ok.length > PER_PAGE ? `<div class="row radar-pager"><button data-page="-1" ${page ? '' : 'disabled'}>‹ Previous</button><span class="hint">${page * PER_PAGE + 1}–${page * PER_PAGE + shown.length} of ${ok.length}</span><button data-page="1" ${page < pages - 1 ? '' : 'disabled'}>Next ›</button></div>` : '';
     box.innerHTML =
-      (ok.length ? shown.map((j) => card(j, thr)).join('') + pager : `<p class="hint">${filter === 'new' ? 'No new jobs yet. The built-in directory and your companies are checked every few hours; jobs that fit your tracks appear here (or click Scan now).' : 'Nothing here.'}</p>`) +
-      (blocked.length ? `<details class="radar-blocked"><summary>Likely not eligible (${blocked.length}): the job text conflicts with your work authorization in Auto-apply details. Not counted in alerts; open to check.</summary>${blocked.map((j) => card(j, thr)).join('')}</details>` : '');
+      (ok.length ? shown.map((j) => card(j, thr)).join('') + pager : `<p class="hint">${filter === 'new' ? 'No new jobs yet. The built-in directory and your companies are checked every few hours; jobs that fit your tracks appear here (or click Scan now).' : 'Nothing here.'}</p>`);
+    await renderFiltered();
   }
   // What Job Radar looks for: your career tracks (up to 3), each with its titles and places.
   function renderTracks(profile) {
@@ -327,6 +373,26 @@
       page += Number(b.dataset.page);
       renderJobs().then(() => $('#radarJobs').scrollIntoView({ block: 'start' }));
     });
+    $('#radarTabs').addEventListener('click', g('tab', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if (b) return showTab(b.dataset.tab);
+    }));
+    $('#radarReason').addEventListener('change', g('reason', (e) => ((fReason = e.target.value), (fPage = 0), renderFiltered())));
+    $('#radarFilteredSort').addEventListener('change', g('filteredSort', (e) => ((fSort = e.target.value), (fPage = 0), renderFiltered())));
+    $('#radarFilteredJobs').addEventListener('click', g('filteredAction', async (e) => {
+      const p = e.target.closest('[data-fpage]');
+      if (p) {
+        fPage += Number(p.dataset.fpage);
+        await renderFiltered();
+        return $('#radarTabs').scrollIntoView({ block: 'start' });
+      }
+      const b = e.target.closest('[data-restore]');
+      if (!b) return;
+      const r = await AJP.send('radar.filtered.restore', { key: b.closest('[data-fkey]').dataset.fkey });
+      if (r && r.ok === false) return ui.toast(fail(r));
+      ui.toast('Moved to Matched');
+      await renderJobs();
+    }));
     $('#radarDir').addEventListener('click', g('dirAllow', async (e) => {
       if (!e.target.closest('[data-dir="allow"]')) return;
       const ok = await allow(AJP.radar.boards.all().map((a) => ({ board: a.id })));
@@ -353,7 +419,7 @@
     $('#radarRestart').addEventListener('click', g('restart', async () => {
       const r = await AJP.send('radar.restart');
       if (r && r.ok === false) return ui.toast(fail(r));
-      ui.toast(`Restarted with your current preferences${r.removed ? `: ${r.removed} job${r.removed === 1 ? '' : 's'} that no longer fit removed` : ''}`);
+      ui.toast(`Restarted with your current preferences${r.removed ? `: ${r.removed} job${r.removed === 1 ? '' : 's'} moved to Filtered` : ''}`);
       renderJobs();
       renderStatus();
     }));

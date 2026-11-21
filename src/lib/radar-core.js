@@ -9,7 +9,7 @@
   AJP.radar = AJP.radar || {};
   if (AJP.radar.core) return;
 
-  const LIMITS = { description: 12000, title: 200, location: 120, locations: 10, jobs: 500, seenDays: 60, dismissedDays: 30 };
+  const LIMITS = { description: 12000, title: 200, location: 120, locations: 10, jobs: 500, seenDays: 60, dismissedDays: 30, filtered: 5000, filteredDays: 60, filteredText: 500 };
   const DAY = 86400000;
 
   // ---- HTML / XML text -----------------------------------------------------------------------------
@@ -204,7 +204,7 @@
     });
   }
   // A remote job limited to other countries does not fit (shared with the job panel: matcher.js).
-  const remoteCountryFits = (job, places, profile) => !AJP.matcher.listedAbroad(job.locations, AJP.matcher.homeCountries(places, profile));
+  const remoteCountryFits = (job, places, profile) => AJP.matcher.remoteRestriction(job, places, profile).status !== 'limited';
   const placeKey = (s) => AJP.normKey(String(s || '').replace(/\b(remote|hybrid|on-?site)\b/gi, ' '));
   function placeFits(job, areas) {
     const places = (areas || []).map((a) => String(a)).filter(Boolean);
@@ -283,12 +283,18 @@
     // 2. Location + work type: Job Radar settings when set, else the track's (or profile's) preferences
     const want = settings.remote || 'any';
     const custom = (settings.locations || []).filter(Boolean);
+    let restricted = null;
     const placed = fitting.filter((v) => {
       const wtOk = want !== 'any' ? !job.remote || job.remote === want || (want === 'hybrid' && job.remote === 'remote') : workTypeFits(job, v.workTypes);
       if (!wtOk) return false;
-      if (job.remote === 'remote') return remoteCountryFits(job, custom.length ? custom : v.areas, profile); // remote: any place in your country
+      if (job.remote === 'remote') {
+        const r = AJP.matcher.remoteRestriction(job, custom.length ? custom : v.areas, profile); // only a stated limit rules it out
+        if (r.status === 'limited') restricted = r.why;
+        return r.status !== 'limited';
+      }
       return placeFits(job, custom.length ? custom : v.areas);
     });
+    if (!placed.length && restricted) return { pass: false, reason: 'restricted', detail: restricted };
     if (!placed.length) return { pass: false, reason: want !== 'any' || fitting.every((v) => !workTypeFits(job, v.workTypes)) ? 'remote' : 'location' };
     // 3. Minimum salary (jobs without a salary pass)
     const min = Number(settings.minSalary) || 0;
@@ -342,6 +348,47 @@
     for (const k of keys) if (!out[k]) out[k] = day;
     return out;
   }
+  // ---- Filtered: every job left out, with the reason, so you can check it ---------------------------------
+  const FILTER_REASONS = { title: 'Different role', level: 'Level or management', location: 'Location', remote: 'Work type', salary: 'Salary', skills: 'Too few of your skills', experience: 'Years of experience', restricted: 'Remote restriction', authorization: 'Work authorization' };
+  function placesFor(settings, profile) {
+    const custom = ((settings && settings.locations) || []).filter(Boolean);
+    if (custom.length) return custom;
+    const fromTracks = (AJP.tracks ? AJP.tracks.list(profile || {}) : []).flatMap((t) => t.areas || []);
+    return [...new Set((fromTracks.length ? fromTracks : (profile && profile.areas) || []).filter(Boolean))];
+  }
+  // The checks that need the description. `note` is a remote job to confirm (shown on its card).
+  function postFilter(job, settings, profile) {
+    if (!experienceFits(job)) return { pass: false, reason: 'experience', detail: job.yearsAsked != null ? `Asks for ${job.yearsAsked}+ years` : '' };
+    if (!relevant(job, profile)) return { pass: false, reason: 'skills', detail: `${job.techMatched || 0} of your technical skills in the description` };
+    if (job.remote !== 'remote') return { pass: true };
+    const r = AJP.matcher.remoteRestriction(job, placesFor(settings, profile), profile);
+    if (r.status === 'limited') return { pass: false, reason: 'restricted', detail: r.why };
+    return { pass: true, note: r.why || null };
+  }
+  function evaluate(job, settings, profile, ctx) {
+    const q = quickFilter(job, settings, profile, ctx);
+    if (!q.pass) return q;
+    return { ...postFilter(job, settings, profile), trackId: q.trackId };
+  }
+  function toFiltered(job, reason, detail, now = Date.now(), keepText = false) {
+    const { description, raw, ...rest } = job;
+    return { ...rest, ...(keepText && description ? { description } : { descriptionLevel: 'title' }), reason, detail: detail || '', filteredAt: new Date(now).toISOString() };
+  }
+  // Newest first, one record per job. Older records lose their description first, so storage stays small.
+  function mergeFiltered(list = [], add = [], now = Date.now()) {
+    const byKey = new Map();
+    for (const j of [...add, ...list]) if (!byKey.has(j.key)) byKey.set(j.key, j);
+    return [...byKey.values()]
+      .filter((j) => now - (Date.parse(j.filteredAt) || now) < LIMITS.filteredDays * DAY)
+      .sort((a, b) => String(b.filteredAt || '').localeCompare(String(a.filteredAt || '')))
+      .slice(0, LIMITS.filtered)
+      .map((j, i) => {
+        if (i < LIMITS.filteredText || !j.description) return j;
+        const { description, ...rest } = j;
+        return { ...rest, descriptionLevel: 'title' };
+      });
+  }
+
   function prune({ jobs = [], seen = {} } = {}, now = Date.now()) {
     const keepSeen = Object.fromEntries(Object.entries(seen).filter(([, d]) => now - Date.parse(d) < LIMITS.seenDays * DAY));
     const keepJobs = jobs
@@ -352,7 +399,7 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 9;
+  const RULES_VERSION = 10;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
@@ -371,5 +418,5 @@
     return job.techMatched >= Math.min(MIN_TECH_SKILLS, Math.max(1, mineTech));
   }
 
-  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, isLeadershipYears, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  AJP.radar.core = { FILTER_REASONS, placesFor, postFilter, evaluate, toFiltered, mergeFiltered, RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, isLeadershipYears, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

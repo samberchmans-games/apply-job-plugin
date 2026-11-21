@@ -1,6 +1,6 @@
 /*
- * "Remote" can mean "only in these countries". A remote job anywhere or in your country fits; one listed only in other
- * countries is flagged on the job page and left out of Job Radar; when either side is unknown the job is shown.
+ * Remote has two kinds. Open remote may list other countries and still hire you: it is shown with a note to confirm.
+ * Restricted remote states a limit ("Remote Canada", "not available in NJ"): that goes to Filtered.
  */
 (function () {
   const { describe, it, eq, ok, notOk, includes, afterEach } = globalThis.AJPTest;
@@ -23,9 +23,14 @@
   });
 
   describe('location fit › the job panel', () => {
-    it('remote, listed only in another country (the reported job): flagged, not a green check', () => {
+    it('remote, listed in another country (the reported job): a note to confirm, not a failure', () => {
       const f = fit('Amsterdam, Netherlands, Netherlands');
-      eq([f.ok, f.abroad, f.remote, f.matched, f.home], [false, true, true, null, 'united states']);
+      eq([f.ok, f.abroad, f.remote, f.scope], [null, false, true, 'listed']);
+      includes(f.note, 'confirm they hire in the US');
+    });
+    it('on-site in another country is still a mismatch', () => {
+      const f = fit('Berlin, Germany', profile(), 'On-site role in our Berlin office.');
+      eq([f.ok, f.abroad], [false, true]);
     });
     it('"NJ" is not found inside "enjoy"', () => {
       eq(fit('', profile({ workTypes: { onsite: true } }), 'You will enjoy this on-site role.').matched, null);
@@ -36,8 +41,8 @@
     });
     it('your country comes from your areas, else your profile', () => {
       const p = profile({ areas: [], personal: { country: 'United States' } });
-      eq(fit('Berlin, Germany', p).abroad, true);
-      eq(fit('Berlin, Germany', profile({ areas: [] })).abroad, false, 'home unknown: show it');
+      eq(fit('Berlin, Germany', p).scope, 'listed');
+      eq(fit('Berlin, Germany', profile({ areas: [] })).scope, 'open', 'home unknown: show it');
     });
     it('someone in that country gets a normal fit', () => {
       eq(fit('Amsterdam, Netherlands', profile({ areas: ['Amsterdam, Netherlands'] })).ok, true);
@@ -47,8 +52,12 @@
   describe('location fit › Job Radar', () => {
     const job = (locations) => C.normalize({ id: 1, title: 'Data Platform Engineer', locations, raw: { workplaceType: 'remote' } }, { board: 'ashby', company: 'x' });
     const tracked = () => profile({ targetRoles: [], areas: [], tracks: [{ id: 'e', name: 'Engineer', targetTitles: ['Data Engineer'], areas: ['NJ'] }] });
-    it('remote in four European countries is left out for a track in NJ', () => {
-      eq(C.quickFilter(job(['The Netherlands', 'United Kingdom', 'Spain', 'Germany']), {}, tracked()).reason, 'location');
+    it('remote listed in four European countries stays in for a track in NJ', () => {
+      ok(C.quickFilter(job(['The Netherlands', 'United Kingdom', 'Spain', 'Germany']), {}, tracked()).pass);
+    });
+    it('"Remote Canada" is limited to Canada', () => {
+      const f = C.quickFilter(job(['Remote - Canada']), {}, tracked());
+      eq([f.pass, f.reason, f.detail], [false, 'restricted', 'Remote limited to Canada']);
     });
     it('the same job with a US location, or open worldwide, is shown', () => {
       ok(C.quickFilter(job(['The Netherlands', 'United States']), {}, tracked()).pass);
@@ -57,18 +66,17 @@
     });
     it('a track without locations uses your profile’s country', () => {
       const p = profile({ targetRoles: [], areas: [], personal: { country: 'USA' }, tracks: [{ id: 'd', name: 'Data', targetTitles: ['Data Engineer'] }] });
-      eq(C.quickFilter(job(['Germany']), {}, p).reason, 'location');
+      eq(C.quickFilter(job(['Remote Germany']), {}, p).reason, 'restricted');
     });
   });
 
   describe('location fit › panel text', () => {
     afterEach(() => AJP.panel.remove());
-    it('says the job is remote but listed outside the US', () => {
+    it('says where the remote job is listed and asks you to confirm', () => {
       const a = M.analyze({ jdText: JD, jobLocation: 'Amsterdam, Netherlands', profile: profile() });
       AJP.panel.render({ job: { title: 'Dev', location: 'Amsterdam, Netherlands' }, analysis: a }, {});
       const t = document.querySelector('ajp-panel').shadowRoot.textContent;
-      includes(t, 'remote, but listed outside the US: check you can work there');
-      includes(t, '⚠️');
+      includes(t, 'remote: Listed for Netherlands: confirm they hire in the US');
     });
   }, { env: 'browser' });
 })();

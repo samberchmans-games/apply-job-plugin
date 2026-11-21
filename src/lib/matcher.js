@@ -212,6 +212,121 @@
     return there.size > 0 && ![...there].some((c) => home.has(c));
   }
 
+  // ---- Remote limits: an open remote job vs one limited to certain states or countries --------------------
+  const STATE_NAMES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', 'west virginia': 'WV', virginia: 'VA', washington: 'WA', wisconsin: 'WI', wyoming: 'WY' };
+  const STATE_RE = new RegExp(`\\b(${Object.keys(STATE_NAMES).sort((a, b) => b.length - a.length).join('|')})\\b`, 'gi');
+  const CODES = new Set(US_CODES.split('|'));
+  // Also ordinary words or abbreviations: they count only inside a list ("CA, OR, WA").
+  const LOOSE_CODES = new Set(['AL', 'AR', 'CO', 'DE', 'HI', 'ID', 'IN', 'LA', 'MA', 'MD', 'ME', 'MS', 'OK', 'OR', 'PA']);
+  function statesIn(text) {
+    const out = new Set();
+    let t = String(text || '').replace(/\b(?:Washington,?\s*D\.?C\.?|District of Columbia)(?![A-Za-z])/gi, () => (out.add('DC'), ' '));
+    t = t.replace(STATE_RE, (m) => (out.add(STATE_NAMES[m.toLowerCase()]), ' '));
+    const whole = t.trim();
+    for (const m of t.matchAll(/\b[A-Z]{2}\b/g)) {
+      if (!CODES.has(m[0])) continue;
+      const before = t.slice(0, m.index);
+      const after = t.slice(m.index + 2);
+      const listed = /^\s*[,/]/.test(after) || (/[,/]\s*$/.test(before) && /^\s*(?:[.;)]|$|and\b|or\b)/i.test(after));
+      if (!LOOSE_CODES.has(m[0]) || listed || whole === m[0]) out.add(m[0]);
+    }
+    return out;
+  }
+  // Countries / regions in free text. "US" must be in capitals here ("join us" is not a country); "New Mexico" is a state.
+  function placesInText(text) {
+    const t = String(text || '').replace(/\bnew mexico\b/gi, ' ');
+    const out = new Set();
+    for (const [c, re] of Object.entries(COUNTRIES)) if (c !== 'united states' && re.test(t)) out.add(c);
+    if (/\b(?:United States|USA|US)\b/.test(t)) out.add('united states');
+    if (/\b(?:Europe|EU)\b/.test(t)) out.add('emea');
+    return out;
+  }
+  const REGIONS = {
+    emea: ['united kingdom', 'ireland', 'germany', 'france', 'spain', 'portugal', 'netherlands', 'poland', 'israel', 'romania', 'sweden', 'switzerland', 'italy'],
+    apac: ['india', 'singapore', 'australia', 'japan', 'philippines'],
+    latam: ['mexico', 'brazil', 'argentina', 'colombia'],
+  };
+  const covers = (allowed, home) => [...allowed].some((p) => home.has(p) || (REGIONS[p] || []).some((c) => home.has(c)) || [...home].some((h) => (REGIONS[h] || []).includes(p)));
+  const placeLabel = (p) => ({ 'united states': 'the US', 'united kingdom': 'the UK', emea: 'EMEA', apac: 'APAC', latam: 'LATAM' }[p] || p.replace(/\b[a-z]/g, (c) => c.toUpperCase()));
+  const listPlaces = (set) => [...set].map(placeLabel).join(', ');
+
+  const LIMIT_OUT = /\b(?:not (?:currently |yet )?(?:available|hiring|able to (?:hire|employ|consider|accept)|accepting|eligible|open|considering)|unable to (?:hire|employ|consider|accept)|(?:cannot|can't|can not) (?:hire|employ|consider|accept)|do(?:es)? not (?:hire|employ|consider|accept)|won't (?:hire|consider)|excluding|with the exception of|except(?: for)?)\b/i;
+  const LIMIT_ONLY = /\b(?:must (?:\w+ )?(?:reside|live|be located|be based)|(?:required|need) to (?:reside|live|be located|be based)|only (?:open|available|accepting|hiring|considering)|open only to|hiring only in|currently hiring in|(?:can|able to) only hire in|eligible (?:states|locations)|(?:approved|supported) states|remote (?:only )?within)\b/i;
+  const LIMIT_NOISE = /\b(?:salary|pay|compensation|wages?|laws?|legal|privacy|notice|disclosure|benefits?|ordinance|insurance|visas?|sponsor\w*)\b/i;
+  const LIMIT_ABOUT_PLACE = /\b(?:states?|remote|hire|hiring|residents?|reside|located|locations?|nationwide|across|united states)\b/i;
+  function limitLines(text) {
+    const lines = String(text || '').replace(/\bU\.S\.(?:A\.)?(?=\s+[A-Z])/g, 'US.').replace(/\bU\.S\.(?:A\.)?/g, 'US').split(/\n|(?<=[.!?])\s+/).map((l) => l.trim()).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < lines.length; i++) out.push(/:$/.test(lines[i]) ? `${lines[i]} ${lines.slice(i + 1, i + 13).join(', ')}` : lines[i]); // "…these states:" + the list below it
+    return out;
+  }
+  // What the job text says about where you can work from.
+  function readLimits(text) {
+    const r = { outStates: new Set(), onlyStates: new Set(), onlyPlaces: new Set() };
+    for (const line of limitLines(text)) {
+      if (LIMIT_NOISE.test(line)) continue;
+      const out = line.match(LIMIT_OUT);
+      let rest = line;
+      if (out && (!/^(?:except|excluding|with)/i.test(out[0]) || LIMIT_ABOUT_PLACE.test(line) || /\bUS\b/.test(line))) {
+        const after = statesIn(line.slice(out.index));
+        const found = after.size ? after : statesIn(line);
+        for (const s of found) r.outStates.add(s);
+        if (found.size) rest = line.slice(0, out.index);
+      }
+      const only = rest.match(LIMIT_ONLY);
+      if (!only) continue;
+      const tail = rest.slice(only.index);
+      for (const s of statesIn(tail)) r.onlyStates.add(s);
+      for (const p of placesInText(tail)) r.onlyPlaces.add(p);
+    }
+    return r;
+  }
+  function homeStates(places, profile) {
+    const out = new Set();
+    for (const p of places || []) for (const s of statesIn(p)) out.add(s);
+    if (!out.size) for (const s of statesIn((profile && profile.personal && profile.personal.state) || '')) out.add(s);
+    return out;
+  }
+  /*
+   * Can you take this remote job from where you live?
+   *   open    no limit found, or your state / country is included
+   *   listed  names other countries but states no limit: often still open to you, so it is shown with a note
+   *   check   limited to certain states and we don't know yours: shown with a note
+   *   limited it says you can't: goes to Filtered
+   */
+  function remoteRestriction(job, places, profile) {
+    const home = homeCountries(places, profile);
+    const mine = homeStates(places, profile);
+    const inUS = !home.size || home.has('united states');
+    const said = readLimits(job && job.description);
+    const states = (set) => [...set].sort().join(', ');
+    if (said.outStates.size && inUS) {
+      if (mine.size && [...mine].every((s) => said.outStates.has(s))) return { status: 'limited', why: `Not available in ${states(said.outStates)}` };
+      if (!mine.size) return { status: 'check', why: `Not available in ${states(said.outStates)}: check your state` };
+    }
+    if (said.onlyStates.size) {
+      if (home.size && !inUS) return { status: 'limited', why: `Only in ${states(said.onlyStates)}` };
+      if (mine.size && ![...mine].some((s) => said.onlyStates.has(s))) return { status: 'limited', why: `Only in ${states(said.onlyStates)}` };
+      if (!mine.size) return { status: 'check', why: `Only in ${states(said.onlyStates)}: check your state` };
+    }
+    if (said.onlyPlaces.size && home.size && !covers(said.onlyPlaces, home)) return { status: 'limited', why: `Only in ${listPlaces(said.onlyPlaces)}` };
+    if (said.onlyPlaces.size && home.size) return { status: 'open' }; // the text includes your country, whatever else is listed
+
+    const list = ((job && job.locations) || []).filter(Boolean);
+    if (!list.length || list.some((l) => ANYWHERE.test(l))) return { status: 'open' };
+    // "Remote - California" for someone in another state
+    const remoteStates = list.map((l) => (/\bremote\b/i.test(l) ? statesIn(l.replace(/\bremote\b/gi, ' ')) : new Set()));
+    if (mine.size && remoteStates.every((s) => s.size) && !remoteStates.some((s) => [...s].some((x) => mine.has(x)))) {
+      return { status: 'limited', why: `Remote limited to ${states(new Set(remoteStates.flatMap((s) => [...s])))}` };
+    }
+    const there = new Set(list.flatMap((l) => [...placesInText(l), ...(statesIn(l).size ? ['united states'] : [])]));
+    if (!there.size || !home.size || covers(there, home)) return { status: 'open' };
+    // Every location says "Remote <place>" or "<place> only": that is the limit. A plain country is just where it's listed.
+    const named = list.filter((l) => placesInText(l).size);
+    if (named.length && named.every((l) => /\bremote\b|\bonly\b/i.test(l))) return { status: 'limited', why: `Remote limited to ${listPlaces(there)}` };
+    return { status: 'listed', why: `Listed for ${listPlaces(there)}: confirm they hire in ${placeLabel([...home][0])}` };
+  }
+
   function fitChecks(jdText, profile, jobLocation) {
     const wanted = Object.entries(profile.workTypes || {}).filter(([, v]) => v).map(([k]) => k);
     const jobTypes = detectWorkTypes(jdText);
@@ -240,15 +355,22 @@
       return hay.includes(` ${AJP.normKey(city)} `);
     });
     const home = homeCountries(areas, profile);
-    const abroad = listedAbroad(jobLocation ? [jobLocation] : [], home);
-    const remoteOk = workType.job.includes('remote') && workType.wanted.includes('remote');
+    const remote = workType.job.includes('remote');
+    // Remote: only a stated limit counts against it. On-site / hybrid in another country is a real mismatch.
+    const scope = remote ? remoteRestriction({ locations: jobLocation ? [jobLocation] : [], description: jdText }, areas, profile) : { status: 'open' };
+    const abroad = !remote && listedAbroad(jobLocation ? [jobLocation] : [], home);
+    const remoteOk = remote && workType.wanted.includes('remote');
+    const blocked = abroad || scope.status === 'limited';
+    const unsure = scope.status === 'listed' || scope.status === 'check';
     const location = {
       job: jobLocation || '',
-      matched: abroad ? null : hit || null,
+      matched: blocked ? null : hit || null,
       abroad,
-      remote: workType.job.includes('remote'),
+      remote,
+      scope: scope.status,
+      note: scope.why || null,
       home: abroad ? [...home][0] : null,
-      ok: abroad ? false : areas.length ? (hit || remoteOk ? true : false) : null,
+      ok: blocked ? false : unsure && !hit ? null : areas.length ? (hit || remoteOk ? true : false) : null,
     };
     return { workType, salary, location };
   }
@@ -337,5 +459,5 @@
     }
   }
 
-  AJP.matcher = { countriesIn, homeCountries, listedAbroad, analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
+  AJP.matcher = { countriesIn, homeCountries, listedAbroad, statesIn, readLimits, remoteRestriction, analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
 })();

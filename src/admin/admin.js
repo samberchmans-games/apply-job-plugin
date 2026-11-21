@@ -974,7 +974,7 @@
     else if (changes.modelHealth && on === 'ai') renderAutoModels();
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
-    if (changes.radarJobs || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
+    if (changes.radarJobs || changes.radarFiltered || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
     if (changes.profile && on === 'prefs') renderPrefsTracksNote();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();
   });

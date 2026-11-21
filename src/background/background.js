@@ -380,24 +380,44 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     const [profile, rs, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings'), AJP.store.get('resumes')]);
     const C = AJP.radar.core;
     const years = C.userYears(profile, resumes);
+    const now = Date.now();
     let removed = 0;
-    await serialRadar(() =>
-      AJP.store.update('radarJobs', (list) =>
-        list
-          // New jobs: score again with your current skills and tracks (same numbers as a job page), then the filters.
-          .map((j) => (j.status === 'new' ? { ...j, ...AJP.radar.scan.score(j, profile, resumes), eligibility: C.eligibility(j.description, profile) } : j))
-          .filter((j) => {
-            if (j.status !== 'new') return true;
-            const ok = C.quickFilter(j, rs, profile, { years }).pass && C.relevant(j, profile);
-            if (!ok) removed++;
-            return ok;
-          })
-      )
-    );
+    let returned = 0;
+    await serialRadar(async () => {
+      const [list, parked] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarFiltered')]);
+      const keep = [];
+      const out = [];
+      const relist = new Set(); // fits now but its description wasn't kept: the next scan reads it again
+      // Matched: score again with your current skills and tracks (same numbers as a job page), then the filters.
+      for (const j of list) {
+        if (j.status !== 'new') { keep.push(j); continue; }
+        const scored = { ...j, ...AJP.radar.scan.score(j, profile, resumes), eligibility: j.override ? j.eligibility : C.eligibility(j.description, profile) };
+        if (j.override) { keep.push(scored); continue; } // you moved it back yourself
+        const v = C.evaluate(scored, rs, profile, { years });
+        if (v.pass) keep.push({ ...scored, remoteNote: v.note || null });
+        else { removed++; out.push(C.toFiltered(scored, v.reason, v.detail, now, true)); }
+      }
+      // Filtered: anything that fits your preferences now comes back.
+      const have = new Set(keep.map((j) => j.key));
+      const still = [];
+      for (const f of parked) {
+        if (have.has(f.key)) continue;
+        const { reason, detail, filteredAt, ...job } = f;
+        const scored = job.description ? { ...job, ...AJP.radar.scan.score(job, profile, resumes) } : job;
+        const v = C.evaluate(scored, rs, profile, { years });
+        if (!v.pass) { still.push({ ...f, ...(job.description ? scored : {}), reason: v.reason, detail: v.detail || '' }); continue; }
+        returned++;
+        if (job.description) keep.unshift({ ...scored, status: 'new', remoteNote: v.note || null, eligibility: C.eligibility(job.description, profile) });
+        else relist.add(f.key);
+      }
+      await AJP.store.set('radarJobs', keep);
+      await AJP.store.set('radarFiltered', C.mergeFiltered(still, out, now));
+      if (relist.size) await AJP.store.update('radarSeen', (seen) => Object.fromEntries(Object.entries(seen).filter(([k]) => !relist.has(k))));
+    });
     await AJP.store.update('radarScanState', (s) => void ((s.prefsSig = radarPrefsSig(profile, rs)), (s.prefsChangedAt = Date.now())));
     refreshBadgeSoon();
-    log.info('Radar list re-checked with your preferences', { removed });
-    return { removed };
+    log.info('Radar list re-checked with your preferences', { removed, returned });
+    return { removed, returned };
   }
   const radarRefilterSoon = AJP.debounce(() => radarRefilter().catch((e) => log.warn('Radar re-check failed', { error: e.message })), 800);
   api.storage.onChanged.addListener((changes, area) => {
@@ -863,6 +883,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       await serialRadar(async () => {
         await AJP.store.update('radarWatchlist', (l) => l.filter((w) => w.key !== key));
         await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && `${j.board}:${j.company}` === key.split(':').slice(0, 2).join(':'))));
+        await AJP.store.update('radarFiltered', (l) => l.filter((j) => `${j.board}:${j.company}` !== key.split(':').slice(0, 2).join(':')));
       });
       refreshBadgeSoon();
       return {};
@@ -908,6 +929,43 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       await refreshBadge();
       return {};
     },
+    // Job Radar → Filtered: every job left out, with its reason (a page at a time).
+    async 'radar.filtered'({ reason = 'all', offset = 0, limit = 25, sort = 'newest' } = {}) {
+      const [parked, list] = await Promise.all([AJP.store.get('radarFiltered'), AJP.store.get('radarJobs')]);
+      const blocked = list
+        .filter((j) => j.status === 'new' && j.eligibility && j.eligibility.status === 'blocked')
+        .map((j) => ({ ...j, reason: 'authorization', detail: (j.eligibility.reasons || []).join('; '), filteredAt: j.foundAt }));
+      const all = [...blocked, ...parked];
+      const counts = {};
+      for (const j of all) counts[j.reason] = (counts[j.reason] || 0) + 1;
+      const rows = reason === 'all' ? all : all.filter((j) => j.reason === reason);
+      const when = (j) => Date.parse(j.postedAt || j.filteredAt) || 0;
+      rows.sort((a, b) => (sort === 'match' ? (b.score == null ? -1 : b.score) - (a.score == null ? -1 : a.score) : 0) || when(b) - when(a));
+      return { jobs: rows.slice(offset, offset + limit).map(({ description, ...j }) => j), total: rows.length, all: all.length, counts };
+    },
+    // "Move to Matched": your call overrides the filter, and later re-checks respect it.
+    async 'radar.filtered.restore'({ key } = {}) {
+      let moved = false;
+      await serialRadar(async () => {
+        const parked = await AJP.store.get('radarFiltered');
+        const f = parked.find((j) => j.key === key);
+        if (f) {
+          const { reason, detail, filteredAt, ...job } = f;
+          await AJP.store.set('radarFiltered', parked.filter((j) => j.key !== key));
+          await AJP.store.update('radarJobs', (l) => (l.some((j) => j.key === key) ? l : [{ ...job, status: 'new', override: true, remoteNote: reason === 'restricted' ? detail : job.remoteNote || null }, ...l]));
+          moved = true;
+          return;
+        }
+        await AJP.store.update('radarJobs', (l) => l.map((j) => {
+          if (j.key !== key || !j.eligibility || j.eligibility.status !== 'blocked') return j;
+          moved = true;
+          return { ...j, override: true, eligibility: { ...j.eligibility, status: 'check' } };
+        }));
+      });
+      refreshBadgeSoon();
+      log.info('Radar job moved back to Matched', { moved });
+      return { moved };
+    },
     async 'radar.job.update'({ key, status } = {}) {
       if (!['new', 'saved', 'dismissed'].includes(status)) throw AJP.err('INTERNAL', { original: 'bad status ' + status });
       let job = null;
@@ -927,6 +985,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       await serialRadar(async () => {
         await AJP.store.update('radarSettings', (s) => void (s.excluded = [...new Set([...(s.excluded || []), key])]));
         await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && j.board === board && j.company === company)));
+        await AJP.store.update('radarFiltered', (l) => l.filter((j) => !(j.board === board && j.company === company)));
       });
       refreshBadgeSoon();
       log.info('Radar company hidden', { board });

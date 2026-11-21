@@ -593,15 +593,18 @@
         job({ id: 2, title: 'Week Job', score: 65, postedAt: new Date(now - 3 * 86400e3).toISOString(), eligibility: { status: 'check', reasons: ['Mentions a security clearance'], flags: {} } }),
         job({ id: 3, title: 'Blocked Job', score: 90, eligibility: { status: 'blocked', reasons: ['Says it can’t sponsor visas, and you need sponsorship'], flags: { noSponsor: true } } }),
       ] }, { hash: 'radar', background: true });
-      await waitFor(() => $$('.radar-job').length === 3, { msg: 'jobs' });
+      await waitFor(() => $$('#radarJobs > .radar-job').length === 2, { msg: 'jobs' });
       includes($('#radarTracks').textContent, 'Cloud (Cloud Architect · Seattle, WA)');
       eq($$('#radarJobs > .radar-job b').map((b) => b.textContent), ['Fresh Job', 'Week Job'], 'blocked job is not in the main list');
       const fresh = $$('#radarJobs > .radar-job')[0].textContent;
       ['Posted today', 'Data', 'Sponsors visas'].forEach((t) => includes(fresh, t));
       includes($$('#radarJobs > .radar-job')[1].textContent, 'This week');
       includes($$('#radarJobs > .radar-job')[1].textContent, 'Check: Mentions a security clearance');
-      includes($('.radar-blocked summary').textContent, 'Likely not eligible (1)');
-      includes($('.radar-blocked').textContent, 'can’t sponsor visas');
+      $('#radarTabs [data-tab="filtered"]').click();
+      await waitFor(() => $$('#radarFilteredJobs .radar-job').length === 1, { msg: 'filtered tab' });
+      includes($('#radarFilteredJobs').textContent, 'Work authorization');
+      includes($('#radarFilteredJobs').textContent, 'can’t sponsor visas');
+      $('#radarTabs [data-tab="matched"]').click();
       $('#radarSort').value = 'newest';
       $('#radarSort').dispatchEvent(new w.Event('change', { bubbles: true }));
       await waitFor(() => $$('#radarJobs > .radar-job b')[0].textContent === 'Fresh Job', { msg: 'newest' });
