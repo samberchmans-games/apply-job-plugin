@@ -93,6 +93,13 @@
     return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
   }
 
+  function geminiThinking(model) {
+    const m = String(model);
+    if (/^gemini-2\.5-flash/.test(m)) return { thinkingBudget: 0 }; // 2.5 Flash / Flash-Lite: thinking off
+    if (/^gemini-2\.5-pro/.test(m)) return { thinkingBudget: 128 }; // 2.5 Pro: the minimum
+    if (/^gemini-(flash|pro)/.test(m) || /^gemini-([3-9]|\d{2})/.test(m)) return { thinkingLevel: 'low' }; // Gemini 3+ and -latest aliases
+    return null;
+  }
   const ANTHROPIC_FALLBACK = /^claude-(fable-5-[12]|opus-5(-5)?|sonnet-5-5)$/; // models with server-side refusal fallback
   const CALLERS = {
     async gemini(cfg, model, system, prompt, json) {
@@ -102,12 +109,27 @@
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.3, ...(json ? { responseMimeType: 'application/json' } : {}) },
       };
-      const data = await fetchJson(url, {
+      // Newer Gemini models think at a high level by default, which on the free tier can take over a minute even for
+      // "Say OK" (report R-20261121-XX1QF). Resume work doesn't need deep thinking: ask for a low level (2.5: a small budget).
+      const thinking = geminiThinking(model);
+      if (thinking) body.generationConfig.thinkingConfig = thinking;
+      const send = (b) => fetchJson(url, {
         timeoutMs: cfg.timeoutMs,
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.keys.gemini },
-        body: JSON.stringify(body),
+        body: JSON.stringify(b),
       });
+      let data;
+      try {
+        data = await send(body);
+      } catch (e) {
+        // A model that doesn't accept this thinking setting answers 400: ask again without it, once.
+        const x = AJP.toAppError(e);
+        if (!thinking || !/thinking/i.test(String((x.details && x.details.body) || ''))) throw e;
+        AJP.logger('ai').info('Gemini model rejected the thinking setting; retrying without it', { model });
+        delete body.generationConfig.thinkingConfig;
+        data = await send(body);
+      }
       const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
       return parts.map((p) => p.text || '').join('');
     },

@@ -223,6 +223,20 @@
       await AJP.ai.tasks.test();
       includes(calls[2].url, 'models/gemini-3.7-flash:generateContent');
     });
+    it('asks Gemini to think less (newer models think at a high level by default and can take over a minute)', async () => {
+      for (const [model, want] of [['gemini-3.6-flash', { thinkingLevel: 'low' }], ['gemini-flash-latest', { thinkingLevel: 'low' }], ['gemini-2.5-flash', { thinkingBudget: 0 }], ['gemini-2.5-pro', { thinkingBudget: 128 }]]) {
+        await settings({ model });
+        fake(ok());
+        await AJP.ai.tasks.test();
+        eq(calls[0].body.generationConfig.thinkingConfig, want, model);
+      }
+    });
+    it('a model that rejects the thinking setting is asked again without it, once', async () => {
+      await settings({ model: 'gemini-flash-latest' });
+      fake(json({ error: { code: 400, message: 'Thinking level is not supported for this model.', status: 'INVALID_ARGUMENT' } }, 400), ok());
+      eq(await AJP.ai.tasks.test(), 'OK');
+      notOk('thinkingConfig' in calls[1].body.generationConfig);
+    });
     it('only slow / special models offered → the coded "model not found" error, not a long wait', async () => {
       fake(notFound(), list('deep-research-pro-preview-12-2026', 'veo-3.0-generate'));
       eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-404');

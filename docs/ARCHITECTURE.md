@@ -368,7 +368,7 @@ For sites other than Workday. A section = a heading ("Employment", "Experience",
 ### 8.5 AI (`ai.js`)
 | Provider | Endpoint | Auth | Default model |
 |---|---|---|---|
-| Gemini | `generativelanguage.googleapis.com/v1beta/models/{m}:generateContent` | `x-goog-api-key` header (never in the URL) | `gemini-3.6-flash` (2.5-flash is deprecated: 404 for newer keys, shutdown 2026-12-01); a replacement is the newest flash version |
+| Gemini | `generativelanguage.googleapis.com/v1beta/models/{m}:generateContent` | `x-goog-api-key` header (never in the URL) | `gemini-3.6-flash` (2.5-flash is deprecated: 404 for newer keys, shutdown 2026-12-01); a replacement is the newest flash version. `thinkingConfig`: Gemini 3+ / `-latest` → `thinkingLevel: 'low'`, 2.5 Flash → `thinkingBudget: 0`, 2.5 Pro → 128 (default high thinking took 30–90 s+ on the free tier); a 400 about thinking → retried once without it |
 | Groq | `api.groq.com/openai/v1/chat/completions` | Bearer | `llama-3.3-70b-versatile` |
 | OpenRouter | `openrouter.ai/api/v1/chat/completions` | Bearer | `meta-llama/llama-3.3-70b-instruct:free` |
 | Ollama | `{ollamaUrl}/api/chat` | none (local) | `llama3.1` |
@@ -540,7 +540,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1136 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1138 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1136 automated + 128 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1138 automated + 128 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1136 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1136) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 1138 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1138) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | Gemini asked to think less (Gemini 3+ / -latest `thinkingLevel: low`, 2.5 Flash budget 0): default high thinking made even "Say OK" take 30–90 s+ on the free tier (still AJP-AI-TIME after the model fix); a model rejecting the setting is retried without it; 1138 tests |
 | 2026-11-21 | `1420fc4` | Gemini default moved to `gemini-3.6-flash` (Google deprecated 2.5-flash: 404 for newer keys, the 2 errors in AI Studio's chart); a replacement is the newest flash version; Admin model placeholders show the model actually in use; 1136 tests |
 | 2026-11-21 | `af18130` | Fixed B27 (report R-20261121-XX1QF): model replacement never picks slow special models (deep research, robotics…); a slow auto-picked model is forgotten; Test connection gives up after 30 s and names the model; Admin shows auto-picked models with Reset; 1135 tests |
 | 2026-11-21 | `8fafc85` | Fixed B26: OpenRouter picks capable free models (never small "flash" ones first, never paid), and a free model busy upstream is swapped for another free model instead of failing; 1130 tests |
