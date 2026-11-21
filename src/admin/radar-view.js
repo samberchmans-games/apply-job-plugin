@@ -90,7 +90,9 @@
     const fr = FRESH[AJP.radar.core.freshness(j)];
     const track = tracksById[j.bestTrackId];
     const skills = j.score != null && j.skillsTotal ? `${j.skillsMatched} of ${j.skillsTotal} skills` : j.score == null ? 'no description yet: scored when it arrives' : '';
-    const meta = [skills, j.yearsAsked != null ? `asks ${j.yearsAsked}+ yrs` : '', esc(j.companyName), esc((j.allLocations || j.locations).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
+    const yrs = j.yearsAsked != null && !AJP.radar.core.isLeadershipYears(j.yearsQuote) ? `asks ${j.yearsAsked}+ yrs` : '';
+    const lead = j.yearsLeading ? `${j.yearsLeading}+ yrs leading` : '';
+    const meta = [skills, [yrs, lead].filter(Boolean).join(' · '), esc(j.companyName), esc((j.allLocations || j.locations).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
     const tags = [
       fr ? `<span class="pill ${fr[0]}">${fr[1]}</span>` : '',
       track && !track.implicit ? `<span class="pill" title="The career track this job fits best">${esc(track.name)} track</span>` : '',

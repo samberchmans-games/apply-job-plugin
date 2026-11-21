@@ -108,6 +108,29 @@
     });
   });
 
+  describe('radar relevance › two experience asks: general years and leading a team', () => {
+    const P = () => ({ personal: { yearsExperience: '15' }, skills: ['Python', 'SQL', 'Spark', 'Airflow'].map((name) => ({ name })), targetRoles: ['Senior Data Engineer'], tracks: [], areas: [], workTypes: {} });
+    const judge = (text) => {
+      const j = C.normalize({ id: 1, title: 'Lead Data Engineer', description: text }, { board: 'greenhouse', company: 'x' });
+      const sc = AJP.radar.scan.score(j, P(), { items: [] });
+      return { ...sc, listed: C.relevant({ ...j, ...sc }, P()) };
+    };
+    it('"10+ years of experience" and "4+ years leading or managing a team": listed, both read', () => {
+      const r = judge('- 10+ years of experience in data engineering\n- 4+ years leading or managing a team\n- Python, SQL, Spark');
+      eq([r.yearsAsked, r.yearsLeading, r.listed], [10, 4, true]);
+    });
+    it('only a leadership number ("5+ years leading teams") never makes a job "too junior"', () => {
+      const r = judge('- 5+ years leading data engineering teams\n- Python, SQL, Spark, Airflow');
+      eq([r.yearsLeading, r.listed], [5, true]);
+    });
+    it('people management before the general years, and ranges ("3-5 years managing")', () => {
+      eq([judge('- 4+ years of people management and 10+ years building data platforms with Python and SQL').yearsAsked, judge('- 12 years of experience; 3-5 years managing engineers. Python SQL Spark').yearsLeading], [10, 3]);
+    });
+    it('a plain "3+ years of experience" is still a junior role for 15 years', () => {
+      eq(judge('- 3+ years of experience\n- Python, SQL').listed, false);
+    });
+  });
+
   describe('radar relevance › experience in scans', () => {
     beforeEach(async () => {
       await seed();

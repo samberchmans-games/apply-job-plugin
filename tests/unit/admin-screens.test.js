@@ -665,6 +665,11 @@
       includes($('.radar-pager').textContent, '26–30 of 30');
       ok($('.radar-pager [data-page="1"]').disabled);
     });
+    it('cards show both experience asks: "asks 10+ yrs · 4+ yrs leading"', async () => {
+      await load('admin.html', { radarJobs: [job({ id: 9, title: 'Lead Data Engineer', score: 70, yearsAsked: 10, yearsQuote: '10+ years of experience', yearsLeading: 4 })] }, { hash: 'radar', background: true });
+      await waitFor(() => $('.radar-job'), { msg: 'job' });
+      includes($('.radar-job').textContent, 'asks 10+ yrs · 4+ yrs leading');
+    });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });

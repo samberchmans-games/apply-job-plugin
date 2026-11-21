@@ -266,12 +266,16 @@
   }
   // Years the description asks for, near yours: not far more (asked > yours + 2), not a junior role (asked ≤ 5 and
   // under half of yours). 15 years: "10+", "12+", "8+" fit; "3+" or "20+" don't. Unknown → fits.
+  // A JD can ask for two things: "10+ years of experience" AND "4+ years leading / managing a team". The leadership
+  // years say nothing about how senior the job is, so they never make a job "too junior" (only the general years do).
+  const LEADING = /\b(lead|leads|leading|led|leader|leadership|manag\w*|people|direct reports|mentor\w*|supervis\w*|team)\b/i;
+  const isLeadershipYears = (quote) => LEADING.test(String(quote || ''));
   function experienceFits(job) {
     const asked = job && job.yearsAsked;
     const have = job && job.yearsHave;
     if (asked == null || have == null) return true;
     if (asked > have + 2) return false;
-    if (asked <= 5 && asked < have / 2) return false;
+    if (asked <= 5 && asked < have / 2 && !isLeadershipYears(job.yearsQuote)) return false;
     return true;
   }
   // Your total years (Admin → Profile, else work history, else the resume): used for the level rule.
@@ -364,7 +368,7 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 6;
+  const RULES_VERSION = 7;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
@@ -383,5 +387,5 @@
     return job.techMatched >= Math.min(MIN_TECH_SKILLS, Math.max(1, mineTech));
   }
 
-  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, isLeadershipYears, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

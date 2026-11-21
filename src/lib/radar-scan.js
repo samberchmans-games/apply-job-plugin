@@ -110,6 +110,16 @@
     };
   }
 
+  // "4+ years leading / managing a team" next to the general years: shown on the card, never used to filter.
+  const LEAD_YEARS = /(\d{1,2})\s*\+?\s*(?:-\s*\d{1,2}\s*)?(?:years?|yrs?)\b[^.\n;]{0,45}?\b(?:lead|leading|led|managing|manage|management|people|direct reports|mentoring|supervis\w*)\b/gi;
+  function leadingYears(yr, text) {
+    const s = ((yr && yr.skills) || []).filter((x) => /leadership|people management|mentoring/i.test(x.skill || '')).map((x) => x.asked).filter((n) => n > 0);
+    let m;
+    LEAD_YEARS.lastIndex = 0;
+    while ((m = LEAD_YEARS.exec(String(text || '')))) if (+m[1] > 0 && +m[1] <= 30) s.push(+m[1]);
+    if (s.length) return Math.max(...s);
+    return yr && yr.asked != null && AJP.radar.core.isLeadershipYears(yr.quote) ? yr.asked : null;
+  }
   // A job with no description is not scored: skills named in a title alone ("Machine Learning") would read as 100%.
   function bestScore(job, profile, resumes) {
     if (job.descriptionLevel === 'title') {
@@ -122,7 +132,7 @@
     const a = best && best.analysis;
     const yr = (a && a.fit && a.fit.years) || {};
     // Same numbers as the job page's panel: score, and "N of M skills match".
-    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0, techMatched: AJP.radar.core.techMatches(a), yearsAsked: yr.asked != null ? yr.asked : null, yearsHave: yr.have != null ? yr.have : null };
+    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0, techMatched: AJP.radar.core.techMatches(a), yearsAsked: yr.asked != null ? yr.asked : null, yearsHave: yr.have != null ? yr.have : null, yearsQuote: yr.quote || '', yearsLeading: leadingYears(yr, job.description) };
   }
 
   async function scanCompany(entry, { fetchImpl, counter, settings, profile, resumes, seen, now }) {
