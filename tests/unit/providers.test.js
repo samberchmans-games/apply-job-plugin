@@ -202,6 +202,42 @@
     });
   }, { env: 'browser' });
 
+  describe('providers › Gemini model choice and timeouts (report R-20261121-XX1QF)', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'gemini', model: '', tailorProvider: '', tailorModel: '', resolvedModels: {}, keys: { ...KEYS, gemini: 'g' } });
+    });
+    afterEach(after);
+    const notFound = () => json({ error: { code: 404, message: 'models/gemini-2.5-flash is not found for API version v1beta' } }, 404);
+    const list = (...ids) => json({ models: ids.map((id) => ({ name: 'models/' + id, supportedGenerationMethods: ['generateContent'] })) });
+    const ok = () => json({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] });
+    const hang = () => (url, opts) => new Promise((res, rej) => opts.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError'))));
+    it('default not offered → never a slow special model (deep research, robotics, live…), a flash model instead', async () => {
+      fake(notFound(), list('deep-research-pro-preview-12-2026', 'gemini-robotics-er-1.5-preview', 'gemini-2.5-flash-live', 'gemini-3.1-flash-preview'), ok());
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[2].url, 'models/gemini-3.1-flash-preview:generateContent');
+    });
+    it('only slow / special models offered → the coded "model not found" error, not a long wait', async () => {
+      fake(notFound(), list('deep-research-pro-preview-12-2026', 'veo-3.0-generate'));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-404');
+    });
+    it('Test connection gives up after CONFIG.testTimeoutMs (not the 90 s of a tailoring call)', async () => {
+      AJP.ai.CONFIG.testTimeoutMs = 60;
+      calls = [];
+      globalThis.fetch = (url, opts) => (calls.push({ url }), hang()(url, opts));
+      const t0 = performance.now();
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-TIME');
+      ok(performance.now() - t0 < 2000, 'fast');
+    });
+    it('an auto-picked model that times out is forgotten (the default is tried again next time)', async () => {
+      AJP.ai.CONFIG.testTimeoutMs = 60;
+      await settings({ resolvedModels: { gemini: 'gemini-slow-model' } });
+      globalThis.fetch = (url, opts) => hang()(url, opts);
+      await rejects(() => AJP.ai.tasks.test());
+      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, '');
+    });
+  }, { env: 'browser' });
+
   describe('providers › keys stay private', () => {
     beforeEach(before);
     afterEach(after);

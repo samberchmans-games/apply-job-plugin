@@ -47,7 +47,7 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-AI-404` | Model name not found | Clear the Model field to use the default |
 | `AJP-AI-5XX` | The provider had a server error | Retry later |
 | `AJP-AI-HTTP` | Other HTTP error | See `details.status` / `details.body` in the log |
-| `AJP-AI-TIME` | No answer within 90 s | Retry; very long job descriptions or resumes are slower |
+| `AJP-AI-TIME` | No answer within 90 s (30 s for Test connection). The failed test names the provider · model | Retry; very long job descriptions or resumes are slower. If the model shown was **picked automatically** (AI settings shows it), click **Reset model choice**; a slow auto-picked model is also forgotten by itself. Still slow → try another provider |
 | `AJP-AI-NET` | Couldn't reach the provider | Internet or firewall. Ollama: is it running, and started with `OLLAMA_ORIGINS="*"`? |
 | `AJP-AI-FMT` | Couldn't understand the AI's answer | Retry, or use a larger model |
 | `AJP-AI-BILLING` | The provider says the free tier isn't available for this key's account / project (Gemini: "set up billing", "location not supported", quota "limit: 0") | Use Groq (free, no card), another personal Google account, or enable billing with the provider |

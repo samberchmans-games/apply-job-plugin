@@ -46,7 +46,7 @@
       AJP.send('github.status', {}).then(renderReports); // throttled to every 10 min per report
     }
     if (id === 'answers') renderAnswers();
-    if (id === 'ai') renderAiCalls();
+    if (id === 'ai') (renderAiCalls(), renderAutoModels());
     if (id === 'skills') refreshEstimates();
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
@@ -550,8 +550,9 @@
       await AJP.store.set('settings', settings);
       $('#aiTailorOut').textContent = 'Testing…';
       const r = await AJP.send('ai.test', { group: 'tailor' });
-      $('#aiTailorOut').textContent = r.ok ? `✅ Works (${r.ai || ''})` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      $('#aiTailorOut').textContent = r.ok ? `✅ Works (${r.ai || ''})` : `❌ ${await usedBy()}${r.error} ${r.hint || ''} (${r.code})`;
       renderAiCalls();
+      renderAutoModels();
     });
     updateModelPlaceholder();
     $('#aiProvider').addEventListener('change', () => setTimeout(() => (updateModelPlaceholder(), renderLocalAI()), 0));
@@ -585,8 +586,9 @@
       await AJP.store.set('settings', settings); // flush pending edits first
       $('#aiTestOut').textContent = 'Testing…';
       const r = await AJP.send('ai.test');
-      $('#aiTestOut').textContent = r.ok ? `✅ Works (${r.ai || ''}). Reply: "${r.text.slice(0, 40)}"` : `❌ ${r.error} ${r.hint || ''} (${r.code})`;
+      $('#aiTestOut').textContent = r.ok ? `✅ Works (${r.ai || ''}). Reply: "${r.text.slice(0, 40)}"` : `❌ ${await usedBy()}${r.error} ${r.hint || ''} (${r.code})`;
       renderAiCalls();
+      renderAutoModels();
     });
   }
 
@@ -611,6 +613,30 @@
     if (isLocal && bg && bg.state === 'unsupported' && page.state !== 'unsupported') $('#aiLocalOut').textContent = 'Note: the extension background cannot see the built-in AI in this browser version; AI actions may fail with AJP-AI-LOCAL-NONE.';
     log.info('Local AI status', { background: bg && bg.state, page: page.state });
   }, { mod: 'admin', onError: (d) => ($('#aiLocalState').textContent = `${d.message} (${d.code})`) });
+
+  // Which provider · model a failed test used (from Recent AI calls), so "took too long" names the model.
+  async function usedBy() {
+    const c = (await AJP.store.get('aiCalls'))[0];
+    return c && !c.ok && Date.now() - Date.parse(c.at) < 5 * 60000 ? `${c.label}: ` : '';
+  }
+  // Models picked automatically because a default was retired or unavailable: shown, with a way to start over.
+  async function renderAutoModels() {
+    const box = $('#aiAuto');
+    if (!box) return;
+    const r = ((await AJP.store.get('settings')).ai || {}).resolvedModels || {};
+    const list = Object.entries(r).filter(([, m]) => m);
+    box.hidden = !list.length;
+    box.innerHTML = list.length
+      ? `Picked automatically (the default model wasn't available to your key): ${list.map(([p, m]) => `<b>${esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p)} · ${esc(m)}</b>`).join(', ')}. <button id="aiAutoReset" type="button">Reset model choice</button>`
+      : '';
+    const b = $('#aiAutoReset');
+    if (b) b.addEventListener('click', AJP.guard('admin.resetModels', async () => {
+      await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
+      settings.ai.resolvedModels = {};
+      renderAutoModels();
+      toast('Model choice reset: the next AI call uses the default model again.');
+    }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }));
+  }
 
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',

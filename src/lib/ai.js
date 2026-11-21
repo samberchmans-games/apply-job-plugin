@@ -32,7 +32,8 @@
   };
 
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
-  const CONFIG = { timeoutMs: 90000, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
@@ -56,9 +57,10 @@
       throw e;
     }
   }
-  function request(url, opts) {
-    return AJP.http(url, opts, {
-      timeoutMs: CONFIG.timeoutMs,
+  function request(url, opts = {}) {
+    const { timeoutMs, ...rest } = opts;
+    return AJP.http(url, rest, {
+      timeoutMs: timeoutMs || CONFIG.timeoutMs,
       tries: CONFIG.tries,
       statusKey: AJP.aiErrorForStatus,
       networkKey: 'AI_NETWORK',
@@ -71,7 +73,7 @@
 
   // jsonMode false: the provider/model may reject response_format, so JSON is asked for in the prompt only
   // (parseJsonLoose + the one JSON retry in complete() handle the rest).
-  async function callOpenAICompatible(url, key, model, system, prompt, json, extraHeaders = {}, jsonMode = true) {
+  async function callOpenAICompatible(url, key, model, system, prompt, json, { headers: extraHeaders = {}, jsonMode = true, timeoutMs } = {}) {
     const body = {
       model,
       temperature: 0.3,
@@ -83,6 +85,7 @@
     if (json && jsonMode) body.response_format = { type: 'json_object' };
     if (json && !jsonMode) body.messages[0].content += '\n\nReply with ONE valid JSON object only, no other text.';
     const data = await fetchJson(url, {
+      timeoutMs,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, ...extraHeaders },
       body: JSON.stringify(body),
@@ -100,6 +103,7 @@
         generationConfig: { temperature: 0.3, ...(json ? { responseMimeType: 'application/json' } : {}) },
       };
       const data = await fetchJson(url, {
+        timeoutMs: cfg.timeoutMs,
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.keys.gemini },
         body: JSON.stringify(body),
@@ -108,18 +112,19 @@
       return parts.map((p) => p.text || '').join('');
     },
     groq(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', cfg.keys.groq, model, system, prompt, json);
+      return callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', cfg.keys.groq, model, system, prompt, json, { timeoutMs: cfg.timeoutMs });
     },
     openrouter(cfg, model, system, prompt, json) {
       return callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', cfg.keys.openrouter, model, system, prompt, json, {
-        'X-Title': 'Apply Job Assistant',
+        headers: { 'X-Title': 'Apply Job Assistant' },
+        timeoutMs: cfg.timeoutMs,
       });
     },
     nvidia(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://integrate.api.nvidia.com/v1/chat/completions', cfg.keys.nvidia, model, system, prompt, json, {}, false);
+      return callOpenAICompatible('https://integrate.api.nvidia.com/v1/chat/completions', cfg.keys.nvidia, model, system, prompt, json, { jsonMode: false, timeoutMs: cfg.timeoutMs });
     },
     mistral(cfg, model, system, prompt, json) {
-      return callOpenAICompatible('https://api.mistral.ai/v1/chat/completions', cfg.keys.mistral, model, system, prompt, json);
+      return callOpenAICompatible('https://api.mistral.ai/v1/chat/completions', cfg.keys.mistral, model, system, prompt, json, { timeoutMs: cfg.timeoutMs });
     },
     // Anthropic Messages API. Raw HTTP through AJP.http (no build step, so no SDK bundle), from the background only.
     // Current models think adaptively; only the text blocks are the answer. A safety refusal (HTTP 200,
@@ -141,7 +146,7 @@
         headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
         body.fallbacks = 'default';
       }
-      const data = await fetchJson('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+      const data = await fetchJson('https://api.anthropic.com/v1/messages', { timeoutMs: cfg.timeoutMs, method: 'POST', headers, body: JSON.stringify(body) });
       if (data.stop_reason === 'refusal') {
         throw AJP.err('AI_REFUSED', { provider: 'anthropic', category: (data.stop_details && data.stop_details.category) || null });
       }
@@ -150,6 +155,7 @@
     async ollama(cfg, model, system, prompt, json) {
       const base = (cfg.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
       const data = await fetchJson(base + '/api/chat', {
+        timeoutMs: cfg.timeoutMs,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -315,7 +321,8 @@
   // now, pick the best fit, remember it (settings.ai.resolvedModels) and retry. Preferences first, then any suitable model.
   const PREFER = {
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
-    gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash$/, /^gemini-2\.5-flash-lite$/, /^gemini-[\d.]+-flash-lite$/, /^gemini-[\d.]+-pro$/],
+    gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
+      /^gemini-[\d.]+-flash-preview(-[\d-]+)?$/, /^gemini-pro-latest$/, /^gemini-[\d.]+-pro$/],
     // Capable free models first; small "flash/mini/nano" ones only as a last resort (they tailor poorly).
     openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek-(chat|v3|r1)[^/]*:free$/, /qwen3-(235b|32b|30b|coder)[^/]*:free$/, /llama-4-maverick[^/]*:free$/,
       /gemma-3-27b[^/]*:free$/, /mistral-small[^/]*:free$/, /kimi-k2[^/]*:free$/, /gpt-oss-20b:free$/, /glm-4[^/]*:free$/, /^(?!.*(flash|mini|nano|lite|\b[1-8]b\b)).*:free$/i, /:free$/],
@@ -354,12 +361,16 @@
     }
     return [];
   }
+  // Slow or special-purpose models (agents, deep research, robotics, live audio, video/music) can't answer a resume prompt
+  // in time: never picked, even as a last resort (that is how a key without gemini-2.5-flash ended in AJP-AI-TIME).
+  const SLOW = /deep-?research|robotics|computer-use|live|native-audio|veo|lyria|imagen|nano-banana|-exp\b|-exp-|experimental|deep-?think/i;
   async function discoverModel(cfg, provider, failed) {
-    const ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id));
+    const ids = (await availableModels(cfg, provider)).filter((id) => id !== failed && !NOT_CHAT.test(id) && !SLOW.test(id));
     for (const re of PREFER[provider] || []) {
       const hit = ids.find((id) => re.test(id));
       if (hit) return hit;
     }
+    if (provider === 'gemini') return ids.find((id) => /^gemini-.*(flash|pro)/.test(id)) || null;
     return ids[0] || null;
   }
 
@@ -387,9 +398,9 @@
    * group 'tailor' uses settings.ai.tailorProvider when set (e.g. Chrome built-in AI for everyday tasks, Gemini or Groq
    * for resume tailoring). patient: wait out one free-tier rate limit of up to CONFIG.patienceMs, then retry.
    */
-  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false }) {
+  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false, timeoutMs }) {
     const settings = await AJP.store.get('settings');
-    const cfg = settings.ai;
+    const cfg = { ...settings.ai, timeoutMs: timeoutMs || CONFIG.timeoutMs };
     const own = group === 'tailor' && cfg.tailorProvider && cfg.tailorProvider !== cfg.provider && PROVIDERS[cfg.tailorProvider] ? cfg.tailorProvider : null;
     const provider = own || cfg.provider;
     const p = PROVIDERS[provider];
@@ -460,6 +471,11 @@
       return result;
     } catch (e) {
       const x = tr.fail(e, { provider, model });
+      // An auto-picked model that is too slow is forgotten: the next call starts from the default again.
+      if (x.code === 'AJP-AI-TIME' && (cfg.resolvedModels || {})[provider] === model) {
+        await AJP.store.update('settings', (st) => void (st.ai.resolvedModels = { ...(st.ai.resolvedModels || {}), [provider]: '' }));
+        tr.log.info(`ai.${task} auto-picked model "${model}" was too slow; forgotten`, { provider, model });
+      }
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: false, code: x.code });
       throw x;
     }
@@ -535,7 +551,7 @@
     },
 
     test({ tid, group = '' } = {}) {
-      return complete({ task: 'test', tid, group, system: 'Reply with one word.', prompt: 'Say OK.' });
+      return complete({ task: 'test', tid, group, system: 'Reply with one word.', prompt: 'Say OK.', timeoutMs: CONFIG.testTimeoutMs });
     },
   };
 

@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1130 automated + 127 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1135 automated + 128 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1130 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1130) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 1135 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1135) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 127 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 128 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -239,7 +239,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
 |---|---|
-| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 127 scenarios |
+| Load in Chrome and run the manual scenarios | `docs/TEST-SCENARIOS.md`, 128 scenarios |
 | Try resume tailoring with a real free AI on 2–3 real jobs | Scenarios D1–D10; judge truthfulness and result-oriented wording |
 | Firefox / Edge / Safari verification | Safari also needs the Xcode converter step (README) |
 | Check job-page reading on live LinkedIn, Indeed, Glassdoor | These sites change often; report any `AJP-JD-NONE` |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | Fixed B27 (report R-20261121-XX1QF): model replacement never picks slow special models (deep research, robotics…); a slow auto-picked model is forgotten; Test connection gives up after 30 s and names the model; Admin shows auto-picked models with Reset; 1135 tests |
 | 2026-11-21 | `8fafc85` | Fixed B26: OpenRouter picks capable free models (never small "flash" ones first, never paid), and a free model busy upstream is swapped for another free model instead of failing; 1130 tests |
 | 2026-11-21 | `6c96c9a` | **More AI providers**: Anthropic Claude (paid, optional, bring your own key; default Opus 5.5, "Tailoring model" for Sonnet / Haiku; refusal and no-credit errors; server-side fallback), NVIDIA NIM and Mistral (free keys); model discovery for all three; backups blank every key; 1126 tests |
 | 2026-11-20 | `d37a86a` | **Which AI did the work**: Recent AI calls in Admin (task, provider · model, time, result; no prompts); test buttons, panel (tailoring, deep analysis, drafted answers) and review screen name the provider · model; 1105 tests |
