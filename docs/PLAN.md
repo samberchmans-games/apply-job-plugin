@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1149 automated + 128 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1237 automated + 144 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1149 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1149) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 1237 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1237) · `./tests/run-tests.sh` (the 602 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 128 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 144 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -234,7 +234,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 ### ⬜ Next (built by Claude, one step at a time, reviewed by you)
 | # | Step | Section | Size |
 |---|---|---|---|
-| 19 | **Job Finder (Job Radar)**: watch company careers boards (11 job boards), score new jobs with the matcher, alert by badge / notification / New jobs list. Design: [JOB-FINDER.md](JOB-FINDER.md); tasks J01–J39 in [TRACKER.md §2b](TRACKER.md); starts after your decisions (J01) | new | Large (8 phases) |
+| 19 | **Job Finder (Job Radar)**: watch company careers boards (11 job boards), score new jobs with the matcher, alert by badge / notification / New jobs list. [JOB-FINDER.md](JOB-FINDER.md); tasks in [TRACKER.md §2b](TRACKER.md). **Built on `feature/job-radar`; waiting on your browser pass (T17), then merge** | 🔨 | Large (8 phases) |
 
 ### 🧪 Your side (manual, when you're ready)
 | Item | Notes |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | `d149a52` … `259d3e8` (`feature/job-radar`) | **Job Radar (step 19)**: watch company careers boards on 11 job boards (Greenhouse, Lever, Ashby, Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling, Personio, Teamtailor, Workday), each against a captured live response; resumable, polite scan engine (budgets, coded errors, retries, pause after 5 failures); scoring with the career tracks; Admin → Job Radar (new jobs, watchlist incl. careers pages and lists, settings), popup box, panel "Watch this company", notifications (daily summary / per scan), blue badge; per-board optional permissions; fixed B31, B32; 1237 tests |
 | 2026-11-21 | `2ea688b` | Recent AI calls shows the models tried first in a call and why (e.g. "gemini-3.8-flash (out of free quota) → …") |
 | 2026-11-21 | `6d4723d` | Fixed B30: the model that worked is remembered in the AI's own record (Admin's settings saves wiped it, so every call went 3.8 → 3.7 → 3.6); models that worked rank above untried newer ones; a model outside the free tier is skipped for a day; 1149 tests |
 | 2026-11-21 | `db5671d` | Fixed B29: Gemini / Groq / NVIDIA count free limits per model, so one model out of quota (429, or Gemini "limit: 0") moves to the next model and is set aside until its quota resets (daily → 24 h); tailoring tries another model before waiting; 1147 tests |

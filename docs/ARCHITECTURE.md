@@ -7,7 +7,7 @@ Last updated: 2026-11-18 · Version 0.1.0 · Branch `develop`. Related documents
 - [TRACKER.md](TRACKER.md): current status
 - [TEST-SCENARIOS.md](TEST-SCENARIOS.md): tests
 - [SUPPORT.md](SUPPORT.md): logs and error codes
-- [JOB-FINDER.md](JOB-FINDER.md): Job Finder (Job Radar) design, planned roadmap step 19
+- [JOB-FINDER.md](JOB-FINDER.md): Job Finder (Job Radar): watch company careers boards, score and alert (step 19; built on `feature/job-radar`)
 
 ---
 
@@ -120,6 +120,12 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 |---|---|---|---|
 | `profile` | `{ personal{…}, skills[{name,level,years}] (core skills), tracks[≤3]{id,name,targetTitles,skills,resumeId,salary?,workTypes?}, targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
 | `settings` | `{ ai{provider,model,keys{gemini,groq,openrouter,nvidia,mistral,anthropic},ollamaUrl,tailorProvider,tailorModel,resolvedModels}, logLevel, autoAnalyze, learnAnswers, tracker{autoDetect,followUpDays} }` | Admin | Keys are never exported by default |
+| `radarSettings` | `{ enabled, intervalHours, threshold, locations[], remote, minSalary, notify: digest\|perScan, lastDigestAt, lastViewedAt }` | Admin → Job Radar | Exported |
+| `radarWatchlist` | `[{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]` | Admin / panel | Exported |
+| `radarJobs` | `[job]` (radar-core.normalize + score, bestTrackId, foundAt, status new\|saved\|dismissed, notifiedAt); 500 newest | Background scan | Exported |
+| `radarSeen` | `{ [jobKey]: firstSeenDate }`, pruned after 60 days | Background scan | Exported |
+| `radarScanState` | `{ lockedAt, queue[], done[], lastSummary }` | Background scan | **Internal** (not exported) |
+| `modelHealth` | per AI provider `{ ranked[], at, last, ok{}, bad{}, why{} }` (model manager) | Background | **Internal** |
 | `resumes` | `{ activeId, items[{id,name,text,file?{name,type,size,dataUrl},gaps?,basedOn?,enhancementId?,coverage?,job?,createdAt}] }` | Admin; background adds tailored versions | Files ≤ 5 MB, stored as data URLs |
 | `enhancements` | `[{ id, createdAt, job, jd≤12k, resumeId, resumeName, baseHash, requirements[{id,text,jdQuote,type,priority,keywords,evidence[{quote,where}],match}], atsKeywords, edits[{id,target,kind,role,before,after,reason,requirementIds,evidence,ok,violations,warnings,needsMetric,accepted}], gaps[{requirementId,text,priority,advice}], coverage{evidence,atsBefore,atsAfter,atsMissingAfter}, stats, appliedResumeId? }]` | Background (create, apply); Admin (delete) | Resume tailoring drafts awaiting review; max 20 |
 | `answers` | `{ [normKey]: {label,value,kind,count,lastUsed,hosts[≤10]} }` | Background | Values ≤ 5,000 chars |
@@ -542,7 +548,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1149 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1237 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

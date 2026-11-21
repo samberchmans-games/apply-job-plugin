@@ -60,6 +60,7 @@ Quick test of a package: Firefox → `about:debugging` → This Firefox → **Lo
   - Green outlines show fields filled from your profile. Purple outlines show fields filled from learned answers.
   - Free-text questions get a **Draft answer with AI** button.
 - **When you submit an application**, the confirmation page is detected and the job is saved as *applied*, with an Undo option. If a site shows no confirmation, the panel asks you.
+- **Job Radar (Admin → Job Radar)** watches the careers pages of companies you choose and tells you about new jobs that fit you. Paste a careers link (Greenhouse, Lever, Ashby, Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling, Personio, Teamtailor or Workday; or the company's own careers page that embeds one), or click **Watch this company** in the job panel. Every few hours (default 3) it reads each company's public job board, scores new jobs like a job page, and shows them by match; matches from 60% raise a blue number on the toolbar icon and a notification (one summary a day by default). **Save** adds a job to Applications with its description; **Dismiss** hides it for good. The browser asks once per job board for permission to read it. LinkedIn, Indeed, Glassdoor, ZipRecruiter and iCIMS have no public feed, so they aren't watched (the panel still scores their job pages).
 - **In Admin → Applications** you get a board (drag cards between statuses), notes and interview dates, the saved job description, stats, and **Export CSV**. A number on the toolbar icon tells you when follow-ups are due.
 
 ## Free AI options
@@ -123,7 +124,7 @@ docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md
 ```
 
 - **Checks:** `sh tests/check.sh` (manifest, files, syntax). **CI** runs checks + all tests on every push (badge above).
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1149) in headless Chrome. `./tests/run-tests.sh` runs the 557 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1237) in headless Chrome. `./tests/run-tests.sh` runs the 602 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.

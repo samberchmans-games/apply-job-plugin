@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1149). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1237). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1149** tests in headless Chrome. This is the full suite: the 557 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1237** tests in headless Chrome. This is the full suite: the 602 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -28,6 +28,7 @@ The browser tests load the **real extension code** against an in-memory fake of 
 | Storage | `unit/storage.test.js` | Defaults, upgrading data saved by older versions, copies (not shared objects) returned, cache cleared on outside writes, **read/write race**, backup with and without API keys, restore, rejecting bad files, delete-all |
 | AI | `unit/ai.test.js` | Request format for Gemini, Groq, OpenRouter and Ollama; Gemini key sent in a header, not the URL; errors for AI off / missing key / HTTP 429 / network failure / timeout; failures logged without the key; prompts forbid invented facts; **EEO data is never sent to the AI**; long inputs truncated |
 | More AI providers | `unit/providers.test.js`, `unit/admin-screens.test.js` | Anthropic Claude (paid, optional): Messages API headers (key, version, browser access), default `claude-opus-5-5`, text blocks only, server-side fallback only on models that support it, JSON in the system prompt, refusal → `AJP-AI-REFUSED`, no credit → `AJP-AI-CREDIT` (no retry), wrong / missing key, retired model replaced from `/v1/models`, "Anthropic Claude · model" in Recent AI calls; Claude for tailoring only, with its own Tailoring model; NVIDIA NIM (JSON in the prompt, no `response_format`) and Mistral (JSON mode) request format, model discovery skipping non-chat models, rate limit; backups blank every key; logs mask `sk-ant-` / `nvapi-` keys; manifest hosts; model manager (next model on retired / deprecated 400 / slow / busy / server error / out of quota on one model (Gemini, Groq, NVIDIA), quota cooldown until reset, working model remembered across Admin saves and ranked first, up to 3 per call, cooldown and second chance, last working model remembered, daily shortlist refresh, empty list keeps the shortlist); OpenRouter: capable free models preferred over small ones, never a paid model, a model busy upstream → another free model once, your own daily limit → AJP-AI-429; Admin key fields, pay-per-use note, Tailoring model placeholder |
+| Job Radar | `unit/radar.test.js`, `unit/radar-boards-bc.test.js`, `unit/radar-background.test.js`, `unit/admin-screens.test.js` | Entities / HTML / XML / RSS without DOMParser; every date style (ISO, ms, UTC text, RFC 822, Workday "Posted …"); salary from text (currencies, k, ranges, rejects); every remote flag; job shape + keys; quick filter (titles, General track, remote, locations, min salary); seen + pruning (60 / 30 days, 500 jobs); URL detection for all 11 boards + careers-page HTML; **all 11 adapters against captured live responses** (paging, details, merges, fallbacks, bad shapes → AJP-RADAR-FMT); scan engine with a fake network (filter, scoring = job page, skip-seen, interval, threshold, 404/429/500/timeout/network codes, one retry, pause after 5 failures, Lever EU / Personio .com fallback, lock + takeover, resume after a stop, request / page / detail budgets, Workday keyword searches); every radar.* message; permissions (per board, refused); notifications (per scan, daily summary, once each, click opens Job Radar); badge order; save → Applications; Admin (add, refuse, careers page, list, jobs, settings, menu count, prefill), popup box, panel "Watch this company" |
 | Word resumes | `unit/docx.test.js` | Compressed and uncompressed .docx, special characters, invalid files |
 | Autofill | `unit/form-filler.test.js` | 54 label→field rules; option matching incl. "decline to answer"; label detection (label tag, aria, Workday markup, placeholder, name); full form fill: text, select, radio, resume file, learned answers, free-text questions, unknown fields; **never fills password/hidden/disabled fields, never overwrites what the user typed, never submits**; React-style inputs; learning typed, select and radio answers; **never learns SSN or passwords**; ignores its own fills; respects the "learn answers" setting |
 | Job page reading | `unit/jd-extractor.test.js` | Structured job data (JSON-LD, incl. @graph), Greenhouse, Lever, Workday, Indeed and LinkedIn layouts (on LinkedIn the job currently shown wins over stale data), fallback when a site changes its layout, fallback that ignores navigation and footer, no job description, look-alike domains |
@@ -265,6 +266,28 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | L6 | Report the same error code twice | "Similar open reports" lists the first issue |
 | L7 | Go offline → Report on GitHub | It still opens GitHub; similar reports and status show "couldn't check" |
 | L8 | Untick "Ask me to report problems…" | No prompts |
+
+### M. Job Radar (one company per board wave, in each browser)
+Use real companies whose careers pages run on these boards (for example a Greenhouse, a Lever and an Ashby company for wave A; one Workable / Recruitee / SmartRecruiters / Rippling company for wave B; one Personio / Teamtailor / Workday company for wave C). Your Profile should have target roles (or career tracks with target titles) so jobs are filtered and scored.
+
+| ID | Steps | Expected |
+|---|---|---|
+| M1 | Admin → Job Radar → paste a Greenhouse careers link → **Add** | The browser asks for **Greenhouse only**; after Allow: "Watching <Company> (Greenhouse): N open jobs today"; it appears in the watchlist |
+| M2 | Same with a Lever and an Ashby company | Each asks for its own board only; each is listed with its open-job count |
+| M3 | Click **Scan now** | Within a minute: "Checked N companies: X new jobs"; New jobs lists them, highest match first, with company, location, work type, salary (when given) and posted date |
+| M4 | Open a job from the list | Its posting opens; the panel's match % is the same as in the list |
+| M5 | **Save to Applications** on one, **Dismiss** on another, Scan now again | The saved one is in Applications (with its description); the dismissed one never comes back |
+| M6 | Wave B and C companies (one each: Workable, Recruitee, SmartRecruiters, Rippling, Personio, Teamtailor, Workday) | Each is added and scanned; SmartRecruiters / Rippling / Workday jobs get descriptions (no "title match only" label on the matches); Breezy HR jobs show "title match only" |
+| M7 | Paste a company's **own careers page** (e.g. company.com/careers) that embeds a Greenhouse or Teamtailor board | The browser asks for that site; then "Found its <Board> job board … Allow and add"; after that click it is watched |
+| M8 | Paste a LinkedIn or Indeed job link | "This careers page uses a job board Job Radar can't read yet (AJP-RADAR-UNSUP)"; no permission asked |
+| M9 | Refuse the permission prompt when adding | "The browser did not allow access to this job board (AJP-RADAR-PERM)"; nothing saved |
+| M10 | On a Greenhouse / Lever / Ashby job posting, open the panel → **Watch this company** | One click adds the company (or, without permission yet, Admin opens with the link filled in); then "You watch this company in Job Radar" |
+| M11 | Settings: threshold 50%, alerts "After every scan", Scan now | A notification "N new jobs at 50%+ match: <companies>"; clicking it opens Job Radar; the toolbar icon shows a **blue** number |
+| M12 | Open Job Radar (or the popup) | The blue number clears; the popup shows the new-match count, the top 5 and See all |
+| M13 | Pause a company, Scan now; Resume it | Paused companies are skipped; Resume scans it again |
+| M14 | Add a list of 5 links (2 supported, 1 duplicate, 1 LinkedIn, 1 typo) | "Added 2. Skipped 3" with a reason for each |
+| M15 | Leave the browser open for a few hours | New jobs appear by themselves (scan every 3 hours by default); one summary notification a day |
+| M16 | Safari: a Workday company (its search is a POST) | It scans without errors (confirms Safari allows the request) |
 
 ### H. Performance
 | ID | Steps | Expected |

@@ -4,10 +4,10 @@ Implementation reference for **Job Radar**, the planned job-finding feature of A
 careers boards of companies you choose, finds new postings that fit your career tracks, scores them with the
 existing matcher, and alerts you. Applying stays your action, through the existing panel and autofill.
 
-Status: **designed, not built** (roadmap step 19). Build tasks and their status: [TRACKER.md §2b](TRACKER.md).
+Status: **built** on `feature/job-radar` (roadmap step 19): all 11 boards, Admin, popup, panel, alerts; **waiting on the manual browser pass** (J38) before merging. Build tasks and their status: [TRACKER.md §2b](TRACKER.md).
 Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [PLAN.md](PLAN.md) · [SUPPORT.md](SUPPORT.md) · [TEST-SCENARIOS.md](TEST-SCENARIOS.md)
 
-Last updated: 2026-11-19 · Branch for the build: `feature/job-radar` (off `develop`)
+Last updated: 2026-11-21 · Branch for the build: `feature/job-radar` (off `develop`)
 
 ---
 
@@ -22,6 +22,17 @@ Last updated: 2026-11-19 · Branch for the build: `feature/job-radar` (off `deve
    per scan, and a "New jobs" list in the popup and Admin.
 5. Opening a job takes you to the posting, where the existing panel, tailoring and autofill take over. "Save"
    adds it to the application tracker.
+
+### Decisions (J01, 2026-11-21)
+
+| Decision | Choice |
+|---|---|
+| Design | Approved |
+| Boards in the first release | All 11, built in waves A → B → C |
+| Scan interval | 3 hours (Admin: 1 h – 1 day); an hourly alarm scans only the companies that are due |
+| Alert threshold | 60% match |
+| Alerts | One summary a day by default; "after every scan" in settings |
+| Badge order | `!` → `✓` → new matches (blue) → follow-ups (amber) |
 
 ## 2. Goals → design decisions
 
@@ -91,7 +102,7 @@ real company board into `tests/fixtures/radar/`, which also confirms the endpoin
 | Recruitee | `{slug}.recruitee.com` | `GET {slug}.recruitee.com/api/offers/` | JSON | none | yes | B |
 | Breezy HR | `{slug}.breezy.hr` | `GET {slug}.breezy.hr/json` | JSON | none | **no** | B |
 | SmartRecruiters | `jobs.smartrecruiters.com/{slug}` | `GET api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100&offset=N` | JSON | offset, ≤100 | no → detail `/postings/{id}` | B |
-| Rippling | `ats.rippling.com/{slug}/jobs` | `GET ats.rippling.com/api/v2/board/{slug}/jobs?page=N` | JSON | page (20) | no → detail `/jobs/{id}` | B |
+| Rippling | `ats.rippling.com/{slug}/jobs` | `GET ats.rippling.com/api/v2/board/{slug}/jobs?page=N` | JSON | page (20) | no → detail `GET api.rippling.com/platform/api/ats/v1/board/{slug}/jobs/{id}` (the `ats.rippling.com` detail path answers 404) | B |
 | Personio | `{slug}.jobs.personio.de` / `.com` | `GET {slug}.jobs.personio.de/xml?language=en` | XML | none | yes (CDATA HTML) | C |
 | Teamtailor | `{slug}.teamtailor.com` or custom domain | `GET {careers-domain}/jobs.rss` | RSS | none | yes (escaped HTML) | C |
 | Workday | `{tenant}.wd{N}.myworkdayjobs.com/{site}` | `POST {tenant}.wd{N}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs` | JSON | offset, ≤20 | no → detail `GET …/{site}{externalPath}` | C |
@@ -111,7 +122,8 @@ AJP.radar.boards.register({
   hosts: ['https://api.smartrecruiters.com/*'],  // optional host permissions to request
   responseType: 'json',                          // 'json' | 'text' (XML/RSS parsed by radar-core)
   listRequest(entry, ctx),    // -> { url, method: 'GET'|'POST', headers?, body? }; ctx.keywords from tracks
-  parseList(body, entry, ctx),// -> { jobs: [partial job], next: request|null, total?: number }
+  parseList(body, entry, ctx, req), // -> { jobs: [partial job], next: request|null, total?: number } (req: the request sent, for Workday paging)
+  listRequests?(entry, ctx), // optional: several first requests (Workday: one search per keyword)
   detailRequest(job, entry),  // optional -> request (omit when the list has descriptions)
   parseDetail(body, job)      // optional -> partial job (description, salary, dates, locations)
 });
@@ -132,7 +144,7 @@ AJP.radar.boards.register({
 | Recruitee | `id` | `title` · `location` or `city`+`country_code` · `careers_url` · `published_at` | Date is `YYYY-MM-DD HH:MM:SS UTC` (not ISO). Description = `description` + `requirements`. `salary{min,max,period,currency}`; `remote`/`hybrid`/`on_site`. |
 | Breezy HR | `id` | `name` · `location` / `locations[]` · `url` · `published_date` | No description: `descriptionLevel: 'title'`, scored on title. `salary` is free text → `salaryFromText`. `location.is_remote`. |
 | SmartRecruiters | `id` | `name` · `location.fullLocation` · `https://jobs.smartrecruiters.com/{company}/{id}` · `releasedDate` | Page by `offset` until `totalFound` or the cap. Company ID is case-sensitive: keep it exactly. Detail: `jobAd.sections.{jobDescription,qualifications,additionalInformation}.text`. |
-| Rippling | `id` | `name` · `locations[].name` · `url` · detail `createdOn` | Page by `page` until `totalPages`. No date in the list: `postedAt = null` until detail. Detail `payRangeDetails[]` → salary. |
+| Rippling | `id` | `name` · `locations[].name` · `url` · detail `createdOn` | Page by `page` until `totalPages`. A job with several locations is listed once per location: merged by `id`. No date in the list: `postedAt = null` until detail. Detail (`api.rippling.com`) `description` (object of HTML parts), `workLocations`, `payRangeDetails[]` → salary. |
 | Personio | `<id>` | `<name>` · `<office>` + `additionalOffices` · `https://{slug}.jobs.personio.de/job/{id}` · `<createdAt>` | XML. 404 on `.de` → try `.com`; save `domain`. Description = every `jobDescriptions/jobDescription/value` joined. |
 | Teamtailor | `<guid>` | `<title>` · `tt:locations/tt:location/tt:name` · `<link>` · `<pubDate>` | RSS. Custom domains are common: entry stores `domain`, permission asked for that domain. `remoteStatus`: `fully` → remote, `hybrid` → hybrid. |
 | Workday | `externalPath` | `title` · `locationsText` · careers URL + `externalPath` · `postedOn` | POST `{"limit":20,"offset":N,"searchText":"…","appliedFacets":{}}` with `Content-Type: application/json`. `total` reliable on page 1 only. `postedOn` is text ("Posted Today", "Posted Yesterday", "Posted 3 Days Ago", "Posted 30+ Days Ago" → 30 days, `postedAtExact: false`). `locationsText` may be "2 Locations" → detail gives the list. Site name is case-sensitive; strip locale segments (`/en-US/`). One search per track keyword (max 3) instead of paging every job. |
@@ -180,7 +192,7 @@ which has none either. So every parser is plain string code, covered by fixtures
 Two stages: a cheap **list** stage for every due company, then **detail** calls only for jobs that pass the quick
 filter. Most companies cost one or two requests per scan.
 
-1. **Start**: alarm `ajp-radar` fires, or "Scan now". Lock in `radarScanState.lockedAt`; a lock older than
+1. **Start**: alarm `ajp-radar` fires (hourly; only companies past their interval are scanned), or "Scan now". Lock in `radarScanState.lockedAt`; a lock older than
    10 minutes is stale and taken over. A second start while locked returns "already running".
 2. **Queue**: entries not paused and with `lastScanAt` older than the interval, oldest first. Saved in
    `radarScanState.queue` + `position`, so a worker stopped mid-scan resumes on the next alarm.
@@ -273,7 +285,7 @@ on that board is added. You grant only the boards you use, and install shows no 
 | Workday | `https://*.myworkdayjobs.com/*` |
 | Breezy HR | `https://*.breezy.hr/*` |
 | Teamtailor | `https://*.teamtailor.com/*` + `https://{custom domain}/*` per company |
-| Rippling | `https://ats.rippling.com/*` |
+| Rippling | `https://ats.rippling.com/*`, `https://api.rippling.com/*` |
 | Company careers page (detection only) | `https://{domain}/*`, once |
 
 - With the host permission granted, background `fetch` is not blocked by CORS (covers Workday's POST) in Chrome,
