@@ -138,7 +138,7 @@
       eq((await AJP.send('ai.test', { group: 'tailor' })).text, 'OK');
       includes(calls[1].url, 'api.groq.com/openai/v1/models');
       eq(calls[2].body.model, 'openai/gpt-oss-120b', 'the preferred, active, chat model');
-      eq((await AJP.store.get('settings')).ai.resolvedModels.groq, 'openai/gpt-oss-120b');
+      eq((await AJP.store.get('modelHealth')).groq.last, 'openai/gpt-oss-120b');
     });
     it('the remembered model is used next time (no failed call first)', async () => {
       await settings({ resolvedModels: { groq: 'openai/gpt-oss-120b' } });

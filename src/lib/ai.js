@@ -405,8 +405,10 @@
    * ---- Model manager: providers retire, rename and throttle models all the time; nobody should have to fix the Model
    * field by hand. State lives in `modelHealth` (internal): per provider the ranked shortlist (refreshed daily and
    * whenever a model disappears) and models set aside for a while ("cooldown").
-   *   order tried:  the model you typed (if any) → the last one that worked (settings.ai.resolvedModels) → the
-   *                 shortlist → the built-in default; models cooling down are skipped (unless nothing else is left)
+   *   order tried:  the model you typed (if any) → the last one that worked → others that worked for this key
+   *                 (newest success first: known free and fast) → the shortlist → the built-in default; models cooling
+   *                 down are skipped (unless nothing else is left). "Worked" lives in modelHealth (last, ok), never in
+   *                 settings: Admin saves its own copy of the settings and would wipe it (the 3.8 → 3.7 → 3.6 every time bug).
    *   switch when:  gone (404, "deprecated / no longer available") · slow (timeout, once per call: each costs time) ·
    *                 busy (server error / overloaded after one retry, OpenRouter "busy upstream"); up to CONFIG.maxSwitches per call
    *                 · out of quota on one model (Gemini / Groq / NVIDIA count free limits per model)
@@ -418,6 +420,7 @@
   // Out of quota: until the provider says (Retry-After / "retry in 40s"), a daily quota until tomorrow, else an hour.
   function quotaCooldown(x) {
     const body = String((x.details && x.details.body) || '');
+    if (/limit:\s*0\b/.test(body)) return DAY; // not in the free tier at all: don't try it again today
     if (/per ?day|daily|RequestsPerDay/i.test(body)) return DAY;
     const w = waitAsked(x) || (/retry(?:Delay)?["\s:]*"?(\d+(?:\.\d+)?)s/i.exec(body) || [])[1] * 1000;
     return w > 0 ? Math.min(Math.max(w, 60000), DAY) : COOLDOWN.quota;
@@ -440,7 +443,9 @@
   function candidates(provider, pinned, cfg, health) {
     const h = health[provider] || {};
     const bad = h.bad || {};
-    const all = [...new Set([pinned, (cfg.resolvedModels || {})[provider], ...(h.ranked || []), PROVIDERS[provider].defaultModel].filter(Boolean))];
+    const worked = Object.entries(h.ok || {}).sort((a, b) => b[1] - a[1]).map(([m]) => m);
+    const legacy = h.last || worked.length ? '' : (cfg.resolvedModels || {})[provider]; // from older versions (settings)
+    const all = [...new Set([pinned, h.last, ...worked, legacy, ...(h.ranked || []), PROVIDERS[provider].defaultModel].filter(Boolean))];
     const ok = all.filter((m) => !(bad[m] > Date.now()));
     return ok.length ? ok : all;
   }
@@ -451,19 +456,24 @@
     return ranked;
   }
   async function setAside(provider, model, why, ms = COOLDOWN[why]) {
+    if (why === 'gone') ms = COOLDOWN.gone;
     await AJP.store.update('modelHealth', (all) => {
       const h = (all[provider] = all[provider] || {});
       const now = Date.now();
       h.bad = Object.fromEntries(Object.entries(h.bad || {}).filter(([, until]) => until > now));
       h.bad[model] = now + ms;
       h.why = { ...(h.why || {}), [model]: why };
+      if (h.last === model) h.last = '';
+      if (why === 'gone' && h.ok) delete h.ok[model];
     });
-    await AJP.store.update('settings', (s) => void ((s.ai.resolvedModels || {})[provider] === model && (s.ai.resolvedModels[provider] = '')));
   }
-  async function worked(provider, model, cfg) {
-    if ((cfg.resolvedModels || {})[provider] !== model) await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: model }));
-    const h = (await AJP.store.get('modelHealth'))[provider];
-    if (h && h.bad && h.bad[model]) await AJP.store.update('modelHealth', (all) => void delete all[provider].bad[model]);
+  async function worked(provider, model) {
+    await AJP.store.update('modelHealth', (all) => {
+      const h = (all[provider] = all[provider] || {});
+      h.last = model;
+      h.ok = { ...(h.ok || {}), [model]: Date.now() };
+      if (h.bad) delete h.bad[model];
+    });
   }
   // Daily (background alarm) and from Admin "Re-check models now": refresh the shortlist of every provider in use.
   async function refreshAll({ reset = false } = {}) {
@@ -472,7 +482,7 @@
     const used = [...new Set([cfg.provider, cfg.tailorProvider].filter((k) => k && PREFER[k] && (!PROVIDERS[k].needsKey || cfg.keys[k])))];
     if (reset) {
       await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
-      await AJP.store.update('modelHealth', (all) => void used.forEach((k) => all[k] && (all[k].bad = {})));
+      await AJP.store.update('modelHealth', (all) => void used.forEach((k) => all[k] && Object.assign(all[k], { bad: {}, ok: {}, last: '' })));
     }
     const out = {};
     for (const k of used) {
@@ -590,7 +600,7 @@
         }
       } else result = out.trim();
       tr.end({ provider, model, outChars: out.length });
-      if (PREFER[provider]) await worked(provider, model, cfg);
+      if (PREFER[provider]) await worked(provider, model);
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true });
       return result;
     } catch (e) {

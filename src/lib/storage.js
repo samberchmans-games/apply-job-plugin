@@ -53,7 +53,7 @@
         keys: { gemini: '', groq: '', openrouter: '', nvidia: '', mistral: '', anthropic: '' },
         tailorProvider: '', // '' = same as provider; e.g. 'gemini' for tailoring while 'chrome' does the rest
         tailorModel: '', // '' = the tailoring provider's default (e.g. claude-haiku-5-5 to spend less with Claude)
-        resolvedModels: {}, // provider -> model found by discovery when the default was retired (see ai.js)
+        resolvedModels: {}, // legacy (read once if modelHealth has no record): the working model now lives in modelHealth
         ollamaUrl: 'http://localhost:11434',
       },
       logLevel: 'info',
@@ -72,7 +72,7 @@
     evaluations: [], // last 300 analyzed jobs with a score per track (track insights)
     reports: [], // problem reports opened on GitHub: [{reportId, createdAt, codes, title, status, number, url, version, checkedAt, seen}]
     suggestions: { dismissed: {} }, // profile suggestions from learned answers: { dismissed: { [id]: isoDate } }
-    modelHealth: {}, // internal: per provider {ranked:[ids], at, bad:{model: until}, why:{model: gone|slow|busy}} (ai.js model manager)
+    modelHealth: {}, // internal: per provider {ranked:[ids], at, last, ok:{model: lastSuccess}, bad:{model: until}, why:{model: gone|slow|busy|quota}} (ai.js model manager)
     aiCalls: [], // internal: last 30 AI calls {at, task, provider, model, label, ms, ok, code} — no prompts, no answers
     promptState: {}, // internal: crash-prompt bookkeeping {recent, last, never, pending}
     logs: [],

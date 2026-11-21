@@ -529,10 +529,11 @@
   }
 
   // ---- AI ----------------------------------------------------------------------------------------
+  let modelHealthCache = {}; // filled by renderAutoModels (the AI's own record of which models work)
   function updateModelPlaceholder() {
     const P = AJP.ai.PROVIDERS;
     const p = P[$('#aiProvider').value || settings.ai.provider];
-    const auto = settings.ai.resolvedModels || {};
+    const auto = Object.fromEntries(Object.entries(modelHealthCache).map(([k, h]) => [k, h && h.last]));
     $('#aiModel').placeholder = auto[$('#aiProvider').value || settings.ai.provider] || (p && p.defaultModel) || '';
     const tk = $('#aiTailor').value || '';
     const t = P[tk];
@@ -625,10 +626,11 @@
   async function renderAutoModels() {
     const box = $('#aiAuto');
     if (!box) return;
-    const st = (await AJP.store.get('settings')).ai || {};
     const health = await AJP.store.get('modelHealth');
+    modelHealthCache = health;
+    updateModelPlaceholder();
     const name = (p) => esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p);
-    const using = Object.entries(st.resolvedModels || {}).filter(([, m]) => m).map(([p, m]) => `<b>${name(p)} · ${esc(m)}</b>`);
+    const using = Object.entries(health).filter(([, h]) => h && h.last).map(([p, h]) => `<b>${name(p)} · ${esc(h.last)}</b>`);
     const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
     const aside = Object.entries(health).flatMap(([p, h]) => Object.entries((h && h.bad) || {}).filter(([, until]) => until > Date.now())
       .map(([m, until]) => `${name(p)} · ${esc(m)} (${WHY[(h.why || {})[m]] || 'failing'}, retried after ${esc(new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))})`));
@@ -639,7 +641,7 @@
       ' <button id="aiAutoReset" type="button">Re-check models now</button>';
     $('#aiAutoReset').addEventListener('click', AJP.guard('admin.recheckModels', async () => {
       await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = {}));
-      await AJP.store.update('modelHealth', (all) => void Object.values(all).forEach((h) => h && (h.bad = {})));
+      await AJP.store.update('modelHealth', (all) => void Object.values(all).forEach((h) => h && Object.assign(h, { bad: {}, ok: {}, last: '' })));
       settings.ai.resolvedModels = {};
       updateModelPlaceholder();
       renderAutoModels();
@@ -952,6 +954,7 @@
     if (changes.promptState) renderCrashBanner();
     if (changes.reports && on === 'logs') renderReports();
     if (changes.aiCalls && on === 'ai') (renderAiCalls(), renderAutoModels());
+    else if (changes.modelHealth && on === 'ai') renderAutoModels();
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();

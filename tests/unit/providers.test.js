@@ -100,7 +100,7 @@
       includes(calls[1].url, 'api.anthropic.com/v1/models');
       eq(calls[1].headers['x-api-key'], 'sk-ant-test');
       eq(calls[2].body.model, 'claude-sonnet-5-5');
-      eq((await AJP.store.get('settings')).ai.resolvedModels.anthropic, 'claude-sonnet-5-5');
+      eq((await AJP.store.get('modelHealth')).anthropic.last, 'claude-sonnet-5-5');
     });
     it('Recent AI calls name it "Anthropic Claude · model"', async () => {
       fake(claude('OK'));
@@ -189,7 +189,7 @@
       fake(busy('inclusionai/ling-3.2-flash:free'), openai('OK'));
       eq(await AJP.ai.tasks.test(), 'OK');
       eq(calls[1].body.model, 'meta-llama/llama-3.3-70b-instruct:free', 'no model list needed: the shortlist is fresh');
-      eq((await AJP.store.get('settings')).ai.resolvedModels.openrouter, 'meta-llama/llama-3.3-70b-instruct:free', 'remembered');
+      eq((await AJP.store.get('modelHealth')).openrouter.last, 'meta-llama/llama-3.3-70b-instruct:free', 'remembered');
       ok((await AJP.store.get('modelHealth')).openrouter.bad['inclusionai/ling-3.2-flash:free'] > Date.now(), 'busy one set aside for a while');
     });
     it('tries up to 3 models in one call, then AJP-AI-429', async () => {
@@ -286,7 +286,7 @@
       eq(await AJP.ai.tasks.test(), 'OK');
       includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
       ok((await AJP.store.get('modelHealth')).gemini.bad['gemini-slow-model'] > Date.now());
-      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash');
+      eq((await AJP.store.get('modelHealth')).gemini.last, 'gemini-3.6-flash');
     });
     it('a server error on one model ("overloaded", AJP-AI-5XX) → the next model in the same call (the reported failure)', async () => {
       await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.6-flash', 'gemini-flash-latest'], at: Date.now() } });
@@ -295,7 +295,7 @@
       eq(await AJP.ai.tasks.test(), 'OK');
       includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
       eq((await AJP.store.get('modelHealth')).gemini.why['gemini-flash-latest'], 'busy');
-      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash', 'the working one is used first next time');
+      eq((await AJP.store.get('modelHealth')).gemini.last, 'gemini-3.6-flash', 'the working one is used first next time');
     });
     it('one model out of free quota (429, the reported failure) → the next model at once, set aside until it resets', async () => {
       await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.6-flash'], at: Date.now() } });
@@ -323,6 +323,28 @@
       await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' });
       ok(performance.now() - t0 < 2000, 'no 20 s wait');
       includes(calls[1].url, 'gemini-3.6-flash');
+    });
+    it('the model that worked goes first next time, even after Admin saves its copy of the settings (3.8 → 3.7 → 3.6 every time)', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'], at: Date.now() } });
+      const q = (m) => json({ error: { code: 429, message: `Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: ${m}` } }, 429);
+      fake(q('gemini-3.8-flash'), q('gemini-3.7-flash'), ok);
+      await AJP.ai.tasks.test();
+      eq(calls.length, 3);
+      const stale = AJP.clone(await AJP.store.get('settings')); // what Admin holds and saves before a test
+      stale.ai.resolvedModels = {};
+      await AJP.store.set('settings', stale);
+      fake(ok);
+      await AJP.ai.tasks.test();
+      eq(calls.length, 1, 'straight to the working model');
+      includes(calls[0].url, 'gemini-3.6-flash');
+      const h = (await AJP.store.get('modelHealth')).gemini;
+      ok(h.bad['gemini-3.8-flash'] > Date.now() + 20 * 3600e3, 'not in the free tier → skipped for a day');
+    });
+    it('models that worked before rank above untried newer ones', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.6-flash'], at: Date.now(), ok: { 'gemini-3.6-flash': Date.now() - 3600e3 } } });
+      fake(ok);
+      await AJP.ai.tasks.test();
+      includes(calls[0].url, 'gemini-3.6-flash');
     });
     it('numbered stable flash models rank above the "-latest" alias', async () => {
       fake(list('gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.6-flash'));

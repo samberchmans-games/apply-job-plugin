@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1147 automated + 128 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1149 automated + 128 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1147 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1147) · `./tests/run-tests.sh` (the 557 that need no browser) |
+| Automated tests: 1149 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1149) · `./tests/run-tests.sh` (the 557 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | Fixed B30: the model that worked is remembered in the AI's own record (Admin's settings saves wiped it, so every call went 3.8 → 3.7 → 3.6); models that worked rank above untried newer ones; a model outside the free tier is skipped for a day; 1149 tests |
 | 2026-11-21 | `db5671d` | Fixed B29: Gemini / Groq / NVIDIA count free limits per model, so one model out of quota (429, or Gemini "limit: 0") moves to the next model and is set aside until its quota resets (daily → 24 h); tailoring tries another model before waiting; 1147 tests |
 | 2026-11-21 | `e3e2992` | Fixed B28: a server error / "overloaded" on one model moves to the next model (one retry first, not three); Gemini ranks numbered stable flash models above the `-latest` alias; 1144 tests |
 | 2026-11-21 | `c1b277b` | **Model manager**: no manual model fixes. Daily model-list check per provider in use; each call falls back through up to 3 models when one is retired, deprecated, slow or busy; failing models cool down (24 h / 6 h / 1 h) then get another chance; the last working model is remembered; Admin shows "Now using …"; 1142 tests |

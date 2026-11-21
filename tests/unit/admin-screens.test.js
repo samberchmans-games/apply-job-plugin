@@ -481,14 +481,12 @@
       eq($('#aiTailorModel').placeholder, 'meta/llama-3.3-70b-instruct');
     });
     it('the model in use is shown (chosen automatically); "Re-check models now" starts over', async () => {
-      const st = AJP.clone(AJP.store.DEFAULTS.settings);
-      st.ai.resolvedModels = { gemini: 'gemini-3.1-flash-preview' };
-      await load('admin.html', { settings: st }, { hash: 'ai' });
+      await load('admin.html', { modelHealth: { gemini: { last: 'gemini-3.1-flash-preview', ok: { 'gemini-3.1-flash-preview': Date.now() } } } }, { hash: 'ai' });
       await waitFor(() => !$('#aiAuto').hidden, { msg: 'shown' });
       includes($('#aiAuto').textContent, 'chosen and checked automatically');
       includes($('#aiAuto').textContent, 'Now using: Google Gemini · gemini-3.1-flash-preview');
       $('#aiAutoReset').click();
-      await waitFor(async () => !Object.values((await stored('settings')).ai.resolvedModels).some(Boolean), { msg: 'cleared' });
+      await waitFor(async () => !(await stored('modelHealth')).gemini.last, { msg: 'cleared' });
       await waitFor(() => !/Now using/.test($('#aiAuto').textContent), { msg: 'no model pinned any more' });
     });
   }, { env: 'browser' });
