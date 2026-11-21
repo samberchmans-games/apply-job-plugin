@@ -46,7 +46,7 @@
     const s = st.lastSummary;
     $('#radarStatus').innerHTML = st.running
       ? '⏳ Scanning now…'
-      : `${st.enabled ? '🟢 On' : '⚪ Off'} · ${st.companies} compan${st.companies === 1 ? 'y' : 'ies'} watched · last scan ${s ? `${ago(s.at)}: ${s.companies} checked, ${s.new} new, ${s.matches} match${s.matches === 1 ? '' : 'es'}${s.errors && s.errors.length ? `, ${s.errors.length} with errors` : ''}` : 'not yet'}`;
+      : `${st.enabled ? '🟢 On' : '⚪ Off'} · ${st.companies} compan${st.companies === 1 ? 'y' : 'ies'} of yours + the directory · last scan ${s ? `${ago(s.at)}: ${s.companies} checked, ${s.new} new, ${s.matches} match${s.matches === 1 ? '' : 'es'}${s.errors && s.errors.length ? `, ${s.errors.length} with errors` : ''}` : 'not yet'}`;
     const n = st.newCount;
     const badge = $('#radarCount');
     if (badge) {
@@ -60,6 +60,7 @@
     const s = r.settings;
     const f = $('#radarSettings');
     f.enabled.checked = !!s.enabled;
+    f.directory.checked = s.directory !== false;
     f.intervalHours.value = s.intervalHours;
     f.threshold.value = s.threshold;
     f.locations.value = (s.locations || []).join('; ');
@@ -69,7 +70,7 @@
   }
   async function saveSettings() {
     const f = $('#radarSettings');
-    const r = await AJP.send('radar.settings.save', { settings: { enabled: f.enabled.checked, intervalHours: Number(f.intervalHours.value), threshold: Number(f.threshold.value), locations: f.locations.value, remote: f.remote.value, minSalary: f.minSalary.value.replace(/[^\d]/g, ''), notify: f.notify.value } });
+    const r = await AJP.send('radar.settings.save', { settings: { enabled: f.enabled.checked, directory: f.directory.checked, intervalHours: Number(f.intervalHours.value), threshold: Number(f.threshold.value), locations: f.locations.value, remote: f.remote.value, minSalary: f.minSalary.value.replace(/[^\d]/g, ''), notify: f.notify.value } });
     if (r && r.ok === false) return ui.toast(fail(r));
     await renderSettings();
     renderStatus();
@@ -96,8 +97,20 @@
       <span class="pill ${j.score >= thr ? 'good' : ''}" title="Best fit: ${esc(track ? track.name : 'your profile')}">${j.score}%</span>
       <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
         <div class="hint">${meta}</div>${el.status === 'blocked' ? `<div class="hint warn">⚠ ${esc(el.reasons.join('; '))}</div>` : ''}</div>
-      <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}</div>
+      <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
     </div>`;
+  }
+  // The built-in company directory: how big, which boards are allowed, on/off.
+  async function renderDirectory() {
+    const box = $('#radarDir');
+    if (!box) return;
+    const d = await AJP.send('radar.directory');
+    if (!d || d.ok === false) return;
+    const boards = Object.entries(d.byBoard).map(([b, n]) => `${esc(boardLabel(b))} ${n}`).join(', ');
+    const missing = Object.keys(d.byBoard).filter((b) => !d.allowed.includes(b));
+    box.innerHTML = `<b>🌐 Built-in company directory: ${d.total} companies</b> (${boards}) · ${d.on ? 'on' : 'off'}` +
+      `<div class="hint">Job Radar checks these companies for you, a slice at a time (all of them about once a day), and shows only the jobs that fit your career tracks and places.${d.hidden ? ` ${d.hidden} hidden by you.` : ''}${d.lastAt ? ` Last slice ${ago(new Date(d.lastAt).toISOString())}.` : ''}</div>` +
+      (d.on && missing.length ? `<div class="row"><span class="hint warn">⚠ The browser hasn't allowed ${missing.map(boardLabel).join(', ')} yet, so those companies are skipped.</span><button class="primary" data-dir="allow">Allow all 11 job boards</button></div>` : '');
   }
   async function renderJobs() {
     const profile = await AJP.store.get('profile');
@@ -111,7 +124,7 @@
     const ok = r.jobs.filter((j) => !isBlocked(j));
     const blocked = r.jobs.filter(isBlocked);
     box.innerHTML =
-      (ok.length ? ok.map((j) => card(j, thr)).join('') : `<p class="hint">${filter === 'new' ? 'No new jobs yet. Add companies below; they are checked every few hours, and matching jobs appear here.' : 'Nothing here.'}</p>`) +
+      (ok.length ? ok.map((j) => card(j, thr)).join('') : `<p class="hint">${filter === 'new' ? 'No new jobs yet. The built-in directory and your companies are checked every few hours; jobs that fit your tracks appear here (or click Scan now).' : 'Nothing here.'}</p>`) +
       (blocked.length ? `<details class="radar-blocked"><summary>Likely not eligible (${blocked.length}): the job text conflicts with your work authorization in Auto-apply details. Not counted in alerts; open to check.</summary>${blocked.map((j) => card(j, thr)).join('')}</details>` : '');
   }
   // What Job Radar looks for: your career tracks (up to 3), each with its titles and places.
@@ -128,6 +141,14 @@
   }
 
   async function jobAction(key, status) {
+    if (status === 'hide') {
+      const [board, company] = key.split(':');
+      if (!confirm('Hide this company? Its jobs disappear and it won’t be checked again (you can add it back as a company you watch).')) return;
+      await AJP.send('radar.company.hide', { board, company });
+      ui.toast('Company hidden');
+      renderDirectory();
+      return renderJobs();
+    }
     const r = await AJP.send('radar.job.update', { key, status });
     if (r && r.ok === false) return ui.toast(fail(r));
     ui.toast(status === 'saved' ? 'Saved to Applications' : status === 'dismissed' ? 'Dismissed: it won’t come back' : 'Restored');
@@ -249,7 +270,7 @@
 
   // ---- Wiring ---------------------------------------------------------------------------------------------
   function render() {
-    renderSettings().then(() => (renderJobs(), renderWatch(), renderStatus()));
+    renderSettings().then(() => (renderJobs(), renderWatch(), renderStatus(), renderDirectory()));
     AJP.send('radar.viewed'); // the blue badge counts matches since you last looked
   }
   function init(opts = {}) {
@@ -267,6 +288,12 @@
     $('#radarSettings').addEventListener('submit', (e) => e.preventDefault()); // Enter in a field must not reload Admin
     $('#radarFilter').addEventListener('change', (e) => ((filter = e.target.value), renderJobs()));
     $('#radarSort').addEventListener('change', (e) => ((sort = e.target.value), renderJobs()));
+    $('#radarDir').addEventListener('click', g('dirAllow', async (e) => {
+      if (!e.target.closest('[data-dir="allow"]')) return;
+      const ok = await allow(AJP.radar.boards.all().map((a) => ({ board: a.id })));
+      ui.toast(ok ? 'All job boards allowed: the directory is scanned from the next scan' : `${AJP.ERRORS.RADAR_PERMISSION[1]} (AJP-RADAR-PERM)`);
+      renderDirectory();
+    }));
     // One prompt for every supported job board, so adding companies never asks again.
     $('#radarAllowAll').addEventListener('click', g('allowAll', async () => {
       const ok = await allow(AJP.radar.boards.all().map((a) => ({ board: a.id })));
@@ -290,7 +317,7 @@
   // Storage changed (a background scan finished, a job was saved from the popup): refresh what is on screen.
   const refresh = AJP.debounce((visible) => {
     renderStatus();
-    if (visible) (renderJobs(), renderWatch());
+    if (visible) (renderJobs(), renderWatch(), renderDirectory());
   }, 300);
 
   AJP.radarView = { init, render, renderStatus, prefill, refresh };

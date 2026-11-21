@@ -8,6 +8,9 @@
   const D = AJP.radar.detect;
   const B = AJP.radar.boards;
   const FX = globalThis.RADAR_FIXTURES;
+  // The real built-in directory is checked once below, then switched off so scan tests only scan what they seed.
+  globalThis.RADAR_REAL_DIRECTORY = globalThis.RADAR_REAL_DIRECTORY || AJP.radar.directory || [];
+  AJP.radar.directory = [];
 
   describe('radar › text parsing (no DOMParser)', () => {
     it('decodes named and numeric entities', () => {
@@ -155,7 +158,9 @@
       excludes(j.description, '&lt;');
       excludes(j.description, '<p>');
       ok(j.description.length > 200 && j.descriptionLevel === 'full');
-      eq(B.get('greenhouse').listRequest({ company: 'acme' }).url, 'https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true');
+      eq(B.get('greenhouse').listRequest({ company: 'acme' }).url, 'https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=false', 'light list');
+      eq(B.get('greenhouse').detailRequest({ id: 5 }, { company: 'acme' }).url, 'https://boards-api.greenhouse.io/v1/boards/acme/jobs/5');
+      eq(B.get('greenhouse').parseDetail({ content: '&lt;p&gt;Python&lt;/p&gt;' }).description, 'Python');
     });
     it('Lever: text, locations, hostedUrl, createdAt (ms), workplaceType, commitment; salaryRange when present', () => {
       const body = AJP.clone(FX.lever);

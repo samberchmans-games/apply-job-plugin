@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js', '../lib/radar-core.js', '../lib/radar-detect.js', '../lib/radar-boards.js', '../lib/radar-scan.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js', '../lib/radar-core.js', '../lib/radar-detect.js', '../lib/radar-boards.js', '../lib/radar-scan.js', '../lib/radar-directory.js');
 }
 
 (function () {
@@ -376,7 +376,10 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function radarScan(opts = {}) {
     const rs = await AJP.store.get('radarSettings');
     if (!rs.enabled && !opts.force && !opts.onlyKey) return { skipped: 'disabled' };
-    const summary = await AJP.radar.scan.run(opts);
+    // Directory companies are only scanned on boards the browser already allows (Admin → "Allow all 11 job boards").
+    const allowedBoards = new Set();
+    for (const a of AJP.radar.boards.all()) if (await radarAllowed({ board: a.id })) allowedBoards.add(a.id);
+    const summary = await AJP.radar.scan.run({ allowedBoards, ...opts });
     summary.alert = await radarAlert();
     return summary;
   }
@@ -836,11 +839,35 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       refreshBadgeSoon();
       return { job, app };
     },
+    // Hide a company (directory or not): its new jobs go, and it is never scanned from the directory again.
+    async 'radar.company.hide'({ board, company } = {}) {
+      const key = AJP.radar.detect.keyOf({ board, company });
+      await serialRadar(async () => {
+        await AJP.store.update('radarSettings', (s) => void (s.excluded = [...new Set([...(s.excluded || []), key])]));
+        await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && j.board === board && j.company === company)));
+      });
+      refreshBadgeSoon();
+      log.info('Radar company hidden', { board });
+      return { key };
+    },
+    async 'radar.company.unhide'({ key } = {}) {
+      await serialRadar(() => AJP.store.update('radarSettings', (s) => void (s.excluded = (s.excluded || []).filter((k) => k !== key))));
+      return {};
+    },
+    async 'radar.directory'() {
+      const [rs, st] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarScanState')]);
+      const dir = AJP.radar.directory || [];
+      const byBoard = {};
+      for (const [b] of dir) byBoard[b] = (byBoard[b] || 0) + 1;
+      const allowed = [];
+      for (const b of Object.keys(byBoard)) if (await radarAllowed({ board: b })) allowed.push(b);
+      return { on: rs.directory !== false, total: dir.length, byBoard, allowed, hidden: (rs.excluded || []).length, failing: Object.values(st.dirFail || {}).filter((n) => n >= AJP.radar.scan.CONFIG.directoryFailSkip).length, lastAt: st.dirAt || null };
+    },
     async 'radar.settings.get'() {
       return { settings: await AJP.store.get('radarSettings') };
     },
     async 'radar.settings.save'({ settings = {} } = {}) {
-      const allowed = ['enabled', 'intervalHours', 'threshold', 'locations', 'remote', 'minSalary', 'notify'];
+      const allowed = ['enabled', 'intervalHours', 'threshold', 'locations', 'remote', 'minSalary', 'notify', 'directory'];
       let out = null;
       await serialRadar(() =>
         AJP.store.update('radarSettings', (s) => {

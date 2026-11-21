@@ -243,7 +243,9 @@
       <h3>New jobs</h3>
       <div class="row"><select id="radarFilter"><option value="new">New</option><option value="saved">Saved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select><select id="radarSort"><option value="match">Best match first</option><option value="newest">Newest first</option></select><span class="hint">Apply early: <b>Posted today</b> and <b>This week</b> are marked. Save adds the job to Applications with its description; Dismiss hides it for good.</span></div>
       <div id="radarJobs"></div>
+      <div id="radarDir" class="card"></div>
       <h3>Companies you watch</h3>
+      <p class="hint">Add companies that aren't in the directory, or that you want checked on every scan.</p>
       <div class="row"><input id="radarUrl" class="wide" placeholder="Careers page link, e.g. https://boards.greenhouse.io/company or https://jobs.lever.co/company"><button id="radarAdd" class="primary">Add</button></div>
       <div class="row"><button id="radarAllowAll">Allow all 11 job boards</button><span id="radarAllOut" class="hint">One prompt instead of one per board.</span></div>
       <p id="radarAddOut" class="hint">Supported: Greenhouse, Lever, Ashby, Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling, Personio, Teamtailor and Workday. The browser asks once for permission to read each job board.</p>
@@ -259,6 +261,7 @@
         <form id="radarSettings">
           <div class="grid">
             <label class="check"><input type="checkbox" name="enabled"> Job Radar on</label>
+            <label class="check"><input type="checkbox" name="directory"> Scan the built-in company directory</label>
             <label>Check each company every<select name="intervalHours"><option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">day</option></select></label>
             <label>Alert from a match of (%)<input type="number" name="threshold" min="0" max="100"></label>
             <label>Alerts<select name="notify"><option value="digest">One summary a day</option><option value="perScan">After every scan</option></select></label>

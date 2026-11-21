@@ -66,6 +66,7 @@
       "src/lib/radar-detect.js",
       "src/lib/radar-boards.js",
       "src/lib/radar-scan.js",
+      "src/lib/radar-directory.js",
       "src/background/background.js"
     ]
   },

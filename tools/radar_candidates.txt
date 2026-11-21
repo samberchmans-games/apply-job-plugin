@@ -1,0 +1,611 @@
+# Job Radar directory candidates: "slug" or "slug|Display Name". Checked live by tools/build_radar_directory.py;
+# only boards that answer with open jobs are kept. Add more names any time and re-run the builder.
+airbnb|Airbnb
+stripe|Stripe
+gitlab|GitLab
+databricks|Databricks
+dropbox|Dropbox
+figma|Figma
+robinhood|Robinhood
+reddit|Reddit
+discord|Discord
+cloudflare|Cloudflare
+datadog|Datadog
+mongodb|MongoDB
+elastic|Elastic
+hubspot|HubSpot
+instacart|Instacart
+lyft|Lyft
+pinterest|Pinterest
+twilio|Twilio
+okta|Okta
+asana|Asana
+affirm|Affirm
+brex|Brex
+chime|Chime
+doordash|DoorDash
+doordashusa|DoorDash
+duolingo|Duolingo
+airtable|Airtable
+notion|Notion
+plaid|Plaid
+ramp|Ramp
+linear|Linear
+vercel|Vercel
+supabase|Supabase
+openai|OpenAI
+anthropic|Anthropic
+scaleai|Scale AI
+cohere|Cohere
+huggingface|Hugging Face
+perplexity|Perplexity
+perplexityai|Perplexity
+mistral|Mistral AI
+runwayml|Runway
+characterai|Character.AI
+replit|Replit
+retool|Retool
+snowflake|Snowflake
+confluent|Confluent
+hashicorp|HashiCorp
+grafanalabs|Grafana Labs
+newrelic|New Relic
+pagerduty|PagerDuty
+sentry|Sentry
+postman|Postman
+zapier|Zapier
+canva|Canva
+miro|Miro
+webflow|Webflow
+calendly|Calendly
+gusto|Gusto
+rippling|Rippling
+deel|Deel
+remote|Remote
+justworks|Justworks
+carta|Carta
+mercury|Mercury
+marqeta|Marqeta
+sofi|SoFi
+coinbase|Coinbase
+kraken|Kraken
+gemini|Gemini
+chainalysis|Chainalysis
+circle|Circle
+anchorage|Anchorage Digital
+fireblocks|Fireblocks
+toast|Toast
+squarespace|Squarespace
+wix|Wix
+shopify|Shopify
+etsy|Etsy
+wayfair|Wayfair
+chewy|Chewy
+peloton|Peloton
+spotify|Spotify
+netflix|Netflix
+roku|Roku
+twitch|Twitch
+unity|Unity
+unity3d|Unity
+roblox|Roblox
+epicgames|Epic Games
+riotgames|Riot Games
+niantic|Niantic
+zynga|Zynga
+playtika|Playtika
+scopely|Scopely
+samsara|Samsara
+verkada|Verkada
+anduril|Anduril
+palantir|Palantir
+spacex|SpaceX
+relativity|Relativity Space
+rocketlab|Rocket Lab
+planet|Planet
+flexport|Flexport
+convoy|Convoy
+samsungsemiconductor|Samsung Semiconductor
+nuro|Nuro
+aurora|Aurora
+auroratech|Aurora
+waymo|Waymo
+cruise|Cruise
+zoox|Zoox
+rivian|Rivian
+lucidmotors|Lucid Motors
+tesla|Tesla
+joby|Joby Aviation
+archer|Archer Aviation
+benchling|Benchling
+tempus|Tempus
+flatironhealth|Flatiron Health
+oscar|Oscar Health
+oscarhealth|Oscar Health
+hims|Hims & Hers
+ro|Ro
+noom|Noom
+headspace|Headspace
+calm|Calm
+lyrahealth|Lyra Health
+springhealth|Spring Health
+modernhealth|Modern Health
+cityblock|Cityblock Health
+devoted|Devoted Health
+devotedhealth|Devoted Health
+oura|Oura
+whoop|WHOOP
+color|Color Health
+grailbio|GRAIL
+23andme|23andMe
+insitro|insitro
+recursionpharmaceuticals|Recursion
+zocdoc|Zocdoc
+included|Included Health
+cedar|Cedar
+commure|Commure
+abridge|Abridge
+nomihealth|Nomi Health
+vanta|Vanta
+drata|Drata
+snyk|Snyk
+wiz|Wiz
+wizinc|Wiz
+crowdstrike|CrowdStrike
+sentinelone|SentinelOne
+lacework|Lacework
+tanium|Tanium
+1password|1Password
+bitwarden|Bitwarden
+abnormalsecurity|Abnormal Security
+arcticwolf|Arctic Wolf
+huntress|Huntress
+chainguard|Chainguard
+tailscale|Tailscale
+netlify|Netlify
+fastly|Fastly
+digitalocean|DigitalOcean
+render|Render
+fly|Fly.io
+planetscale|PlanetScale
+cockroachlabs|Cockroach Labs
+neon|Neon
+timescale|Timescale
+clickhouse|ClickHouse
+starburst|Starburst
+dbtlabs|dbt Labs
+fivetran|Fivetran
+airbyte|Airbyte
+astronomer|Astronomer
+prefect|Prefect
+dagster|Dagster Labs
+montecarlodata|Monte Carlo
+hightouch|Hightouch
+census|Census
+segment|Segment
+amplitude|Amplitude
+mixpanel|Mixpanel
+heap|Heap
+fullstory|FullStory
+hotjar|Hotjar
+braze|Braze
+iterable|Iterable
+klaviyo|Klaviyo
+attentive|Attentive
+gong|Gong
+outreach|Outreach
+salesloft|Salesloft
+apollo|Apollo.io
+clari|Clari
+highspot|Highspot
+seismic|Seismic
+zoominfo|ZoomInfo
+6sense|6sense
+demandbase|Demandbase
+intercom|Intercom
+zendesk|Zendesk
+front|Front
+gorgias|Gorgias
+kustomer|Kustomer
+freshworks|Freshworks
+monday|monday.com
+clickup|ClickUp
+smartsheet|Smartsheet
+coda|Coda
+loom|Loom
+grammarly|Grammarly
+descript|Descript
+pitch|Pitch
+mural|Mural
+lucid|Lucid
+docusign|DocuSign
+dropboxsign|Dropbox Sign
+box|Box
+egnyte|Egnyte
+zoom|Zoom
+ringcentral|RingCentral
+dialpad|Dialpad
+aircall|Aircall
+vonage|Vonage
+bandwidth|Bandwidth
+sendgrid|SendGrid
+mailchimp|Mailchimp
+sproutsocial|Sprout Social
+hootsuite|Hootsuite
+buffer|Buffer
+later|Later
+yotpo|Yotpo
+bazaarvoice|Bazaarvoice
+contentful|Contentful
+sanity|Sanity
+strapi|Strapi
+algolia|Algolia
+coveo|Coveo
+elastic|Elastic
+pinecone|Pinecone
+weaviate|Weaviate
+chroma|Chroma
+langchain|LangChain
+anyscale|Anyscale
+modal|Modal
+together|Together AI
+togetherai|Together AI
+fireworksai|Fireworks AI
+baseten|Baseten
+replicate|Replicate
+weightsandbiases|Weights & Biases
+wandb|Weights & Biases
+labelbox|Labelbox
+snorkelai|Snorkel AI
+dataiku|Dataiku
+datarobot|DataRobot
+h2oai|H2O.ai
+alteryx|Alteryx
+thoughtspot|ThoughtSpot
+sigmacomputing|Sigma Computing
+hex|Hex
+mode|Mode
+looker|Looker
+domo|Domo
+tableau|Tableau
+qlik|Qlik
+collibra|Collibra
+alation|Alation
+atlan|Atlan
+immuta|Immuta
+bigeye|Bigeye
+anomalo|Anomalo
+cribl|Cribl
+observeinc|Observe
+chronosphere|Chronosphere
+honeycomb|Honeycomb
+lightstep|Lightstep
+harness|Harness
+circleci|CircleCI
+buildkite|Buildkite
+launchdarkly|LaunchDarkly
+split|Split
+statsig|Statsig
+optimizely|Optimizely
+temporal|Temporal
+temporaltechnologies|Temporal
+kong|Kong
+apollographql|Apollo GraphQL
+hasura|Hasura
+pulumi|Pulumi
+spacelift|Spacelift
+env0|env0
+port|Port
+backstage|Backstage
+cortex|Cortex
+jfrog|JFrog
+sonatype|Sonatype
+github|GitHub
+atlassian|Atlassian
+jetbrains|JetBrains
+sourcegraph|Sourcegraph
+cursor|Cursor
+anysphere|Anysphere
+codeium|Codeium
+tabnine|Tabnine
+warp|Warp
+raycast|Raycast
+superhuman|Superhuman
+readme|ReadMe
+mintlify|Mintlify
+stytch|Stytch
+clerk|Clerk
+auth0|Auth0
+workos|WorkOS
+persona|Persona
+socure|Socure
+alloy|Alloy
+sardine|Sardine
+unit|Unit
+treasuryprime|Treasury Prime
+modern|Modern Treasury
+moderntreasury|Modern Treasury
+checkr|Checkr
+gem|Gem
+greenhouse|Greenhouse
+lever|Lever
+ashby|Ashby
+lattice|Lattice
+cultureamp|Culture Amp
+leapsome|Leapsome
+15five|15Five
+betterup|BetterUp
+handshake|Handshake
+coursera|Coursera
+udemy|Udemy
+udacity|Udacity
+masterclass|MasterClass
+khanacademy|Khan Academy
+outschool|Outschool
+quizlet|Quizlet
+chegg|Chegg
+brainly|Brainly
+newsela|Newsela
+clever|Clever
+nerdwallet|NerdWallet
+creditkarma|Credit Karma
+betterment|Betterment
+wealthfront|Wealthfront
+acorns|Acorns
+stash|Stash
+public|Public
+titan|Titan
+addepar|Addepar
+blend|Blend
+better|Better
+opendoor|Opendoor
+compass|Compass
+redfin|Redfin
+zillow|Zillow
+offerpad|Offerpad
+divvyhomes|Divvy Homes
+pacaso|Pacaso
+roofstock|Roofstock
+procore|Procore
+servicetitan|ServiceTitan
+jobber|Jobber
+housecallpro|Housecall Pro
+thumbtack|Thumbtack
+taskrabbit|TaskRabbit
+angi|Angi
+nextdoor|Nextdoor
+yelp|Yelp
+tripadvisor|Tripadvisor
+expedia|Expedia
+hopper|Hopper
+navan|Navan
+tripactions|Navan
+getyourguide|GetYourGuide
+vacasa|Vacasa
+sonder|Sonder
+turo|Turo
+getaround|Getaround
+bird|Bird
+lime|Lime
+via|Via
+gopuff|Gopuff
+grubhub|Grubhub
+postmates|Postmates
+faire|Faire
+whatnot|Whatnot
+poshmark|Poshmark
+thredup|thredUP
+stitchfix|Stitch Fix
+rentthe runway|Rent the Runway
+renttherunway|Rent the Runway
+warbyparker|Warby Parker
+allbirds|Allbirds
+glossier|Glossier
+everlane|Everlane
+casper|Casper
+bombas|Bombas
+hellofresh|HelloFresh
+blueapron|Blue Apron
+factor|Factor
+sweetgreen|Sweetgreen
+cava|CAVA
+olo|Olo
+lightspeedhq|Lightspeed
+clover|Clover
+bill|BILL
+billcom|BILL
+expensify|Expensify
+navan|Navan
+airbase|Airbase
+pilot|Pilot
+bench|Bench
+avalara|Avalara
+anrok|Anrok
+taxbit|TaxBit
+vertex|Vertex
+coupa|Coupa
+zip|Zip
+ironclad|Ironclad
+clio|Clio
+everlaw|Everlaw
+harvey|Harvey
+evenup|EvenUp
+relativityoda|Relativity
+lexion|Lexion
+spotdraft|SpotDraft
+gitpod|Gitpod
+coder|Coder
+docker|Docker
+redis|Redis
+couchbase|Couchbase
+singlestore|SingleStore
+yugabyte|Yugabyte
+pingcap|PingCAP
+aerospike|Aerospike
+neo4j|Neo4j
+tigergraph|TigerGraph
+dremio|Dremio
+onehouse|Onehouse
+tabular|Tabular
+motherduck|MotherDuck
+materialize|Materialize
+redpanda|Redpanda
+streamnative|StreamNative
+estuary|Estuary
+rudderstack|RudderStack
+mparticle|mParticle
+tealium|Tealium
+contentsquare|Contentsquare
+quantummetric|Quantum Metric
+pendo|Pendo
+gainsight|Gainsight
+totango|Totango
+churnzero|ChurnZero
+vitally|Vitally
+productboard|Productboard
+aha|Aha!
+jiminny|Jiminny
+chorus|Chorus
+wingman|Wingman
+ziprecruiter|ZipRecruiter
+indeed|Indeed
+glassdoor|Glassdoor
+upwork|Upwork
+fiverr|Fiverr
+toptal|Toptal
+andela|Andela
+turing|Turing
+hired|Hired
+wellfound|Wellfound
+angellist|AngelList
+ycombinator|Y Combinator
+a16z|Andreessen Horowitz
+sequoia|Sequoia
+benchmark|Benchmark
+generalcatalyst|General Catalyst
+tiger|Tiger Global
+bloomberg|Bloomberg
+twosigma|Two Sigma
+janestreet|Jane Street
+citadel|Citadel
+citadelsecurities|Citadel Securities
+hrt|Hudson River Trading
+hudsonrivertrading|Hudson River Trading
+jumptrading|Jump Trading
+optiver|Optiver
+imc|IMC Trading
+drw|DRW
+sig|Susquehanna
+akunacapital|Akuna Capital
+virtu|Virtu Financial
+point72|Point72
+bridgewater|Bridgewater
+deshaw|D. E. Shaw
+aqr|AQR
+man|Man Group
+squarepoint|Squarepoint
+millennium|Millennium
+balyasny|Balyasny
+tradeweb|Tradeweb
+ice|ICE
+nasdaq|Nasdaq
+cboe|Cboe
+cmegroup|CME Group
+moodys|Moody's
+spglobal|S&P Global
+msci|MSCI
+factset|FactSet
+morningstar|Morningstar
+pitchbook|PitchBook
+crunchbase|Crunchbase
+cbinsights|CB Insights
+similarweb|Similarweb
+semrush|Semrush
+ahrefs|Ahrefs
+moz|Moz
+yext|Yext
+brightedge|BrightEdge
+conductor|Conductor
+sitecore|Sitecore
+acquia|Acquia
+wpengine|WP Engine
+automattic|Automattic
+ghost|Ghost
+medium|Medium
+substack|Substack
+patreon|Patreon
+onlyfans|OnlyFans
+cameo|Cameo
+kickstarter|Kickstarter
+gofundme|GoFundMe
+eventbrite|Eventbrite
+ticketmaster|Ticketmaster
+seatgeek|SeatGeek
+stubhub|StubHub
+vivid|Vivid Seats
+fanduel|FanDuel
+draftkings|DraftKings
+prizepicks|PrizePicks
+underdog|Underdog
+underdogfantasy|Underdog Fantasy
+sleeper|Sleeper
+strava|Strava
+alltrails|AllTrails
+tonal|Tonal
+mirror|Mirror
+hydrow|Hydrow
+zwift|Zwift
+classpass|ClassPass
+mindbody|Mindbody
+gympass|Wellhub
+wellhub|Wellhub
+care|Care.com
+bumble|Bumble
+hinge|Hinge
+match|Match Group
+grindr|Grindr
+tinder|Tinder
+snap|Snap
+pinterest|Pinterest
+quora|Quora
+tumblr|Tumblr
+vimeo|Vimeo
+dailymotion|Dailymotion
+soundcloud|SoundCloud
+audible|Audible
+sirius|SiriusXM
+iheartmedia|iHeartMedia
+spotifyjobs|Spotify
+deezer|Deezer
+tidal|Tidal
+bandcamp|Bandcamp
+splice|Splice
+masterclass|MasterClass
+nytimes|The New York Times
+washingtonpost|The Washington Post
+axios|Axios
+politico|Politico
+vox|Vox Media
+voxmedia|Vox Media
+buzzfeed|BuzzFeed
+vice|VICE
+conde|Condé Nast
+condenast|Condé Nast
+hearst|Hearst
+dotdashmeredith|Dotdash Meredith
+theathletic|The Athletic
+barstool|Barstool Sports
+fubo|fuboTV
+fubotv|fuboTV
+philo|Philo
+sling|Sling TV
+pluto|Pluto TV
+tubi|Tubi
+paramount|Paramount
+warnerbros|Warner Bros. Discovery
+disney|Disney
+nbcuniversal|NBCUniversal
+fox|Fox
+amc|AMC Networks
+lionsgate|Lionsgate
+a24|A24

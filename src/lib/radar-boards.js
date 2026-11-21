@@ -28,7 +28,11 @@
     label: 'Greenhouse',
     wave: 'A',
     hosts: ['https://boards-api.greenhouse.io/*'],
-    listRequest: (e) => ({ url: `https://boards-api.greenhouse.io/v1/boards/${enc(e.company)}/jobs?content=true`, method: 'GET' }),
+    // Light list (no descriptions: a big board is ~100x smaller); descriptions come from the detail call, only for the
+    // jobs that pass the quick filter. A list that already has `content` (older captures) is used as is.
+    listRequest: (e) => ({ url: `https://boards-api.greenhouse.io/v1/boards/${enc(e.company)}/jobs?content=false`, method: 'GET' }),
+    detailRequest: (job, e) => ({ url: `https://boards-api.greenhouse.io/v1/boards/${enc(e.company)}/jobs/${enc(job.id)}`, method: 'GET' }),
+    parseDetail: (body) => ({ description: C().htmlToText(body && body.content) }),
     parseList(body, e) {
       if (!body || !Array.isArray(body.jobs)) throw bad('greenhouse', 'no jobs array');
       return {
@@ -42,7 +46,7 @@
           url: j.absolute_url,
           postedAt: j.first_published || j.updated_at,
           department: (j.departments || [])[0] && j.departments[0].name,
-          description: C().htmlToText(j.content), // double-encoded HTML: htmlToText decodes it first
+          description: j.content ? C().htmlToText(j.content) : '', // double-encoded HTML: htmlToText decodes it first
           raw: {},
         })).map((j) => ({ ...j, locations: j.locations.filter(Boolean) })),
       };

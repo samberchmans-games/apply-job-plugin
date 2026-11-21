@@ -614,6 +614,22 @@
       await load('admin.html', {}, { hash: 'autoapply' });
       ok($('[data-path="autoApply.citizen"]'));
     });
+    it('directory card: size per board, a prompt when boards are not allowed yet; "Hide company" on a job', async () => {
+      await load('admin.html', { radarJobs: [job({ id: 7, title: 'Some Job', score: 70 })] }, { hash: 'profile', background: true });
+      w.AJP.radar.directory = [['greenhouse', 'acme', 'Acme Corp'], ['lever', 'globex', 'Globex'], ['greenhouse', 'initech', 'Initech']];
+      w.location.hash = 'radar';
+      await waitFor(() => /Built-in company directory: 3 companies/.test($('#radarDir').textContent), { msg: 'card' });
+      includes($('#radarDir').textContent, 'Greenhouse 2');
+      includes($('#radarDir').textContent, 'hasn’t allowed'.replace('’', "'"));
+      $('#radarDir [data-dir="allow"]').click();
+      await waitFor(() => w.browser.__granted.has('https://api.lever.co/*'), { msg: 'allowed' });
+      await waitFor(() => !$('#radarDir [data-dir="allow"]'), { msg: 'prompt gone' });
+      w.confirm = () => true;
+      await waitFor(() => $('.radar-job [data-act="hide"]'), { msg: 'job' });
+      $('.radar-job [data-act="hide"]').click();
+      await waitFor(async () => ((await stored('radarSettings')).excluded || []).includes('greenhouse:acme'), { msg: 'hidden' });
+      await waitFor(() => !$('.radar-job'), { msg: 'job gone' });
+    });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });

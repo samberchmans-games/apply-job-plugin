@@ -15,7 +15,7 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **38 / 40** (incl. the 5 Job Finder components) |
 | Components not started | **2**: resume export, CI |
-| Automated tests | **1263 / 1263 passing** (622 also run without a browser), incl. convention checks |
+| Automated tests | **1274 / 1274 passing** (623 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 110 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
@@ -105,7 +105,7 @@ Columns:
 | C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ✅ | 27 | ⏳ | Tasks J14–J20 |
 | C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ✅ | 16 | ⏳ | Tasks J21–J26, J36 |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) + **4** (OpenRouter busy / weak free models, B26) + **5** (slow auto-picked models, test timeout, Gemini default and thinking level, B27) + **2** + **4** (model manager: fallback chain, cooldown, daily check) + **2** (server errors switch models, B28) + **3** (per-model quota, B29) + **2** (working model remembered, B30) + **88** (Job Radar: core, detection, 11 adapters, scan engine, background, Admin, popup, panel) + **26** (Job Radar per career track, eligibility, freshness) = **1263**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) + **4** (OpenRouter busy / weak free models, B26) + **5** (slow auto-picked models, test timeout, Gemini default and thinking level, B27) + **2** + **4** (model manager: fallback chain, cooldown, daily check) + **2** (server errors switch models, B28) + **3** (per-model quota, B29) + **2** (working model remembered, B30) + **88** (Job Radar: core, detection, 11 adapters, scan engine, background, Admin, popup, panel) + **26** (Job Radar per career track, eligibility, freshness) + **11** (built-in company directory) = **1274**
 
 ---
 
@@ -170,7 +170,7 @@ ID in §4 when it fails), and fill **Tested on** with the date.
 | T15 | Reporting problems on GitHub | L1–L8 | W20 | ⏳ | ⏳ | ⏳ | ⏳ | | Create the triage labels first (W20) |
 | T16 | Performance | H1–H4 | W10 | ⏳ | ⏳ | ⏳ | ⏳ | | |
 | T18 | **More AI providers**: NVIDIA NIM, Mistral (free); Claude (paid, optional) incl. Tailoring model, no-credit and wrong-key messages | D14–D17 | W26b | ⏳ | ⏳ | ⏳ | ⏳ | | Claude needs a few dollars of API credit at console.anthropic.com; skip if you don't want to pay |
-| T17 | Job Finder: one company per wave, permission prompt, notification, "Watch this company", save to tracker, Safari CORS for Workday; tracks, eligibility, freshness | M1–M21 | W25 | ⏳ | ⏳ | ⏳ | ⏳ | | Ready: load the extension from the `feature/job-radar` branch |
+| T17 | Job Finder: one company per wave, permission prompt, notification, "Watch this company", save to tracker, Safari CORS for Workday; tracks, eligibility, freshness, built-in directory | M1–M24 | W25 | ⏳ | ⏳ | ⏳ | ⏳ | | Ready: load the extension from the `feature/job-radar` branch |
 
 ## 2b. Job Finder build tasks (step 19)
 

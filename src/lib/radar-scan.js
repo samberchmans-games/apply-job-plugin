@@ -23,6 +23,10 @@
     lockStaleMs: 10 * 60 * 1000,
     retryWaitMaxMs: 60000,
     pauseAfterFailures: 5,
+    // Built-in directory (radar-directory.js): scanned in rotation so every company is covered about once a day.
+    directoryMinPerScan: 30,
+    directoryFailSkip: 3, // a directory company failing 3 scans in a row is skipped until the next refresh
+    bytesPerScan: 50 * 1024 * 1024, // download budget per scan (directory slice stops when it is used)
   };
   const serial = AJP.serial();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -34,7 +38,7 @@
     if (status >= 500) return AJP.err('RADAR_SERVER', { ...ctx, status, retryAfter });
     return AJP.err('RADAR_BAD_RESPONSE', { ...ctx, status });
   }
-  async function httpOnce(req, { fetchImpl, responseType, ctx }) {
+  async function httpOnce(req, { fetchImpl, responseType, ctx, counter }) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), CONFIG.timeoutMs);
     let res;
@@ -50,6 +54,7 @@
       throw statusError(res.status, ctx, isNaN(ra) ? undefined : ra);
     }
     const text = await res.text();
+    if (counter) counter.bytes += text.length;
     if (responseType === 'text') return text;
     try {
       return JSON.parse(text);
@@ -74,6 +79,7 @@
     const lastAt = {};
     return {
       used: 0,
+      bytes: 0,
       async gate(url) {
         if (this.used >= CONFIG.requestsPerScan) throw Object.assign(new Error('scan budget used'), { budget: true });
         this.used++;
@@ -107,7 +113,7 @@
     const ctx = { keywords, now };
     let e = { ...entry };
     const reqCtx = { board: e.board, company: e.company };
-    const opts = { fetchImpl, responseType: adapter.responseType, ctx: reqCtx };
+    const opts = { fetchImpl, responseType: adapter.responseType, ctx: reqCtx, counter };
 
     // List stage
     const partials = [];
@@ -210,7 +216,24 @@
    * run({ fetchImpl, now, onlyKey, force }) → summary { companies, requests, listed, new, matches[], errors[], ms, resumed }
    * Throws RADAR_BUSY when another scan holds the lock (a lock older than 10 minutes is taken over).
    */
-  async function run({ fetchImpl = globalThis.fetch.bind(globalThis), now = Date.now(), onlyKey = null, force = false } = {}) {
+  // The directory slice for this scan: companies not in your watchlist, not hidden, on boards you allowed, not failing;
+  // next in rotation (cursor), sized so the whole directory is covered about once a day.
+  function directorySlice({ settings, watchlist, state, allowedBoards, interval }) {
+    const dir = AJP.radar.directory || [];
+    if (!dir.length || settings.directory === false) return [];
+    const mine = new Set(watchlist.map((w) => w.key));
+    const hidden = new Set(settings.excluded || []);
+    const fails = state.dirFail || {};
+    const all = dir
+      .map(([board, company, name]) => ({ key: AJP.radar.detect.keyOf({ board, company }), board, company, companyName: name, directory: true }))
+      .filter((e) => !mine.has(e.key) && !hidden.has(e.key) && (fails[e.key] || 0) < CONFIG.directoryFailSkip && (!allowedBoards || allowedBoards.has(e.board)) && AJP.radar.boards.get(e.board));
+    if (!all.length) return [];
+    const size = Math.min(all.length, Math.max(CONFIG.directoryMinPerScan, Math.ceil((all.length * interval) / (24 * 3600000))));
+    const start = (state.dirCursor || 0) % all.length;
+    return Array.from({ length: size }, (_, i) => all[(start + i) % all.length]);
+  }
+
+  async function run({ fetchImpl = globalThis.fetch.bind(globalThis), now = Date.now(), onlyKey = null, force = false, allowedBoards = null } = {}) {
     const t0 = Date.now();
     const got = await serial(async () => {
       const st = await AJP.store.get('radarScanState');
@@ -236,6 +259,14 @@
         await AJP.store.update('radarScanState', (s) => void Object.assign(s, { queue, done: [] }));
       }
       const byKey = Object.fromEntries(watchlist.map((w) => [w.key, w]));
+      // Directory: one slice per interval (or per "Scan now"), after your own companies.
+      const dirDue = !onlyKey && (force || !state.dirAt || now - state.dirAt >= interval);
+      const slice = dirDue ? directorySlice({ settings, watchlist, state, allowedBoards, interval }) : [];
+      for (const e of slice) {
+        byKey[e.key] = e;
+        queue.push(e.key);
+      }
+      const dirOutcome = {};
       const seen = await AJP.store.get('radarSeen');
       const counter = makeCounter();
       let next = 0;
@@ -247,7 +278,9 @@
           if (!entry) continue;
           let result;
           try {
+            if (entry.directory && counter.bytes > CONFIG.bytesPerScan) continue; // download budget used: the rest next time
             const r = await scanCompany(entry, { fetchImpl, counter, settings, profile, resumes, seen, now });
+            if (entry.directory) dirOutcome[key] = 0;
             result = { key, ...r, companyName: (r.jobs[0] && r.jobs[0].companyName !== r.entry.company && r.jobs[0].companyName) || null };
             summary.listed += r.total;
             summary.new += r.jobs.length;
@@ -259,6 +292,13 @@
             }
             const x = AJP.toAppError(err);
             result = { key, error: x.code, listedKeys: [], jobs: [] };
+            if (entry.directory) {
+              dirOutcome[key] = 1; // directory failures are quiet: counted, then skipped after a few
+              summary.directoryErrors = (summary.directoryErrors || 0) + 1;
+              await saveCompany(result, now);
+              summary.companies++;
+              continue;
+            }
             summary.errors.push({ key, code: x.code });
             log.warn('Company scan failed', { board: entry.board, company: entry.company, code: x.code, status: x.details && x.details.status });
           }
@@ -268,8 +308,20 @@
       };
       await Promise.all(Array.from({ length: Math.min(CONFIG.concurrency, queue.length) }, worker));
       summary.requests = counter.used;
+      summary.bytes = counter.bytes;
+      summary.directory = slice.length;
       summary.stopped = stopped;
+      if (slice.length) {
+        await AJP.store.update('radarScanState', (s) => {
+          s.dirAt = now;
+          s.dirCursor = ((s.dirCursor || 0) + slice.length) % Math.max(1, (AJP.radar.directory || []).length);
+          const f = { ...(s.dirFail || {}) };
+          for (const [k, bad] of Object.entries(dirOutcome)) bad ? (f[k] = (f[k] || 0) + 1) : delete f[k];
+          s.dirFail = f;
+        });
+      }
       if (!stopped) await AJP.store.update('radarScanState', (s) => void Object.assign(s, { queue: [], done: [] }));
+      else await AJP.store.update('radarScanState', (s) => void (s.queue = (s.queue || []).filter((k) => watchlist.some((w) => w.key === k))));
       await serial(async () => {
         const [jobs, seenNow] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarSeen')]);
         const p = AJP.radar.core.prune({ jobs, seen: seenNow }, now);
