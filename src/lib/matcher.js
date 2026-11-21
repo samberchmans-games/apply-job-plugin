@@ -181,6 +181,37 @@
     return { min: Math.round(min), max: Math.round(max), hourly };
   }
 
+  // ---- Countries: "remote" can still mean "only in these countries" ------------------------------------
+  const COUNTRIES = { 'united states': /\b(united states|usa|u\.s\.a?\.?|us)\b/i, canada: /\bcanada\b/i, mexico: /\bmexico\b/i, brazil: /\bbrazil\b/i, 'united kingdom': /\b(united kingdom|uk|england|scotland|london)\b/i, ireland: /\bireland\b/i, germany: /\bgermany\b/i, france: /\bfrance\b/i, spain: /\bspain\b/i, portugal: /\bportugal\b/i, netherlands: /\bnetherlands\b/i, poland: /\bpoland\b/i, india: /\bindia\b/i, singapore: /\bsingapore\b/i, australia: /\baustralia\b/i, japan: /\bjapan\b/i, israel: /\bisrael\b/i, argentina: /\bargentina\b/i, colombia: /\bcolombia\b/i, philippines: /\bphilippines\b/i, romania: /\bromania\b/i, sweden: /\bsweden\b/i, switzerland: /\bswitzerland\b/i, italy: /\bitaly\b/i, emea: /\b(emea|europe|eu)\b/i, apac: /\b(apac|asia)\b/i, latam: /\blatam\b/i };
+  const US_CODES = 'AK|AL|AR|AZ|CA|CO|CT|DC|DE|FL|GA|HI|IA|ID|IL|IN|KS|KY|LA|MA|MD|ME|MI|MN|MO|MS|MT|NC|ND|NE|NH|NJ|NM|NV|NY|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VA|VT|WA|WI|WV|WY';
+  const US_STATE = new RegExp(`(?:^|,)\\s*(?:${US_CODES})\\s*(?:$|,|\\d)`);
+  const US_NAMES = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)\b/i;
+  const ANYWHERE = /\b(worldwide|anywhere|global|globally)\b/i;
+  function countriesIn(list) {
+    const out = new Set();
+    for (const raw of list || []) {
+      const l = String(raw || '').replace(/\b(remote|hybrid|on-?site)\b\s*[-–—:]?\s*/gi, '').trim();
+      for (const [c, re] of Object.entries(COUNTRIES)) if (re.test(l)) out.add(c);
+      if (US_STATE.test(l) || US_NAMES.test(l)) out.add('united states');
+    }
+    return out;
+  }
+  // Where you are: your areas, else your profile's country / state.
+  function homeCountries(places, profile) {
+    const fromPlaces = countriesIn(places);
+    if (fromPlaces.size) return fromPlaces;
+    const p = (profile && profile.personal) || {};
+    return countriesIn([p.country, p.state]);
+  }
+  // True only when we know both sides and they don't overlap. Unknown → false: when unsure, show the job.
+  function listedAbroad(locations, home) {
+    if (!home || !home.size) return false;
+    const list = (locations || []).filter(Boolean);
+    if (list.some((l) => ANYWHERE.test(l))) return false;
+    const there = countriesIn(list);
+    return there.size > 0 && ![...there].some((c) => home.has(c));
+  }
+
   function fitChecks(jdText, profile, jobLocation) {
     const wanted = Object.entries(profile.workTypes || {}).filter(([, v]) => v).map(([k]) => k);
     const jobTypes = detectWorkTypes(jdText);
@@ -197,16 +228,27 @@
     if (js && (pmin || pmax)) salaryOk = js.max >= (pmin || 0) && (!pmax || js.min <= pmax * 1.5);
     const salary = { job: js, wanted: { min: pmin, max: pmax }, ok: salaryOk };
 
-    const hay = AJP.norm((jobLocation || '') + ' ' + jdText.slice(0, 3000));
+    const raw = (jobLocation || '') + ' ' + jdText.slice(0, 3000);
+    const hay = ` ${AJP.normKey(raw.replace(/\n/g, ' ').slice(0, 3100))} `;
     const areas = (profile.areas || []).filter(Boolean);
+    // Whole words only ("NJ" is not in "enjoy"); short codes must match in capitals ("IN" is not "in").
     const hit = areas.find((a) => {
-      const city = AJP.norm(String(a).split(',')[0]);
-      return city && hay.includes(city);
+      if (/\bremote\b/i.test(a)) return false; // "Remote - US" is a wish for remote work, not a place
+      const city = String(a).split(',')[0].trim();
+      if (!city) return false;
+      if (city.length <= 3) return new RegExp(`\\b${city.replace(/[^A-Za-z]/g, '')}\\b`).test(raw);
+      return hay.includes(` ${AJP.normKey(city)} `);
     });
+    const home = homeCountries(areas, profile);
+    const abroad = listedAbroad(jobLocation ? [jobLocation] : [], home);
+    const remoteOk = workType.job.includes('remote') && workType.wanted.includes('remote');
     const location = {
       job: jobLocation || '',
-      matched: hit || null,
-      ok: areas.length ? (hit ? true : workType.job.includes('remote') && workType.wanted.includes('remote') ? true : false) : null,
+      matched: abroad ? null : hit || null,
+      abroad,
+      remote: workType.job.includes('remote'),
+      home: abroad ? [...home][0] : null,
+      ok: abroad ? false : areas.length ? (hit || remoteOk ? true : false) : null,
     };
     return { workType, salary, location };
   }
@@ -295,5 +337,5 @@
     }
   }
 
-  AJP.matcher = { analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
+  AJP.matcher = { countriesIn, homeCountries, listedAbroad, analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
 })();

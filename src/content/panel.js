@@ -158,7 +158,7 @@
         <div class="fit">
           <span>${tick(f.workType.ok)}</span><span>Work type: ${esc(f.workType.job.join(', ') || 'not stated')}</span>
           <span>${tick(f.salary.ok)}</span><span>Salary: ${esc(sal)}</span>
-          <span>${tick(f.location.ok)}</span><span>Location: ${esc(f.location.matched || job.location || 'not matched to your areas')}</span>
+          <span>${tick(f.location.ok)}</span><span>Location: ${esc(f.location.matched || job.location || 'not matched to your areas')}${f.location.abroad ? ` · ${f.location.remote ? 'remote, but ' : ''}listed outside ${f.location.home === 'united states' ? 'the US' : esc(f.location.home)}: check you can work there` : ''}</span>
           ${yearsRow(f.years)}
           ${levelRow(f.seniority)}
         </div>

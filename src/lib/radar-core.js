@@ -203,24 +203,8 @@
       return hit >= Math.ceil(T.length * 0.6);
     });
   }
-  // Countries / regions named in locations (remote jobs are often limited to one: "Remote Canada", "Remote - EMEA").
-  const COUNTRIES = { 'united states': /\b(united states|usa|u\.s\.a?\.?|us)\b/i, canada: /\bcanada\b/i, mexico: /\bmexico\b/i, brazil: /\bbrazil\b/i, 'united kingdom': /\b(united kingdom|uk|england|scotland|london)\b/i, ireland: /\bireland\b/i, germany: /\bgermany\b/i, france: /\bfrance\b/i, spain: /\bspain\b/i, portugal: /\bportugal\b/i, netherlands: /\bnetherlands\b/i, poland: /\bpoland\b/i, india: /\bindia\b/i, singapore: /\bsingapore\b/i, australia: /\baustralia\b/i, japan: /\bjapan\b/i, israel: /\bisrael\b/i, argentina: /\bargentina\b/i, colombia: /\bcolombia\b/i, philippines: /\bphilippines\b/i, romania: /\bromania\b/i, sweden: /\bsweden\b/i, switzerland: /\bswitzerland\b/i, italy: /\bitaly\b/i, emea: /\b(emea|europe|eu)\b/i, apac: /\b(apac|asia)\b/i, latam: /\blatam\b/i };
-  const US_STATE = /,\s*(A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY])\b/;
-  const countriesIn = (list) => {
-    const out = new Set();
-    for (const l of list || []) {
-      for (const [c, re] of Object.entries(COUNTRIES)) if (re.test(l)) out.add(c);
-      if (US_STATE.test(l)) out.add('united states');
-    }
-    return out;
-  };
-  // A remote job limited to other countries does not fit (when your places tell which country you are in).
-  function remoteCountryFits(job, places) {
-    const mine = countriesIn(places);
-    if (!mine.size) return true;
-    const theirs = countriesIn(job.locations);
-    return !theirs.size || [...theirs].some((c) => mine.has(c));
-  }
+  // A remote job limited to other countries does not fit (shared with the job panel: matcher.js).
+  const remoteCountryFits = (job, places, profile) => !AJP.matcher.listedAbroad(job.locations, AJP.matcher.homeCountries(places, profile));
   const placeKey = (s) => AJP.normKey(String(s || '').replace(/\b(remote|hybrid|on-?site)\b/gi, ' '));
   function placeFits(job, areas) {
     const places = (areas || []).map((a) => String(a)).filter(Boolean);
@@ -302,7 +286,7 @@
     const placed = fitting.filter((v) => {
       const wtOk = want !== 'any' ? !job.remote || job.remote === want || (want === 'hybrid' && job.remote === 'remote') : workTypeFits(job, v.workTypes);
       if (!wtOk) return false;
-      if (job.remote === 'remote') return remoteCountryFits(job, custom.length ? custom : v.areas); // remote: any place in your country
+      if (job.remote === 'remote') return remoteCountryFits(job, custom.length ? custom : v.areas, profile); // remote: any place in your country
       return placeFits(job, custom.length ? custom : v.areas);
     });
     if (!placed.length) return { pass: false, reason: want !== 'any' || fitting.every((v) => !workTypeFits(job, v.workTypes)) ? 'remote' : 'location' };
@@ -368,7 +352,7 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 8;
+  const RULES_VERSION = 9;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
