@@ -169,6 +169,39 @@
     });
   }, { env: 'browser' });
 
+  describe('providers › OpenRouter free models', () => {
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'openrouter', model: '', tailorProvider: '', tailorModel: '', resolvedModels: {}, keys: { ...KEYS, openrouter: 'sk-or-v1-test' } });
+    });
+    afterEach(after);
+    const LIST = () => json({ data: [{ id: 'inclusionai/ling-3.2-flash:free' }, { id: 'anthropic/claude-opus-5-5' }, { id: 'openai/gpt-oss-120b:free' }, { id: 'meta-llama/llama-3.3-70b-instruct:free' }] });
+    const busy = (m) => json({ error: { message: 'Provider returned error', code: 429, metadata: { raw: `${m} is temporarily rate-limited upstream. Please retry shortly, or add your own provider key to use your own limits` } } }, 429);
+    it('a retired default → a capable free model, not a small "flash" one and never a paid one', async () => {
+      await settings({ model: 'old/model:free' });
+      fake(json({ error: { message: 'No endpoints found for old/model:free' } }, 404), LIST(), openai('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      eq(calls[2].body.model, 'meta-llama/llama-3.3-70b-instruct:free');
+    });
+    it('a free model busy upstream → switches to another free model by itself (the reported AJP-AI-429)', async () => {
+      await settings({ resolvedModels: { openrouter: 'inclusionai/ling-3.2-flash:free' } });
+      fake(busy('inclusionai/ling-3.2-flash:free'), LIST(), openai('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      eq(calls[2].body.model, 'meta-llama/llama-3.3-70b-instruct:free');
+      eq((await AJP.store.get('settings')).ai.resolvedModels.openrouter, 'meta-llama/llama-3.3-70b-instruct:free', 'remembered');
+    });
+    it('the replacement busy too → AJP-AI-429 (switches only once)', async () => {
+      fake(busy('meta-llama/llama-3.3-70b-instruct:free'), LIST(), busy('openai/gpt-oss-120b:free'));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-429');
+      eq(calls.length, 3);
+    });
+    it('your own daily free limit (not upstream) → AJP-AI-429, no model switch', async () => {
+      fake(json({ error: { message: 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day', code: 429 } }, 429));
+      eq((await rejects(() => AJP.ai.tasks.test())).code, 'AJP-AI-429');
+      eq(calls.length, 1);
+    });
+  }, { env: 'browser' });
+
   describe('providers › keys stay private', () => {
     beforeEach(before);
     afterEach(after);

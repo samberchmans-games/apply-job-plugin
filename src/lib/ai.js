@@ -316,11 +316,14 @@
   const PREFER = {
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
     gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash$/, /^gemini-2\.5-flash-lite$/, /^gemini-[\d.]+-flash-lite$/, /^gemini-[\d.]+-pro$/],
-    openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek.*:free$/, /qwen.*:free$/, /:free$/],
+    // Capable free models first; small "flash/mini/nano" ones only as a last resort (they tailor poorly).
+    openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek-(chat|v3|r1)[^/]*:free$/, /qwen3-(235b|32b|30b|coder)[^/]*:free$/, /llama-4-maverick[^/]*:free$/,
+      /gemma-3-27b[^/]*:free$/, /mistral-small[^/]*:free$/, /kimi-k2[^/]*:free$/, /gpt-oss-20b:free$/, /glm-4[^/]*:free$/, /^(?!.*(flash|mini|nano|lite|\b[1-8]b\b)).*:free$/i, /:free$/],
     nvidia: [/^meta\/llama-3\.3-70b-instruct$/, /^openai\/gpt-oss-120b$/, /^qwen\/qwen3/, /^deepseek-ai\/deepseek/, /^meta\/llama-4/, /^mistralai\/mistral-(medium|large)/, /instruct$/],
     mistral: [/^mistral-medium-latest$/, /^mistral-small-latest$/, /^mistral-large-latest$/, /^mistral-(medium|small|large)/],
     anthropic: [/^claude-opus-5-5$/, /^claude-sonnet-5-5$/, /^claude-opus-\d/, /^claude-sonnet-\d/, /^claude-haiku-\d/],
   };
+  const UPSTREAM_BUSY = /rate-limited upstream|temporarily rate.?limited|provider returned error/i;
   const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n|ocr|moderation|rerank|retriever|safety|parakeet|clip|pixtral|voxtral/i;
   async function availableModels(cfg, provider) {
     if (provider === 'groq') {
@@ -333,7 +336,7 @@
     }
     if (provider === 'openrouter') {
       const d = await request('https://openrouter.ai/api/v1/models', {});
-      return (d.data || []).map((m) => m.id);
+      return (d.data || []).map((m) => m.id).filter((id) => /:free$/.test(id)); // never switch a free user to a paid model
     }
     if (provider === 'nvidia') {
       const d = await request('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: `Bearer ${cfg.keys.nvidia}` } });
@@ -399,6 +402,21 @@
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
     const t0 = performance.now();
     let discovered = false;
+    let switched = false;
+    // Swap to another model the provider offers (retired, or busy upstream), remember it, retry once.
+    const switchModel = async (why, text) => {
+      let next = null;
+      try {
+        next = await discoverModel(cfg, provider, model);
+      } catch (d) {
+        tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
+      }
+      if (!next) return null;
+      tr.log.info(`ai.${task} model "${model}" ${why}; using "${next}"`, { provider, from: model, to: next });
+      model = next;
+      await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: next }));
+      return { out: await CALLERS[provider](cfg, model, system, text, json) };
+    };
     const call = async (text) => {
       try {
         return await CALLERS[provider](cfg, model, system, text, json);
@@ -407,18 +425,14 @@
         // "Model not found": the provider retired it. Find the one it offers now, remember it, retry once.
         if (x.code === 'AJP-AI-404' && !discovered && PREFER[provider]) {
           discovered = true;
-          let next = null;
-          try {
-            next = await discoverModel(cfg, provider, model);
-          } catch (d) {
-            tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
-          }
-          if (next) {
-            tr.log.info(`ai.${task} model "${model}" not offered any more; using "${next}"`, { provider, from: model, to: next });
-            model = next;
-            await AJP.store.update('settings', (s) => void (s.ai.resolvedModels = { ...(s.ai.resolvedModels || {}), [provider]: next }));
-            return CALLERS[provider](cfg, model, system, text, json);
-          }
+          const r = await switchModel('not offered any more', text);
+          if (r) return r.out;
+        }
+        // OpenRouter: one free model "temporarily rate-limited upstream" (its host is busy, not your limit) → another free model.
+        if (x.code === 'AJP-AI-429' && provider === 'openrouter' && !switched && UPSTREAM_BUSY.test(String((x.details && x.details.body) || ''))) {
+          switched = true;
+          const r = await switchModel('is busy upstream', text);
+          if (r) return r.out;
         }
         const wait = x.code === 'AJP-AI-429' && patient ? waitAsked(x) : null;
         if (wait == null || wait > CONFIG.patienceMs) throw e;

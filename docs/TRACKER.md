@@ -15,7 +15,7 @@ This is the single page for **where every component stands right now**. The othe
 |---|---|
 | Components built | **33 / 40** (5 Job Finder components added as planned) |
 | Components not started | **2**: resume export, CI · **+5 planned**: Job Finder C40–C44 |
-| Automated tests | **1126 / 1126 passing** (557 also run without a browser), incl. convention checks |
+| Automated tests | **1130 / 1130 passing** (557 also run without a browser), incl. convention checks |
 | Error handling | **One standard across the plugin**: coded errors, retries, guarded actions, no silent failures ([ARCHITECTURE §9b](ARCHITECTURE.md)) |
 | Tester material | Tester Guide (8 sessions, 110 checks) + 7 walkthrough videos (~8.5 min) + local Workday and Greenhouse/Lever/Ashby/iCIMS emulation pages |
 | Problem reports | GitHub issues with a pre-filled form + automatic acknowledgement ([ISSUE-REPORTING.md](ISSUE-REPORTING.md)) |
@@ -105,7 +105,7 @@ Columns:
 | C43 | **Scan engine**: lock, resumable queue, paging, detail calls, budgets, scoring, alerts | `src/lib/radar-scan.js`, `background.js` | ⬜ | — | — | Tasks J14–J20 |
 | C44 | **Job Radar UI**: Admin watchlist / settings / New jobs, popup count, panel "Watch this company" | `src/admin/radar-view.js`, `popup.*`, `panel.js` | ⬜ | — | — | Tasks J21–J26, J36 |
 
-**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) = **1126**
+**Test totals:** 14 + 49 + 33 + 7 + 11 + 17 + 28 + 5 + 102 + 26 + 11 + 28 (tracker flows 25 + end-to-end 3) + 21 + 77 + 10 + 7 + **54 + 26 + 6** (resume enhancement) + **20 + 13** (career tracks) + **29 + 21** (issue reporting) + **43** (the standard & conventions) + **26** (PDF) + **34 + 2** (Workday + rule fixes) + **29** (resume PDFs) + **63** (smarter matching) + **55** (site adapters) + **29** (built-in AI) + **19** (profile suggestions) + **17** (entries) + **31** (Admin screens & popup) + **5** (skills from resume) + **25** (tailoring limits) + **5** (skill years) + **18** (date formats, estimate on open) + **43** (resumes without bullets, section names, job lines, wrapped lines, tailored flow) + **22** (application hold, retention, skills case) + **24** (tailoring with Groq / Gemini, billing errors, retired models, which AI) + **21** (Claude, NVIDIA NIM, Mistral providers) + **4** (OpenRouter busy / weak free models, B26) = **1130**
 
 ---
 
@@ -267,6 +267,7 @@ Status: ⬜ not started · 🔨 in progress · ✅ done · ⏳ waiting on you ·
 | B23 | Tailored PDF had orphan words and half bullets: lines wrapped mid-sentence were kept as separate paragraphs, and a rewrite only replaced the first half of a wrapped bullet | Your tailored PDF | After step 18 | tailored resumes › wrapped lines… |
 | B24 | A new skill was appended to the first skills group ("Cloud (AWS): …, Stakeholder management") | Your tailored PDF | After step 18 | resume engine › new skills go to their own "Additional skills:" line… |
 | B25 | Requirements with verified evidence were shown as "Not in resume" | Your review screen | After step 18 | tailored resumes › verified evidence… |
+| B26 | OpenRouter: after its default free model was retired, a weak "flash" free model was picked, and when that model was busy upstream the test failed with "free AI limit reached" (AJP-AI-429) | Your log | (this commit) | providers › OpenRouter free models |
 | B22 | "CAREER PROFILE" (jobs) was read as a summary because of the word "profile", and job intros / sub-headings ("Architecture", "General Responsibilities") replaced the job a bullet belongs to | Your real resume | After step 18 | bullets › "CAREER PROFILE" with dated jobs… / each bullet belongs to its JOB line… |
 | B21 | Tailoring still found no achievements when the Experience heading was unusual ("EXPERIENCE SUMMARY", "Career History"): jobs were read as part of the Summary | You (testing) | After step 18 | bullets › "EXPERIENCE SUMMARY" is the Experience section… |
 | B20 | Tailoring failed with AJP-RES-STRUCT on Word resumes: Word bullets are list formatting, so the extracted text had no "-"; only a few bullet symbols were known | You (testing) | After step 18 | bullets › … |
