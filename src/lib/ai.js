@@ -505,7 +505,7 @@
   }
 
   // Every AI call is recorded (Admin → AI settings → Recent AI calls): which provider and model did the work, for what,
-  // how long it took and whether it worked. Never the prompt or the answer.
+  // how long it took, whether it worked, and the models tried before it (path: [{model, why}]). Never the prompt or answer.
   const LABEL = (provider, model) => `${(PROVIDERS[provider] || {}).label ? PROVIDERS[provider].label.replace(/\s*\(.*$/, '') : provider} · ${model}`;
   async function recordCall(entry) {
     AJP.ai.last = entry;
@@ -537,6 +537,7 @@
     const tr = AJP.startTrace(`ai.${task}`, { mod: 'ai', tid, slowMs: 30000, data: { provider, model, promptChars: prompt.length } });
     const t0 = performance.now();
     const tried = new Set();
+    const path = []; // every model tried in this call and why it was left: shown in Recent AI calls
     let switches = 0;
     let slowSwitched = false;
     let refreshed = false;
@@ -577,6 +578,7 @@
               tr.log.warn('Model list could not be read', { provider, code: AJP.toAppError(d).code });
             }
           }
+          path.push({ model, why });
           if (!next) throw e;
           switches++;
           if (why === 'slow') slowSwitched = true;
@@ -601,11 +603,11 @@
       } else result = out.trim();
       tr.end({ provider, model, outChars: out.length });
       if (PREFER[provider]) await worked(provider, model);
-      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true });
+      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true, ...(path.length ? { path } : {}) });
       return result;
     } catch (e) {
       const x = tr.fail(e, { provider, model });
-      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: false, code: x.code });
+      await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: false, code: x.code, ...(path.length ? { path } : {}) });
       throw x;
     }
   }

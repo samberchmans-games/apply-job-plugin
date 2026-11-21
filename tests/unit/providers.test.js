@@ -330,12 +330,14 @@
       fake(q('gemini-3.8-flash'), q('gemini-3.7-flash'), ok);
       await AJP.ai.tasks.test();
       eq(calls.length, 3);
+      eq((await AJP.store.get('aiCalls'))[0].path, [{ model: 'gemini-3.8-flash', why: 'quota' }, { model: 'gemini-3.7-flash', why: 'quota' }], 'Recent AI calls shows the models tried first');
       const stale = AJP.clone(await AJP.store.get('settings')); // what Admin holds and saves before a test
       stale.ai.resolvedModels = {};
       await AJP.store.set('settings', stale);
       fake(ok);
       await AJP.ai.tasks.test();
       eq(calls.length, 1, 'straight to the working model');
+      eq((await AJP.store.get('aiCalls'))[0].path, undefined, 'nothing tried first');
       includes(calls[0].url, 'gemini-3.6-flash');
       const h = (await AJP.store.get('modelHealth')).gemini;
       ok(h.bad['gemini-3.8-flash'] > Date.now() + 20 * 3600e3, 'not in the free tier → skipped for a day');

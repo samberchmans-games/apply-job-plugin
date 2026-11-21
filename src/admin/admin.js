@@ -655,12 +655,13 @@
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
     'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection' };
+  const PATH_WHY = { gone: 'not offered', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
   async function renderAiCalls() {
     const box = $('#aiCalls');
     if (!box) return;
     const calls = await AJP.store.get('aiCalls');
     box.innerHTML = calls.length
-      ? calls.slice(0, 15).map((c) => `<tr><td>${esc(new Date(c.at).toLocaleString())}</td><td>${esc(TASK_NAMES[c.task] || c.task)}</td><td><b>${esc(c.label || c.provider + ' · ' + c.model)}</b></td>
+      ? calls.slice(0, 15).map((c) => `<tr><td>${esc(new Date(c.at).toLocaleString())}</td><td>${esc(TASK_NAMES[c.task] || c.task)}</td><td><b>${esc(c.label || c.provider + ' · ' + c.model)}</b>${Array.isArray(c.path) && c.path.length ? `<br><span class="hint">tried first: ${c.path.map((t) => `${esc(t.model)} (${esc(PATH_WHY[t.why] || t.why)})`).join(' → ')}</span>` : ''}</td>
           <td>${(c.ms / 1000).toFixed(1)}s</td><td>${c.ok ? '✅' : '❌ ' + esc(c.code || '')}</td></tr>`).join('')
       : '<tr><td colspan="5" class="hint">No AI calls yet.</td></tr>';
   }

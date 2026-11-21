@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | Recent AI calls shows the models tried first in a call and why (e.g. "gemini-3.8-flash (out of free quota) → …") |
 | 2026-11-21 | `6d4723d` | Fixed B30: the model that worked is remembered in the AI's own record (Admin's settings saves wiped it, so every call went 3.8 → 3.7 → 3.6); models that worked rank above untried newer ones; a model outside the free tier is skipped for a day; 1149 tests |
 | 2026-11-21 | `db5671d` | Fixed B29: Gemini / Groq / NVIDIA count free limits per model, so one model out of quota (429, or Gemini "limit: 0") moves to the next model and is set aside until its quota resets (daily → 24 h); tailoring tries another model before waiting; 1147 tests |
 | 2026-11-21 | `e3e2992` | Fixed B28: a server error / "overloaded" on one model moves to the next model (one retry first, not three); Gemini ranks numbered stable flash models above the `-latest` alias; 1144 tests |
