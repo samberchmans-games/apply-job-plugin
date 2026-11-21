@@ -629,7 +629,7 @@
     const health = await AJP.store.get('modelHealth');
     const name = (p) => esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p);
     const using = Object.entries(st.resolvedModels || {}).filter(([, m]) => m).map(([p, m]) => `<b>${name(p)} · ${esc(m)}</b>`);
-    const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy' };
+    const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
     const aside = Object.entries(health).flatMap(([p, h]) => Object.entries((h && h.bad) || {}).filter(([, until]) => until > Date.now())
       .map(([m, until]) => `${name(p)} · ${esc(m)} (${WHY[(h.why || {})[m]] || 'failing'}, retried after ${esc(new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))})`));
     box.hidden = false;

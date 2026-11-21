@@ -53,7 +53,7 @@
         throw AJP.err('AI_CREDIT', { status: x.details.status, host: x.details.host }, e);
       }
       if (/^AJP-AI-(429|HTTP|401|404)$/.test(x.code) && NO_FREE_TIER.test(String((x.details && x.details.body) || ''))) {
-        throw AJP.err('AI_BILLING', { status: x.details.status, host: x.details.host }, e);
+        throw AJP.err('AI_BILLING', { status: x.details.status, host: x.details.host, body: x.details.body }, e);
       }
       throw e;
     }
@@ -409,13 +409,27 @@
    *                 shortlist → the built-in default; models cooling down are skipped (unless nothing else is left)
    *   switch when:  gone (404, "deprecated / no longer available") · slow (timeout, once per call: each costs time) ·
    *                 busy (server error / overloaded after one retry, OpenRouter "busy upstream"); up to CONFIG.maxSwitches per call
-   *   cooldown:     gone 24 h · slow 6 h · busy 1 h, then the model gets another chance
+   *                 · out of quota on one model (Gemini / Groq / NVIDIA count free limits per model)
+   *   cooldown:     gone 24 h · slow 6 h · busy 1 h · quota until it resets (daily → 24 h), then another chance
    *   on success:   that model is remembered and its cooldown cleared
    */
   const DAY = 24 * 3600 * 1000;
-  const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000 };
-  function switchReason(x) {
+  const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000, quota: 3600 * 1000 };
+  // Out of quota: until the provider says (Retry-After / "retry in 40s"), a daily quota until tomorrow, else an hour.
+  function quotaCooldown(x) {
     const body = String((x.details && x.details.body) || '');
+    if (/per ?day|daily|RequestsPerDay/i.test(body)) return DAY;
+    const w = waitAsked(x) || (/retry(?:Delay)?["\s:]*"?(\d+(?:\.\d+)?)s/i.exec(body) || [])[1] * 1000;
+    return w > 0 ? Math.min(Math.max(w, 60000), DAY) : COOLDOWN.quota;
+  }
+  // Providers whose free limits count per model: one model out of quota says nothing about the others.
+  // (OpenRouter's free limit is per account: switching models would not help.)
+  const PER_MODEL_QUOTA = new Set(['gemini', 'groq', 'nvidia']);
+  function switchReason(x, provider) {
+    const body = String((x.details && x.details.body) || '');
+    if (x.code === 'AJP-AI-429' && !UPSTREAM_BUSY.test(body) && PER_MODEL_QUOTA.has(provider)) return 'quota';
+    // Gemini "limit: 0" for one model = that model isn't in the free tier (new models often aren't); others may be.
+    if (x.code === 'AJP-AI-BILLING' && provider === 'gemini' && /limit:\s*0\b/.test(body)) return 'quota';
     if (x.code === 'AJP-AI-404') return 'gone';
     if (x.code === 'AJP-AI-HTTP' && /deprecat|no longer (available|supported)|decommission|not (found|supported|available) for|unknown model|invalid model|model .*(not exist|unavailable)/i.test(body)) return 'gone';
     if (x.code === 'AJP-AI-TIME') return 'slow';
@@ -436,12 +450,12 @@
     await AJP.store.update('modelHealth', (all) => void (all[provider] = { ...(all[provider] || {}), ...(ranked.length ? { ranked } : {}), at: Date.now() }));
     return ranked;
   }
-  async function setAside(provider, model, why) {
+  async function setAside(provider, model, why, ms = COOLDOWN[why]) {
     await AJP.store.update('modelHealth', (all) => {
       const h = (all[provider] = all[provider] || {});
       const now = Date.now();
       h.bad = Object.fromEntries(Object.entries(h.bad || {}).filter(([, until]) => until > now));
-      h.bad[model] = now + COOLDOWN[why];
+      h.bad[model] = now + ms;
       h.why = { ...(h.why || {}), [model]: why };
     });
     await AJP.store.update('settings', (s) => void ((s.ai.resolvedModels || {})[provider] === model && (s.ai.resolvedModels[provider] = '')));
@@ -523,7 +537,9 @@
         return await CALLERS[provider](cfg, model, system, text, json);
       } catch (e) {
         const x = AJP.toAppError(e);
-        const wait = x.code === 'AJP-AI-429' && patient && !UPSTREAM_BUSY.test(String((x.details && x.details.body) || '')) ? waitAsked(x) : null;
+        // Another model of a per-model-quota provider is faster than waiting for this one.
+        const another = PER_MODEL_QUOTA.has(provider) && list.some((m) => m !== model && !tried.has(m));
+        const wait = x.code === 'AJP-AI-429' && patient && !another && !UPSTREAM_BUSY.test(String((x.details && x.details.body) || '')) ? waitAsked(x) : null;
         if (wait == null || wait > CONFIG.patienceMs) throw e;
         tr.log.info(`ai.${task} free-tier limit reached; waiting ${Math.ceil(wait / 1000)}s, then retrying once`, { provider, waitMs: Math.round(wait) });
         await new Promise((r) => setTimeout(r, wait + 250));
@@ -536,10 +552,10 @@
           return await once(text);
         } catch (e) {
           const x = AJP.toAppError(e);
-          const why = PREFER[provider] ? switchReason(x) : null;
+          const why = PREFER[provider] ? switchReason(x, provider) : null;
           if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
           tried.add(model);
-          await setAside(provider, model, why);
+          await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x) : undefined);
           let next = list.find((m) => !tried.has(m));
           if (!refreshed && (why === 'gone' || stale || !next)) {
             refreshed = true;
@@ -554,7 +570,7 @@
           if (!next) throw e;
           switches++;
           if (why === 'slow') slowSwitched = true;
-          tr.log.info(`ai.${task} model "${model}" ${why === 'gone' ? 'not offered any more' : why === 'slow' ? 'too slow' : 'busy upstream'}; trying "${next}"`, { provider, from: model, to: next, why });
+          tr.log.info(`ai.${task} model "${model}" ${({ gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota' })[why]}; trying "${next}"`, { provider, from: model, to: next, why });
           model = next;
         }
       }

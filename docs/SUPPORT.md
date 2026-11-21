@@ -43,7 +43,7 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-AI-OFF` | AI is turned off | Pick a provider in Admin → AI settings |
 | `AJP-AI-KEY` | No API key saved for the chosen provider | Add the key, then Test connection |
 | `AJP-AI-401` | The provider rejected the key (401/403) | Copy the key again from the provider; check for extra spaces |
-| `AJP-AI-429` | Free-tier rate limit reached | Wait a minute, or switch provider (e.g. Groq ↔ Gemini) |
+| `AJP-AI-429` | Free-tier rate limit reached on every model tried (Gemini, Groq and NVIDIA count limits per model, so other models are tried first; OpenRouter's daily limit is per account) | Wait a minute (a daily limit resets the next day), or switch provider (e.g. Groq ↔ Gemini) |
 | `AJP-AI-404` | Model not found, and no other usable model was found (the extension already tried the provider's current models by itself) | If you typed a model in Model / Tailoring model, clear it; otherwise the provider has no usable model for your key right now: try another provider |
 | `AJP-AI-5XX` | The provider had a server error | Retry later |
 | `AJP-AI-HTTP` | Other HTTP error | See `details.status` / `details.body` in the log |

@@ -89,7 +89,7 @@
     it('a wait longer than the patience limit → the coded rate-limit error', async () => {
       fake(limited('Please try again in 2m10.5s.'));
       eq((await rejects(() => AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' }))).code, 'AJP-AI-429');
-      eq(calls.length, 1);
+      eq(calls.length, 2, 'Groq limits are per model: its model list is checked for another model (none here), no long wait');
     });
     it('everyday tasks are not kept waiting (no patience outside tailoring)', async () => {
       fake(limited('Please try again in 1.2s.'), ok200('OK'));
@@ -113,7 +113,8 @@
       const e = await rejects(() => AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' }));
       eq(e.code, 'AJP-AI-BILLING');
       includes(e.hint, 'Groq');
-      eq(calls.length, 1);
+      // "limit: 0" names one model: the model list is checked for another free model first (none here)
+      eq(calls.length, /limit: 0/.test(msg) ? 2 : 1);
     });
     it('an ordinary rate limit is still AJP-AI-429', async () => {
       fake(limited('Please try again in 5m.'));

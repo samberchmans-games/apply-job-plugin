@@ -297,6 +297,33 @@
       eq((await AJP.store.get('modelHealth')).gemini.why['gemini-flash-latest'], 'busy');
       eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash', 'the working one is used first next time');
     });
+    it('one model out of free quota (429, the reported failure) → the next model at once, set aside until it resets', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.6-flash'], at: Date.now() } });
+      fake(json({ error: { code: 429, message: 'You exceeded your current quota. Quota exceeded for metric: generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash. Please retry in 41s.', status: 'RESOURCE_EXHAUSTED' } }, 429), ok);
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      const h = (await AJP.store.get('modelHealth')).gemini;
+      eq(h.why['gemini-3.8-flash'], 'quota');
+      ok(h.bad['gemini-3.8-flash'] > Date.now() + 30000 && h.bad['gemini-3.8-flash'] < Date.now() + 2 * 3600e3, 'until the quota resets, not a day');
+    });
+    it('a daily quota is set aside until tomorrow; a model not in the free tier ("limit: 0") is skipped too', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'], at: Date.now() } });
+      fake(json({ error: { code: 429, message: 'Quota exceeded for metric: GenerateRequestsPerDayPerProjectPerModel-FreeTier, limit: 250, model: gemini-3.8-flash' } }, 429),
+        json({ error: { code: 429, message: 'Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: gemini-3.7-flash' } }, 429), ok);
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[2].url, 'models/gemini-3.6-flash:generateContent');
+      const h = (await AJP.store.get('modelHealth')).gemini;
+      ok(h.bad['gemini-3.8-flash'] > Date.now() + 20 * 3600e3, 'daily → about a day');
+      eq(h.why['gemini-3.7-flash'], 'quota');
+    });
+    it('tailoring (patient) tries another Gemini model before waiting out a per-minute limit', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.8-flash', 'gemini-3.6-flash'], at: Date.now() } });
+      fake(json({ error: { code: 429, message: 'Resource exhausted. Please try again in 20s.' } }, 429), () => json({ candidates: [{ content: { parts: [{ text: JSON.stringify(REQ) }] } }] }));
+      const t0 = performance.now();
+      await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' });
+      ok(performance.now() - t0 < 2000, 'no 20 s wait');
+      includes(calls[1].url, 'gemini-3.6-flash');
+    });
     it('numbered stable flash models rank above the "-latest" alias', async () => {
       fake(list('gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.6-flash'));
       eq((await AJP.ai.models.rank({ keys: { gemini: 'g' } }, 'gemini')).slice(0, 3), ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest']);
