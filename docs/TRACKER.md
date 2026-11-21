@@ -278,8 +278,8 @@ Status: ⬜ not started · 🔨 in progress · ✅ done · ⏳ waiting on you ·
 | B35 | Jobs already listed were never re-checked after preferences changed (e.g. "Publicity Coordinator" from a scan before tracks had titles) | You | `f8bad11` | radar v3 › preferences change… |
 | B36 | Career-track locations were dropped on save (no field, and `tracks.normalize` discarded them) | You | `f8bad11` | radar v3 › career track locations |
 | B37 | "Remote Canada" passed a US search; the area "Remote - US" matched on-site Austin jobs ("us" inside "austin") | You / tests | `f8bad11` | radar v3 › remote jobs limited… |
-| B38 | "Scan stopped" but still "Scanning now": a scan killed by Chrome's ~5-minute background limit left its lock, and Stop couldn't reach it | You | (this commit) | radar v3 › Stop clears a lock… |
-| B39 | Level words counted in titles: "Senior DevOps Engineer" matched "Senior Data Engineer" (2 of 3 words) | You | (this commit) | radar v3 › level words… |
+| B38 | "Scan stopped" but still "Scanning now": a scan killed by Chrome's ~5-minute background limit left its lock, and Stop couldn't reach it | You | `ceb7a46` | radar v3 › Stop clears a lock… |
+| B39 | Level words counted in titles: "Senior DevOps Engineer" matched "Senior Data Engineer" (2 of 3 words) | You | `ceb7a46` | radar v3 › level words… |
 | B32 | Workday careers sites named "Careers" were refused as a reserved word by board detection | Automated tests (while building) | `d149a52` | radar › careers URL detection |
 | B30 | Every Gemini call started again at 3.8 → 3.7 → 3.6 (~40 s): Admin's Test buttons save Admin's own copy of the settings, which wiped the remembered working model; models outside the free tier were only skipped for an hour | You | `6d4723d` | providers › the model that worked goes first next time… |
 | B22 | "CAREER PROFILE" (jobs) was read as a summary because of the word "profile", and job intros / sub-headings ("Architecture", "General Responsibilities") replaced the job a bullet belongs to | Your real resume | After step 18 | bullets › "CAREER PROFILE" with dated jobs… / each bullet belongs to its JOB line… |
