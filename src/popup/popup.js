@@ -71,12 +71,12 @@
     if (!st.companies) {
       box.innerHTML = '<a href="#" id="radarAll">🛰 Job Radar: watch companies for new jobs that fit you →</a>';
     } else {
-      const r = await AJP.send('radar.jobs', { status: 'new', limit: 5 });
+      const r = await AJP.send('radar.jobs', { status: 'new', limit: 5, eligible: true });
       const jobs = r && r.ok !== false ? r.jobs : [];
       const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       box.innerHTML =
         `<b>🛰 ${st.newCount ? `${st.newCount} new job match${st.newCount === 1 ? '' : 'es'}` : 'Job Radar: no new matches'}</b>` +
-        (jobs.length ? `<ul>${jobs.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener" data-url="${esc(j.url)}">${esc(j.title)}</a> <span class="muted">${esc(j.companyName)} · ${j.score}%</span></li>`).join('')}</ul>` : '') +
+        (jobs.length ? `<ul>${jobs.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener" data-url="${esc(j.url)}">${esc(j.title)}</a> <span class="muted">${esc(j.companyName)} · ${j.score}%${j.postedAt && Date.now() - Date.parse(j.postedAt) < 86400000 ? ' · <b>today</b>' : ''}</span></li>`).join('')}</ul>` : '') +
         '<a href="#" id="radarAll">See all in Job Radar →</a>';
       box.querySelectorAll('a[data-url]').forEach((a) => (a.onclick = (e) => {
         e.preventDefault();

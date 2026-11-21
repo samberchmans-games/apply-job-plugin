@@ -77,25 +77,56 @@
   }
 
   // ---- New jobs -----------------------------------------------------------------------------------------
+  const FRESH = { today: ['fresh', 'Posted today'], week: ['week', 'This week'] };
+  let sort = 'match';
+  let tracksById = {};
+  function card(j, thr) {
+    const el = j.eligibility || { status: 'ok', reasons: [], flags: {} };
+    const fr = FRESH[AJP.radar.core.freshness(j)];
+    const track = tracksById[j.bestTrackId];
+    const meta = [esc(j.companyName), esc(j.locations.slice(0, 2).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
+    const tags = [
+      fr ? `<span class="pill ${fr[0]}">${fr[1]}</span>` : '',
+      track && !track.implicit ? `<span class="pill">${esc(track.name)}</span>` : '',
+      j.descriptionLevel === 'title' ? '<span class="pill warn" title="This board gives no job description: the match uses the title only">title match only</span>' : '',
+      el.flags && el.flags.sponsors ? '<span class="pill good">Sponsors visas</span>' : '',
+      el.status === 'check' ? `<span class="pill warn" title="${esc(el.reasons.join('; '))}">Check: ${esc(el.reasons[0])}</span>` : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}">
+      <span class="pill ${j.score >= thr ? 'good' : ''}" title="Best fit: ${esc(track ? track.name : 'your profile')}">${j.score}%</span>
+      <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
+        <div class="hint">${meta}</div>${el.status === 'blocked' ? `<div class="hint warn">⚠ ${esc(el.reasons.join('; '))}</div>` : ''}</div>
+      <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}</div>
+    </div>`;
+  }
   async function renderJobs() {
-    const r = await AJP.send('radar.jobs', { status: filter });
+    const profile = await AJP.store.get('profile');
+    tracksById = Object.fromEntries(AJP.tracks.list(profile).map((t) => [t.id, t]));
+    renderTracks(profile);
+    const r = await AJP.send('radar.jobs', { status: filter, sort });
     const box = $('#radarJobs');
     if (!r || r.ok === false) return void (box.textContent = r ? fail(r) : '');
     const thr = Number($('#radarSettings').threshold.value) || 60;
-    box.innerHTML = r.jobs.length
-      ? r.jobs
-          .map((j) => {
-            const meta = [esc(j.companyName), esc(j.locations.slice(0, 2).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}` : ''].filter(Boolean).join(' · ');
-            return `<div class="radar-job" data-key="${esc(j.key)}">
-              <span class="pill ${j.score >= thr ? 'good' : ''}" title="Match with your ${esc(j.bestTrackId || 'profile')} track">${j.score}%</span>
-              <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a>${j.descriptionLevel === 'title' ? ' <span class="pill warn" title="This board gives no job description: the match uses the title only">title match only</span>' : ''}
-                <div class="hint">${meta}</div></div>
-              <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}</div>
-            </div>`;
-          })
-          .join('')
-      : `<p class="hint">${filter === 'new' ? 'No new jobs yet. Add companies below; they are checked every few hours, and matching jobs appear here.' : 'Nothing here.'}</p>`;
+    const isBlocked = (j) => j.eligibility && j.eligibility.status === 'blocked';
+    const ok = r.jobs.filter((j) => !isBlocked(j));
+    const blocked = r.jobs.filter(isBlocked);
+    box.innerHTML =
+      (ok.length ? ok.map((j) => card(j, thr)).join('') : `<p class="hint">${filter === 'new' ? 'No new jobs yet. Add companies below; they are checked every few hours, and matching jobs appear here.' : 'Nothing here.'}</p>`) +
+      (blocked.length ? `<details class="radar-blocked"><summary>Likely not eligible (${blocked.length}): the job text conflicts with your work authorization in Auto-apply details. Not counted in alerts; open to check.</summary>${blocked.map((j) => card(j, thr)).join('')}</details>` : '');
   }
+  // What Job Radar looks for: your career tracks (up to 3), each with its titles and places.
+  function renderTracks(profile) {
+    const box = $('#radarTracks');
+    if (!box) return;
+    const list = AJP.tracks.list(profile);
+    const titles = (t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []);
+    const places = (t) => (t.areas && t.areas.length ? t.areas : profile.areas || []);
+    const any = list.some((t) => titles(t).length);
+    box.innerHTML = any
+      ? `Looking for: ${list.map((t) => `<b>${esc(t.implicit ? 'your target roles' : t.name)}</b> (${esc(titles(t).slice(0, 4).join(', ') || 'any title')}${places(t).length ? ' · ' + esc(places(t).slice(0, 3).join('; ')) : ''})`).join(' · ')}. <a href="#tracks">Edit career tracks</a>`
+      : '⚠ Add target roles in <a href="#prefs">Job preferences</a> (or titles in <a href="#tracks">Career tracks</a>) so Job Radar keeps only jobs that fit you.';
+  }
+
   async function jobAction(key, status) {
     const r = await AJP.send('radar.job.update', { key, status });
     if (r && r.ok === false) return ui.toast(fail(r));
@@ -235,6 +266,12 @@
     $('#radarSettingsSave').addEventListener('click', g('saveSettings', saveSettings));
     $('#radarSettings').addEventListener('submit', (e) => e.preventDefault()); // Enter in a field must not reload Admin
     $('#radarFilter').addEventListener('change', (e) => ((filter = e.target.value), renderJobs()));
+    $('#radarSort').addEventListener('change', (e) => ((sort = e.target.value), renderJobs()));
+    // One prompt for every supported job board, so adding companies never asks again.
+    $('#radarAllowAll').addEventListener('click', g('allowAll', async () => {
+      const ok = await allow(AJP.radar.boards.all().map((a) => ({ board: a.id })));
+      $('#radarAllOut').textContent = ok ? '✅ All 11 job boards allowed: adding companies won’t ask again.' : `❌ ${AJP.ERRORS.RADAR_PERMISSION[1]} (AJP-RADAR-PERM)`;
+    }));
     $('#radarJobs').addEventListener('click', g('jobAction', (e) => {
       const b = e.target.closest('button[data-act]');
       if (b) return jobAction(b.closest('[data-key]').dataset.key, b.dataset.act);

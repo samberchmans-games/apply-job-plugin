@@ -187,6 +187,13 @@ which has none either. So every parser is plain string code, covered by fixtures
 | `quickFilter(job, settings, tracks)` | `AJP.tracks.titleFit` ≥ 0.34 on any track (share of a target title's words found in the job title, e.g. one word in three); tracks without target titles (the implicit "General" track) fall back to `profile.targetRoles`, and with no titles at all every job passes to scoring. Then location/remote preference and optional minimum salary (jobs with no salary pass) |
 | `markSeen` / `prune` | seen keys pruned after 60 days; dismissed jobs after 30 days; `radarJobs` capped at 500 newest |
 
+### 7.3 Career tracks, eligibility, freshness (2026-11-21)
+
+- **Per track (up to 3):** `quickFilter` keeps a job when it fits one track's **titles** (titleFit ≥ 0.34; tracks without titles use `profile.targetRoles`), then **that track's** places (`track.areas`, else `profile.areas`; city or full area found in a job location) and work types (`track.workTypes`, else `profile.workTypes`). Remote jobs fit any place; unknown values pass. Job Radar settings (locations, work type) narrow further only when set. The fitting track is reported; scoring still picks the best track (`analyzeAll`). Workday keyword searches take one title per track first.
+- **Eligibility** (`eligibility(text, profile)`): flags in the job text: *no sponsorship* ("unable to sponsor", "without current or future sponsorship", "not eligible for sponsorship"…), *sponsors* ("visa sponsorship is available"…), *citizenship* ("must be a U.S. citizen", "citizens only", ITAR / export control), *clearance* (Secret, TS/SCI, public trust). Against Auto-apply details (`requireSponsorship`, new `citizen`): conflicts → `blocked` (listed apart with the reason, left out of matches, alerts, badge and the popup); possibly relevant → `check` (a label); nothing → `ok`. Jobs are never deleted for it: when unsure, the user decides.
+- **Freshness:** `today` (< 24 h), `week` (< 7 days), `older`, `unknown`, shown as labels; `radar.jobs` takes `sort: 'match' | 'newest'` and `eligible`.
+- **All boards at once:** Admin → Job Radar → "Allow all 11 job boards" requests every board host in one prompt.
+
 ## 8. Scan engine (`radar-scan.js`)
 
 Two stages: a cheap **list** stage for every due company, then **detail** calls only for jobs that pass the quick

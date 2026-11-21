@@ -171,27 +171,89 @@
 
   // ---- Quick filter (before scoring) -----------------------------------------------------------------
   const YEARLY = { hour: 2080, week: 52, month: 12, year: 1 };
+  /*
+   * Quick filter (before scoring), per career track (up to 3): the job must fit one track's TITLES first, then THAT
+   * track's location and work-type preferences (the track's own, else the profile's). Job Radar settings can narrow
+   * further (locations, work type, minimum salary). Unknown values pass: better to show a job than to hide a good one.
+   *   → { pass, reason?, trackId? }
+   */
+  const placeKey = (s) => AJP.normKey(String(s || '').replace(/\b(remote|hybrid|on-?site)\b/gi, ' '));
+  function placeFits(job, areas) {
+    const places = (areas || []).map((a) => String(a)).filter(Boolean);
+    if (!places.length || !job.locations.length) return true;
+    if (job.remote === 'remote' && places.some((p) => /remote/i.test(p))) return true;
+    const locs = job.locations.map((l) => AJP.normKey(l));
+    return places.some((p) => {
+      const city = placeKey(p.split(',')[0]);
+      const full = placeKey(p);
+      return (city && locs.some((l) => l.includes(city))) || (full && locs.some((l) => l.includes(full)));
+    });
+  }
+  function workTypeFits(job, wt) {
+    if (!job.remote || !wt || !Object.values(wt).some(Boolean)) return true;
+    return wt[job.remote] !== false;
+  }
   function quickFilter(job, settings = {}, profile = {}) {
     const tracks = AJP.tracks ? AJP.tracks.list(profile) : [];
-    const withTitles = tracks.map((t) => ({ ...t, targetTitles: t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [] })).filter((t) => t.targetTitles.length);
-    if (withTitles.length) {
-      const fit = Math.max(...withTitles.map((t) => AJP.tracks.titleFit(job.title, t)));
-      if (fit < 0.34) return { pass: false, reason: 'title' };
-    }
+    const views = tracks.map((t) => ({ id: t.id, titles: t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [], areas: t.areas && t.areas.length ? t.areas : profile.areas || [], workTypes: t.workTypes && Object.values(t.workTypes).some(Boolean) ? t.workTypes : profile.workTypes }));
+    const titled = views.filter((v) => v.titles.length);
+    // 1. Role: fits the titles of at least one track (no titles anywhere → every job goes on to scoring)
+    const fitting = titled.length ? titled.filter((v) => AJP.tracks.titleFit(job.title, { targetTitles: v.titles }) >= 0.34) : views;
+    if (!fitting.length) return { pass: false, reason: 'title' };
+    // 2. Location + work type: Job Radar settings when set, else the track's (or profile's) preferences
     const want = settings.remote || 'any';
-    if (want !== 'any' && job.remote && job.remote !== want && !(want === 'hybrid' && job.remote === 'remote')) return { pass: false, reason: 'remote' };
-    const places = (settings.locations || []).map((l) => AJP.normKey(l)).filter(Boolean);
-    if (places.length && job.locations.length && job.remote !== 'remote') {
-      const hit = job.locations.some((l) => places.some((p) => AJP.normKey(l).includes(p)));
-      if (!hit) return { pass: false, reason: 'location' };
-    }
+    const custom = (settings.locations || []).filter(Boolean);
+    const placed = fitting.filter((v) => {
+      const wtOk = want !== 'any' ? !job.remote || job.remote === want || (want === 'hybrid' && job.remote === 'remote') : workTypeFits(job, v.workTypes);
+      if (!wtOk) return false;
+      if (job.remote === 'remote') return true; // remote work fits any place (when unsure, show it)
+      return placeFits(job, custom.length ? custom : v.areas);
+    });
+    if (!placed.length) return { pass: false, reason: want !== 'any' || fitting.every((v) => !workTypeFits(job, v.workTypes)) ? 'remote' : 'location' };
+    // 3. Minimum salary (jobs without a salary pass)
     const min = Number(settings.minSalary) || 0;
     if (min && job.salary && job.salary.max) {
       const yearly = job.salary.max * (YEARLY[job.salary.period] || 1);
       if (yearly < min) return { pass: false, reason: 'salary' };
     }
-    return { pass: true };
+    return { pass: true, trackId: placed[0].id };
   }
+
+  /*
+   * Eligibility: what the job text says about visas, citizenship and clearance, against your Auto-apply details.
+   * Never hides a job: 'blocked' jobs are shown apart with the reason and left out of alerts and the badge;
+   * 'check' means it may matter (you decide); nothing found → 'ok'.
+   */
+  const RX = {
+    noSponsor: /\b(?:no|not|unable to|cannot|can['’]?t|won['’]?t|will not|do not|does not|don['’]?t|are not able to|is not able to)\s+(?:currently\s+)?(?:provide|offer|support|able to)?\s*(?:visa\s+|h-?1b\s+|employment\s+)?sponsor(?:ship)?\b|\bsponsorship\s+(?:is\s+)?(?:not|unavailable)\b|\bwithout\s+(?:the\s+need\s+for\s+)?(?:current\s+or\s+future\s+|any\s+)?(?:visa\s+|employer\s+|employment\s+)?sponsorship\b|\bnot\s+eligible\s+for\s+(?:visa\s+)?sponsorship\b|\bno\s+(?:visa|h-?1b)\s+(?:sponsorship|transfers?)\b/i,
+    sponsors: /\b(?:visa|h-?1b|immigration)\s+sponsorship\s+(?:is\s+)?(?:available|provided|offered|possible)\b|\b(?:we|will|can|able to)\s+(?:offer|provide|support)\s+(?:visa\s+|h-?1b\s+)?sponsorship\b|\bsponsorship\s+(?:is\s+)?available\b/i,
+    citizen: /\bmust\s+be\s+(?:a\s+)?(?:u\.?\s?s\.?|united\s+states)\s+citizen|\b(?:u\.?\s?s\.?|united\s+states)\s+citizen(?:ship)?\s+(?:is\s+)?(?:required|only|mandatory)|\bcitizenship\s+(?:is\s+)?required|\b(?:u\.?\s?s\.?\s+)?citizens?\s+only\b|\bgreen\s+card\s+holders?\s+only|\b(?:itar|export[-\s]control(?:led)?)\b/i,
+    clearance: /\b(?:active\s+)?(?:security|secret|top\s+secret|ts\/sci|public\s+trust)\s+clearance\b|\bclearance\s+(?:is\s+)?required\b|\bts\/sci\b/i,
+  };
+  function eligibility(text, profile = {}) {
+    const t = String(text || '');
+    const aa = (profile && profile.autoApply) || {};
+    const needs = /^y/i.test(aa.requireSponsorship || '');
+    const citizen = /^y/i.test(aa.citizen || '') ? true : /^n/i.test(aa.citizen || '') || needs ? false : null;
+    const flags = { noSponsor: RX.noSponsor.test(t), sponsors: false, citizen: RX.citizen.test(t), clearance: RX.clearance.test(t) };
+    flags.sponsors = !flags.noSponsor && RX.sponsors.test(t);
+    const reasons = [];
+    let status = 'ok';
+    const block = (r) => ((status = 'blocked'), reasons.push(r));
+    const check = (r) => (status === 'ok' && (status = 'check'), reasons.push(r));
+    if (flags.noSponsor) needs ? block('Says it can’t sponsor visas, and you need sponsorship') : aa.requireSponsorship ? null : check('Says it can’t sponsor visas');
+    if (flags.citizen) citizen === false ? block('Requires U.S. citizenship (or a green card / export-control status)') : citizen === null ? check('May require U.S. citizenship') : null;
+    if (flags.clearance) citizen === false ? block('Requires a security clearance (U.S. citizens only)') : check('Mentions a security clearance');
+    return { status, reasons, flags };
+  }
+
+  // How fresh a posting is: applying early helps. today (< 24 h) · week (< 7 days) · older · unknown
+  function freshness(job, now = Date.now()) {
+    if (!job || !job.postedAt) return 'unknown';
+    const h = (now - Date.parse(job.postedAt)) / 3600000;
+    return h < 24 ? 'today' : h < 24 * 7 ? 'week' : 'older';
+  }
+
 
   // ---- Seen + pruning ---------------------------------------------------------------------------------
   function markSeen(seen, keys, now = Date.now()) {
@@ -209,5 +271,5 @@
     return { jobs: keepJobs, seen: keepSeen };
   }
 
-  AJP.radar.core = { LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, markSeen, prune };
+  AJP.radar.core = { LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, eligibility, freshness, markSeen, prune };
 })();

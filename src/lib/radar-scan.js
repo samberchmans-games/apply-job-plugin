@@ -100,7 +100,10 @@
     const C = AJP.radar.core;
     const adapter = AJP.radar.boards.get(entry.board);
     if (!adapter) throw AJP.err('RADAR_UNSUPPORTED', { board: entry.board });
-    const keywords = [...new Set(AJP.tracks.list(profile).flatMap((t) => t.targetTitles || []).concat(profile.targetRoles || []))].slice(0, CONFIG.maxKeywords);
+    // Workday searches by keyword: one title per career track first (up to 3 tracks), then more titles.
+    const titleLists = AJP.tracks.list(profile).map((t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []));
+    const keywords = [];
+    for (let i = 0; keywords.length < CONFIG.maxKeywords && i < 10; i++) for (const l of titleLists) if (l[i] && !keywords.includes(l[i]) && keywords.length < CONFIG.maxKeywords) keywords.push(l[i]);
     const ctx = { keywords, now };
     let e = { ...entry };
     const reqCtx = { board: e.board, company: e.company };
@@ -144,7 +147,11 @@
     }
     const listedKeys = [...byKey.keys()];
     const fresh = [...byKey.values()].filter(({ j }) => !seen[j.key]);
-    const passing = fresh.filter(({ j }) => C.quickFilter(j, settings, profile).pass);
+    const passing = fresh.filter((item) => {
+      const f = C.quickFilter(item.j, settings, profile);
+      item.trackId = f.trackId;
+      return f.pass;
+    });
 
     // Detail stage (boards whose list has no description): best title fit first, up to the budget
     let details = 0;
@@ -169,7 +176,7 @@
     }
 
     // Score
-    const jobs = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes) }));
+    const jobs = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
     return { entry: e, total, listedKeys, jobs, details };
   }
 
@@ -244,7 +251,7 @@
             result = { key, ...r, companyName: (r.jobs[0] && r.jobs[0].companyName !== r.entry.company && r.jobs[0].companyName) || null };
             summary.listed += r.total;
             summary.new += r.jobs.length;
-            summary.matches.push(...r.jobs.filter((j) => j.score >= (Number(settings.threshold) || 60)).map((j) => ({ key: j.key, title: j.title, companyName: j.companyName, score: j.score })));
+            summary.matches.push(...r.jobs.filter((j) => j.score >= (Number(settings.threshold) || 60) && !(j.eligibility && j.eligibility.status === 'blocked')).map((j) => ({ key: j.key, title: j.title, companyName: j.companyName, score: j.score })));
           } catch (err) {
             if (err && err.budget) {
               stopped = true; // the rest wait for the next scan (the queue keeps them)

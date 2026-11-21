@@ -40,6 +40,7 @@
         experience: [], // [{company, title, location, start, end, current, description}]
         workAuthorized: '', // 'Yes' | 'No'
         requireSponsorship: '',
+        citizen: '', // 'Yes' | 'No' — U.S. citizen (Job Radar: citizenship-only / clearance jobs)
         noticePeriod: '',
         earliestStart: '',
         coverLetterTemplate: '',

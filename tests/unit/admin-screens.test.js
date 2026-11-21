@@ -581,6 +581,39 @@
       await waitFor(() => /AJP-RADAR-UNSUP/.test($('#radarAddOut').textContent), { msg: 'no feed' });
       eq(w.browser.__granted.size, 0, 'no permission asked for Indeed');
     });
+    it('tracks line, freshness labels, track names, "Sponsors visas", and likely-not-eligible jobs set apart with the reason', async () => {
+      const prof = profile();
+      prof.targetRoles = ['Data Engineer'];
+      prof.tracks = [{ id: 'cloud', name: 'Cloud', targetTitles: ['Cloud Architect'], areas: ['Seattle, WA'] }, { id: 'data', name: 'Data', targetTitles: ['Data Engineer'] }];
+      const now = Date.now();
+      await load('admin.html', { profile: prof, radarJobs: [
+        job({ id: 1, title: 'Fresh Job', score: 70, bestTrackId: 'data', postedAt: new Date(now - 2 * 3600e3).toISOString(), eligibility: { status: 'ok', reasons: [], flags: { sponsors: true } } }),
+        job({ id: 2, title: 'Week Job', score: 65, postedAt: new Date(now - 3 * 86400e3).toISOString(), eligibility: { status: 'check', reasons: ['Mentions a security clearance'], flags: {} } }),
+        job({ id: 3, title: 'Blocked Job', score: 90, eligibility: { status: 'blocked', reasons: ['Says it can’t sponsor visas, and you need sponsorship'], flags: { noSponsor: true } } }),
+      ] }, { hash: 'radar', background: true });
+      await waitFor(() => $$('.radar-job').length === 3, { msg: 'jobs' });
+      includes($('#radarTracks').textContent, 'Cloud (Cloud Architect · Seattle, WA)');
+      eq($$('#radarJobs > .radar-job b').map((b) => b.textContent), ['Fresh Job', 'Week Job'], 'blocked job is not in the main list');
+      const fresh = $$('#radarJobs > .radar-job')[0].textContent;
+      ['Posted today', 'Data', 'Sponsors visas'].forEach((t) => includes(fresh, t));
+      includes($$('#radarJobs > .radar-job')[1].textContent, 'This week');
+      includes($$('#radarJobs > .radar-job')[1].textContent, 'Check: Mentions a security clearance');
+      includes($('.radar-blocked summary').textContent, 'Likely not eligible (1)');
+      includes($('.radar-blocked').textContent, 'can’t sponsor visas');
+      $('#radarSort').value = 'newest';
+      $('#radarSort').dispatchEvent(new w.Event('change', { bubbles: true }));
+      await waitFor(() => $$('#radarJobs > .radar-job b')[0].textContent === 'Fresh Job', { msg: 'newest' });
+    });
+    it('"Allow all 11 job boards": one prompt for every board', async () => {
+      await load('admin.html', {}, { hash: 'radar', background: true });
+      $('#radarAllowAll').click();
+      await waitFor(() => /All 11 job boards allowed/.test($('#radarAllOut').textContent), { msg: 'allowed' });
+      ['https://boards-api.greenhouse.io/*', 'https://api.lever.co/*', 'https://*.myworkdayjobs.com/*', 'https://api.rippling.com/*'].forEach((h) => ok(w.browser.__granted.has(h), h));
+    });
+    it('Auto-apply details has a "U.S. citizen?" answer', async () => {
+      await load('admin.html', {}, { hash: 'autoapply' });
+      ok($('[data-path="autoApply.citizen"]'));
+    });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });

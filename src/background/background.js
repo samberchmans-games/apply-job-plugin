@@ -319,7 +319,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function radarNewCount() {
     const [jobs, rs] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarSettings')]);
     const thr = Number(rs.threshold) || 60;
-    return jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
+    return jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !(j.eligibility && j.eligibility.status === 'blocked') && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
   }
   // Host permissions a watchlist entry needs (optional_host_permissions, asked for in Admin on the first company).
   const radarHosts = (entry) => AJP.radar.boards.hostsFor(entry);
@@ -351,7 +351,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function radarAlert(now = Date.now()) {
     const [rs, jobs] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarJobs')]);
     const thr = Number(rs.threshold) || 60;
-    const pending = jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !j.notifiedAt);
+    const pending = jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !j.notifiedAt && !(j.eligibility && j.eligibility.status === 'blocked'));
     refreshBadgeSoon();
     if (!pending.length) return null;
     if (rs.notify === 'digest' && rs.lastDigestAt && now - Date.parse(rs.lastDigestAt) < 24 * 3600 * 1000) return null;
@@ -811,9 +811,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     async 'radar.scanNow'({ key } = {}) {
       return { summary: await radarScan({ force: true, onlyKey: key || null }) };
     },
-    async 'radar.jobs'({ status = 'new', limit = 200 } = {}) {
-      const jobs = (await AJP.store.get('radarJobs')).filter((j) => status === 'all' || j.status === status);
-      jobs.sort((a, b) => (b.score || 0) - (a.score || 0) || String(b.foundAt).localeCompare(String(a.foundAt)));
+    async 'radar.jobs'({ status = 'new', limit = 200, sort = 'match', eligible } = {}) {
+      const blocked = (j) => !!(j.eligibility && j.eligibility.status === 'blocked');
+      const jobs = (await AJP.store.get('radarJobs')).filter((j) => (status === 'all' || j.status === status) && (eligible == null || blocked(j) !== !!eligible));
+      const posted = (j) => Date.parse(j.postedAt || j.foundAt) || 0;
+      jobs.sort((a, b) => (sort === 'newest' ? posted(b) - posted(a) || (b.score || 0) - (a.score || 0) : (b.score || 0) - (a.score || 0) || posted(b) - posted(a)));
       return { jobs: jobs.slice(0, limit) };
     },
     async 'radar.viewed'() {

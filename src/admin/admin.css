@@ -160,3 +160,9 @@ dialog#enhDialog::backdrop { background: rgba(0,0,0,.4); }
 .radar-act { display: flex; gap: 6px; flex-wrap: wrap; }
 .pill.good { background: #dcfce7; color: #166534; }
 input.wide { flex: 1; min-width: 240px; }
+
+.pill.fresh { background: #dcfce7; color: #166534; font-weight: 600; }
+.pill.week { background: #dbeafe; color: #1e40af; }
+.radar-job.blocked { opacity: .75; }
+.radar-blocked { margin-top: 10px; }
+.hint.warn { color: #b45309; }

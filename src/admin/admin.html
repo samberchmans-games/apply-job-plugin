@@ -136,6 +136,7 @@
       <div class="grid">
         <label>Legally authorized to work?<select data-path="autoApply.workAuthorized"><option value=""></option><option>Yes</option><option>No</option></select></label>
         <label>Require visa sponsorship?<select data-path="autoApply.requireSponsorship"><option value=""></option><option>Yes</option><option>No</option></select></label>
+        <label>U.S. citizen?<select data-path="autoApply.citizen"><option value=""></option><option>Yes</option><option>No</option></select></label>
         <label>Notice period<input data-path="autoApply.noticePeriod" placeholder="2 weeks"></label>
         <label>Earliest start date<input data-path="autoApply.earliestStart" placeholder="Immediately / 2026-12-01"></label>
       </div>
@@ -238,11 +239,13 @@
       <h1>Job Radar</h1>
       <p class="hint">Watches the careers pages of companies you choose, finds new jobs that fit your career tracks, scores them like a job page, and tells you. It reads the companies' public job boards; nothing is sent anywhere else, and applying stays your click.</p>
       <div class="row"><span id="radarStatus" class="hint"></span><button id="radarScan">Scan now</button></div>
+      <p id="radarTracks" class="hint"></p>
       <h3>New jobs</h3>
-      <div class="row"><select id="radarFilter"><option value="new">New</option><option value="saved">Saved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select><span class="hint">Highest match first. Save adds the job to Applications with its description; Dismiss hides it for good.</span></div>
+      <div class="row"><select id="radarFilter"><option value="new">New</option><option value="saved">Saved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select><select id="radarSort"><option value="match">Best match first</option><option value="newest">Newest first</option></select><span class="hint">Apply early: <b>Posted today</b> and <b>This week</b> are marked. Save adds the job to Applications with its description; Dismiss hides it for good.</span></div>
       <div id="radarJobs"></div>
       <h3>Companies you watch</h3>
       <div class="row"><input id="radarUrl" class="wide" placeholder="Careers page link, e.g. https://boards.greenhouse.io/company or https://jobs.lever.co/company"><button id="radarAdd" class="primary">Add</button></div>
+      <div class="row"><button id="radarAllowAll">Allow all 11 job boards</button><span id="radarAllOut" class="hint">One prompt instead of one per board.</span></div>
       <p id="radarAddOut" class="hint">Supported: Greenhouse, Lever, Ashby, Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling, Personio, Teamtailor and Workday. The browser asks once for permission to read each job board.</p>
       <details>
         <summary>Add a list of careers links</summary>
@@ -259,8 +262,8 @@
             <label>Check each company every<select name="intervalHours"><option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">day</option></select></label>
             <label>Alert from a match of (%)<input type="number" name="threshold" min="0" max="100"></label>
             <label>Alerts<select name="notify"><option value="digest">One summary a day</option><option value="perScan">After every scan</option></select></label>
-            <label>Work type<select name="remote"><option value="any">Any</option><option value="remote">Remote</option><option value="hybrid">Hybrid or remote</option><option value="onsite">On-site</option></select></label>
-            <label>Locations (separate with ;)<input name="locations" placeholder="e.g. Austin; Texas; United States"></label>
+            <label>Work type (Any = each track's preference)<select name="remote"><option value="any">Any</option><option value="remote">Remote</option><option value="hybrid">Hybrid or remote</option><option value="onsite">On-site</option></select></label>
+            <label>Locations (blank = each track's / your profile's areas)<input name="locations" placeholder="e.g. Austin; Texas; United States"></label>
             <label>Minimum yearly salary (jobs without a salary still show)<input name="minSalary" inputmode="numeric" placeholder="e.g. 120000"></label>
           </div>
           <div class="row"><button type="button" id="radarSettingsSave" class="primary">Save settings</button></div>
