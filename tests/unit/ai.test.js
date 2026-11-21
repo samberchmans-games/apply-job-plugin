@@ -40,7 +40,7 @@
       globalThis.fetch = realFetch;
       AJP.ai.CONFIG.timeoutMs = 90000;
       AJP.ai.CONFIG.listTimeoutMs = 15000;
-      AJP.ai.CONFIG.tries = 3;
+      AJP.ai.CONFIG.tries = 2;
     });
 
     it('refuses when AI is off, with guidance (AJP-AI-OFF)', async () => {

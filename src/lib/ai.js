@@ -33,7 +33,8 @@
 
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
   // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
-  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, maxSwitches: 2, tries: 3, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  // tries: one retry of a temporary failure on the same model, then the model manager moves on to the next model.
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
@@ -342,7 +343,8 @@
   // ---- Model preferences per provider (best first), used by the model manager below.
   const PREFER = {
     groq: [/^llama-3\.3-70b/, /^openai\/gpt-oss-120b/, /^meta-llama\/llama-4-maverick/, /^qwen\/qwen3-32b/, /^moonshotai\/kimi-k2/, /^meta-llama\/llama-4-scout/, /^openai\/gpt-oss-20b/, /^llama-3\.1-8b/],
-    gemini: [/^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
+    // Numbered stable flash models first (newest first); the "-latest" alias can point at a preview that is overloaded.
+    gemini: [/^gemini-[\d.]+-flash(-\d{3})?$/, /^gemini-flash-latest$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-[\d.]+-flash-lite(-\d{3})?$/,
       /^gemini-[\d.]+-flash-preview(-[\d-]+)?$/, /^gemini-pro-latest$/, /^gemini-[\d.]+-pro$/],
     // Capable free models first; small "flash/mini/nano" ones only as a last resort (they tailor poorly).
     openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek-(chat|v3|r1)[^/]*:free$/, /qwen3-(235b|32b|30b|coder)[^/]*:free$/, /llama-4-maverick[^/]*:free$/,
@@ -406,7 +408,7 @@
    *   order tried:  the model you typed (if any) → the last one that worked (settings.ai.resolvedModels) → the
    *                 shortlist → the built-in default; models cooling down are skipped (unless nothing else is left)
    *   switch when:  gone (404, "deprecated / no longer available") · slow (timeout, once per call: each costs time) ·
-   *                 busy upstream (OpenRouter free models); up to CONFIG.maxSwitches per call
+   *                 busy (server error / overloaded after one retry, OpenRouter "busy upstream"); up to CONFIG.maxSwitches per call
    *   cooldown:     gone 24 h · slow 6 h · busy 1 h, then the model gets another chance
    *   on success:   that model is remembered and its cooldown cleared
    */
@@ -418,6 +420,7 @@
     if (x.code === 'AJP-AI-HTTP' && /deprecat|no longer (available|supported)|decommission|not (found|supported|available) for|unknown model|invalid model|model .*(not exist|unavailable)/i.test(body)) return 'gone';
     if (x.code === 'AJP-AI-TIME') return 'slow';
     if (x.code === 'AJP-AI-429' && UPSTREAM_BUSY.test(body)) return 'busy';
+    if (x.code === 'AJP-AI-5XX') return 'busy'; // "model is overloaded" / server error on this model: another model, not the same one again
     return null;
   }
   function candidates(provider, pinned, cfg, health) {

@@ -288,6 +288,19 @@
       ok((await AJP.store.get('modelHealth')).gemini.bad['gemini-slow-model'] > Date.now());
       eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash');
     });
+    it('a server error on one model ("overloaded", AJP-AI-5XX) → the next model in the same call (the reported failure)', async () => {
+      await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.6-flash', 'gemini-flash-latest'], at: Date.now() } });
+      await settings({ resolvedModels: { gemini: 'gemini-flash-latest' } });
+      fake(json({ error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } }, 503), ok);
+      eq(await AJP.ai.tasks.test(), 'OK');
+      includes(calls[1].url, 'models/gemini-3.6-flash:generateContent');
+      eq((await AJP.store.get('modelHealth')).gemini.why['gemini-flash-latest'], 'busy');
+      eq((await AJP.store.get('settings')).ai.resolvedModels.gemini, 'gemini-3.6-flash', 'the working one is used first next time');
+    });
+    it('numbered stable flash models rank above the "-latest" alias', async () => {
+      fake(list('gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.6-flash'));
+      eq((await AJP.ai.models.rank({ keys: { gemini: 'g' } }, 'gemini')).slice(0, 3), ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest']);
+    });
     it('a model the provider calls deprecated (HTTP 400/410) is replaced too', async () => {
       await AJP.store.set('modelHealth', { gemini: { ranked: ['gemini-3.7-flash'], at: Date.now() } });
       await settings({ resolvedModels: { gemini: 'gemini-3.6-flash' } });
