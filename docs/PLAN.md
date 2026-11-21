@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Fixed B46 from the first real tailored resume: two false skill gaps, edits may not remove a tool from a line, wrapped-line tails joined in the PDF, the panel compares with your original resume scored now and explains an unchanged score; 1359 tests |
+| 2026-11-21 | `6fadcbd` | Fixed B46 from the first real tailored resume: two false skill gaps, edits may not remove a tool from a line, wrapped-line tails joined in the PDF, the panel compares with your original resume scored now and explains an unchanged score; 1359 tests |
 | 2026-11-21 | `0851375` | Fixed B45 from the first real AI check: quality gate on the full-size step, small models last, no long retry for slow thinking models, Groq JSON failures retried, account ids masked, providers checked side by side; 1349 tests |
 | 2026-11-21 | `e4f673d` (`feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |
 | 2026-11-21 | `bc06f86` | Fixed B42: NVIDIA default moved to a current fast model; ranking prefers fast chat models and keeps fallbacks; 410 Gone replaces the model in the same call; saved shortlists rebuilt once; 1318 tests |
