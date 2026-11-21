@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Fixed B28: a server error / "overloaded" on one model moves to the next model (one retry first, not three); Gemini ranks numbered stable flash models above the `-latest` alias; 1144 tests |
+| 2026-11-21 | `e3e2992` | Fixed B28: a server error / "overloaded" on one model moves to the next model (one retry first, not three); Gemini ranks numbered stable flash models above the `-latest` alias; 1144 tests |
 | 2026-11-21 | `c1b277b` | **Model manager**: no manual model fixes. Daily model-list check per provider in use; each call falls back through up to 3 models when one is retired, deprecated, slow or busy; failing models cool down (24 h / 6 h / 1 h) then get another chance; the last working model is remembered; Admin shows "Now using …"; 1142 tests |
 | 2026-11-21 | `01cfcd4` | Gemini asked to think less (Gemini 3+ / -latest `thinkingLevel: low`, 2.5 Flash budget 0): default high thinking made even "Say OK" take 30–90 s+ on the free tier (still AJP-AI-TIME after the model fix); a model rejecting the setting is retried without it; 1138 tests |
 | 2026-11-21 | `1420fc4` | Gemini default moved to `gemini-3.6-flash` (Google deprecated 2.5-flash: 404 for newer keys, the 2 errors in AI Studio's chart); a replacement is the newest flash version; Admin model placeholders show the model actually in use; 1136 tests |
