@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1300). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1305). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1300** tests in headless Chrome. This is the full suite: the 634 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1305** tests in headless Chrome. This is the full suite: the 638 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -300,6 +300,7 @@ Use real companies whose careers pages run on these boards (for example a Greenh
 | M26 | Change a track's titles or locations (or your work authorization), then open Job Radar | The list is already re-checked (jobs that no longer fit are gone) and **Restart search** is offered; it looks at every company again with the new preferences |
 | M27 | Open a job from the list | Its card shows the same % and "N of M skills" as the panel on the job page; jobs without a description show "–" until their description arrives |
 | M29 | With Data titles, look through New jobs after a scan | No facility ("Data Center … Engineer"), physical-security or other non-IT jobs: every listed job shares at least 2 of your technical skills (its card shows "N of M skills") |
+| M30 | Profile: Total years = 15; tracks Data Architect / Senior Data Engineer; Restart search | Senior, Lead, Staff, Principal roles (cards say "asks 10+ yrs" etc.); no Junior, "II" or intern roles, no jobs asking for 3+ / 5+ or 20+ years; no Manager / Director roles until you add a track like "Data Engineering Manager" |
 | M28 | Career tracks: give one track its own locations (e.g. "Seattle, WA; Remote - US") | Saved; that track's jobs follow those places (on-site in Seattle, or remote in the US); "Remote Canada" jobs don't show for a US search |
 
 ### H. Performance

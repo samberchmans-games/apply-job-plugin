@@ -375,10 +375,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   }
   // Preferences changed (titles, places, work types, tracks, work authorization, Job Radar filters): re-check the jobs
   // already listed with them (local, instant), and remember it so Admin can offer "Restart search".
-  const radarPrefsSig = (p, rs) => JSON.stringify([(p.skills || []).map((s) => s.name), p.targetRoles, p.areas, p.workTypes, (p.tracks || []).map((t) => [t.id, t.targetTitles, t.areas, t.workTypes]), p.autoApply && [p.autoApply.requireSponsorship, p.autoApply.citizen], rs.locations, rs.remote, rs.minSalary]);
+  const radarPrefsSig = (p, rs) => JSON.stringify([p.personal && p.personal.yearsExperience, (p.skills || []).map((s) => s.name), p.targetRoles, p.areas, p.workTypes, (p.tracks || []).map((t) => [t.id, t.targetTitles, t.areas, t.workTypes]), p.autoApply && [p.autoApply.requireSponsorship, p.autoApply.citizen], rs.locations, rs.remote, rs.minSalary]);
   async function radarRefilter() {
     const [profile, rs, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings'), AJP.store.get('resumes')]);
     const C = AJP.radar.core;
+    const years = C.userYears(profile, resumes);
     let removed = 0;
     await serialRadar(() =>
       AJP.store.update('radarJobs', (list) =>
@@ -387,7 +388,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
           .map((j) => (j.status === 'new' ? { ...j, ...AJP.radar.scan.score(j, profile, resumes), eligibility: C.eligibility(j.description, profile) } : j))
           .filter((j) => {
             if (j.status !== 'new') return true;
-            const ok = C.quickFilter(j, rs, profile).pass && C.relevant(j, profile);
+            const ok = C.quickFilter(j, rs, profile, { years }).pass && C.relevant(j, profile);
             if (!ok) removed++;
             return ok;
           })

@@ -85,4 +85,50 @@
       eq((await AJP.store.get('radarJobs')).map((j) => j.title), [FX().realData.title]);
     });
   }, { env: 'browser' });
+
+  describe('radar relevance › levels near your experience; management only by choice', () => {
+    const T = ['Senior Data Engineer', 'Data Architect'];
+    it('15 years: Senior, Lead, Staff, Principal and unlevelled titles; not Junior, II, Intern', () => {
+      ['Lead Data Engineer', 'Staff Data Engineer', 'Principal Data Architect', 'Senior Data Engineer', 'Data Engineer'].forEach((t) => ok(C.levelFits(t, T, 15), t));
+      ['Junior Data Engineer', 'Data Engineer II', 'Data Engineering Intern'].forEach((t) => notOk(C.levelFits(t, T, 15), t));
+    });
+    it('Manager / Director / Head of: only when a track has a management title', () => {
+      ['Data Engineering Manager', 'Director, Data Engineering', 'Head of Data Architecture'].forEach((t) => notOk(C.levelFits(t, T, 15), t));
+      ok(C.levelFits('Manager, Data Engineering', ['Data Engineering Manager'], 15));
+      ok(C.levelFits('Data Engineering Manager', [], 15), 'no titles at all: no preference');
+    });
+    it('fewer years shift the band (3 years: Junior to Senior, not Lead / Principal)', () => {
+      ok(C.levelFits('Junior Data Engineer', T, 3));
+      notOk(C.levelFits('Principal Data Engineer', T, 3));
+      ok(C.levelFits('Principal Data Engineer', T, null), 'years unknown: any level');
+    });
+    it('years the description asks for: near yours (15: 8+, 10+, 12+, 17+ yes; 3+, 5+, 20+ no)', () => {
+      [[8, true], [10, true], [12, true], [17, true], [3, false], [5, false], [20, false]].forEach(([a, want]) => eq(C.experienceFits({ yearsAsked: a, yearsHave: 15 }), want, String(a)));
+      ok(C.experienceFits({ yearsAsked: null, yearsHave: 15 }), 'not stated');
+    });
+  });
+
+  describe('radar relevance › experience in scans', () => {
+    beforeEach(async () => {
+      await seed();
+      await AJP.store.update('profile', (p) => void (p.personal.yearsExperience = '15'));
+    });
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+      Object.assign(AJP.radar.scan.CONFIG, saved);
+    });
+    it('a 15-year profile: Lead and Senior roles listed; Junior, Manager and a "3+ years" role left out', async () => {
+      const desc = (yrs) => `&lt;p&gt;Requirements: ${yrs}+ years of experience. Python, SQL, Spark, Airflow, Snowflake.&lt;/p&gt;`;
+      const posts = [['Lead Data Engineer', 12], ['Senior Data Engineer', 10], ['Junior Data Engineer', 1], ['Data Engineering Manager', 10], ['Data Engineer', 3]];
+      globalThis.fetch = async (url) => {
+        const m = String(url).match(/jobs\/(\d+)$/);
+        if (m) return res({ content: desc(posts[+m[1]][1]) });
+        return res({ jobs: posts.map(([t], i) => ({ id: i, title: t, location: { name: 'Remote' }, absolute_url: 'https://boards.greenhouse.io/initech/jobs/' + i, company_name: 'Initech' })) });
+      };
+      await AJP.send('radar.scanNow', {});
+      const jobs = (await AJP.send('radar.jobs', {})).jobs;
+      eq(jobs.map((j) => j.title).sort(), ['Lead Data Engineer', 'Senior Data Engineer']);
+      eq(jobs.find((j) => j.title === 'Lead Data Engineer').yearsAsked, 12);
+    });
+  }, { env: 'browser' });
 })();

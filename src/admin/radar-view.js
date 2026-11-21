@@ -90,7 +90,7 @@
     const fr = FRESH[AJP.radar.core.freshness(j)];
     const track = tracksById[j.bestTrackId];
     const skills = j.score != null && j.skillsTotal ? `${j.skillsMatched} of ${j.skillsTotal} skills` : j.score == null ? 'no description yet: scored when it arrives' : '';
-    const meta = [skills, esc(j.companyName), esc((j.allLocations || j.locations).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
+    const meta = [skills, j.yearsAsked != null ? `asks ${j.yearsAsked}+ yrs` : '', esc(j.companyName), esc((j.allLocations || j.locations).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
     const tags = [
       fr ? `<span class="pill ${fr[0]}">${fr[1]}</span>` : '',
       track && !track.implicit ? `<span class="pill" title="The career track this job fits best">${esc(track.name)} track</span>` : '',
@@ -117,8 +117,10 @@
       `<div class="hint">Job Radar checks these companies for you, a slice at a time (all of them about once a day), and shows only the jobs that fit your career tracks and places.${d.hidden ? ` ${d.hidden} hidden by you.` : ''}${d.lastAt ? ` Last slice ${ago(new Date(d.lastAt).toISOString())}.` : ''}</div>` +
       (d.on && missing.length ? `<div class="row"><span class="hint warn">⚠ The browser hasn't allowed ${missing.map(boardLabel).join(', ')} yet, so those companies are skipped.</span><button class="primary" data-dir="allow">Allow all 11 job boards</button></div>` : '');
   }
+  let cachedResumes = null;
   async function renderJobs() {
     const profile = await AJP.store.get('profile');
+    cachedResumes = await AJP.store.get('resumes');
     tracksById = Object.fromEntries(AJP.tracks.list(profile).map((t) => [t.id, t]));
     renderTracks(profile);
     const r = await AJP.send('radar.jobs', { status: filter, sort });
@@ -155,9 +157,14 @@
     const titles = (t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []);
     const places = (t) => (t.areas && t.areas.length ? t.areas : profile.areas || []);
     const any = list.some((t) => titles(t).length);
+    const yrs = AJP.radar.core.userYears(profile, cachedResumes);
+    const band = yrs == null ? '' : yrs >= 8 ? 'Senior to Principal' : yrs >= 5 ? 'Mid to Lead' : yrs >= 2 ? 'Junior to Senior' : 'Intern to Mid';
+    const mgmt = list.some((t) => (t.targetTitles || []).some((x) => { const l = AJP.experience && AJP.experience.fromTitle(x); return l && ['manager', 'director', 'executive'].includes(l.id); }));
+    const levels = yrs == null ? ' Add your total years in Profile to match job levels to your experience.' : ` Levels: <b>${band}</b> (your ${Math.round(yrs)} years; jobs asking for far more, or junior roles, are left out)${mgmt ? '' : '; manager roles only with a management track'}.`;
     box.innerHTML = any
       ? `Looking for: ${list.map((t) => `<b>${esc(t.implicit ? 'your target roles' : t.name)}</b> (${esc(titles(t).slice(0, 4).join(', ') || 'any title')}${places(t).length ? ' · ' + esc(places(t).slice(0, 3).join('; ')) : ''})`).join(' · ')}. <a href="#tracks">Edit career tracks</a>`
       : '⚠ Add target roles in <a href="#prefs">Job preferences</a> (or titles in <a href="#tracks">Career tracks</a>) so Job Radar keeps only jobs that fit you.';
+    if (any) box.innerHTML = box.innerHTML.replace(/<a href="#tracks">Edit career tracks<\/a>$/, `${levels} <a href="#tracks">Edit career tracks</a>`);
   }
 
   async function jobAction(key, status, keys = [key]) {

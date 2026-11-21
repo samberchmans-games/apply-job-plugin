@@ -120,8 +120,9 @@
     const r = AJP.tracks.analyzeAll({ jdText: job.description || job.title, jobTitle: job.title, jobLocation: job.locations.join('; '), profile, resumes });
     const best = r.results.find((x) => x.track.id === r.bestId) || r.results[0];
     const a = best && best.analysis;
+    const yr = (a && a.fit && a.fit.years) || {};
     // Same numbers as the job page's panel: score, and "N of M skills match".
-    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0, techMatched: AJP.radar.core.techMatches(a) };
+    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0, techMatched: AJP.radar.core.techMatches(a), yearsAsked: yr.asked != null ? yr.asked : null, yearsHave: yr.have != null ? yr.have : null };
   }
 
   async function scanCompany(entry, { fetchImpl, counter, settings, profile, resumes, seen, now }) {
@@ -175,8 +176,9 @@
     }
     const listedKeys = [...byKey.keys()];
     const fresh = [...byKey.values()].filter(({ j }) => !seen[j.key]);
+    const years = C.userYears(profile, resumes);
     const passing = fresh.filter((item) => {
-      const f = C.quickFilter(item.j, settings, profile);
+      const f = C.quickFilter(item.j, settings, profile, { years });
       item.trackId = f.trackId;
       return f.pass;
     });

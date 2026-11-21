@@ -242,13 +242,56 @@
     if (!job.remote || !wt || !Object.values(wt).some(Boolean)) return true;
     return wt[job.remote] !== false;
   }
-  function quickFilter(job, settings = {}, profile = {}) {
+  /*
+   * Level near your experience (titles) and people management only by choice:
+   *  - Manager / Director / Head of / VP titles fit only a track whose own titles are management ones
+   *    (add a "Data Engineering Manager" track to see those).
+   *  - With your years known: 8+ → Senior, Lead, Staff, Principal (not Junior / Mid / "Engineer I-II" / Intern);
+   *    5-8 → Mid to Lead; 2-5 → Junior to Senior; under 2 → Intern to Mid. Titles without a level pass
+   *    (the years the description asks for are checked after scoring: experienceFits).
+   */
+  const MGMT = new Set(['manager', 'director', 'executive']);
+  function levelFits(jobTitle, trackTitles, years) {
+    const X = AJP.experience;
+    if (!X) return true;
+    const jl = X.fromTitle(jobTitle);
+    if (!jl) return true;
+    if (MGMT.has(jl.id) && (trackTitles || []).length) return trackTitles.some((t) => { // no titles at all: no preference
+      const tl = X.fromTitle(t);
+      return tl && MGMT.has(tl.id);
+    });
+    if (years == null || isNaN(years)) return true;
+    const [lo, hi] = years >= 8 ? [3, 4] : years >= 5 ? [2, 4] : years >= 2 ? [1, 3] : [0, 2];
+    return jl.n >= lo && jl.n <= hi;
+  }
+  // Years the description asks for, near yours: not far more (asked > yours + 2), not a junior role (asked ≤ 5 and
+  // under half of yours). 15 years: "10+", "12+", "8+" fit; "3+" or "20+" don't. Unknown → fits.
+  function experienceFits(job) {
+    const asked = job && job.yearsAsked;
+    const have = job && job.yearsHave;
+    if (asked == null || have == null) return true;
+    if (asked > have + 2) return false;
+    if (asked <= 5 && asked < have / 2) return false;
+    return true;
+  }
+  // Your total years (Admin → Profile, else work history, else the resume): used for the level rule.
+  function userYears(profile, resumes) {
+    if (!AJP.experience) return null;
+    const items = (resumes && resumes.items) || [];
+    const r = items.find((x) => x.id === (resumes && resumes.activeId)) || items[0];
+    return AJP.experience.candidate(profile, r ? r.text : '').years;
+  }
+
+  function quickFilter(job, settings = {}, profile = {}, ctx = {}) {
     const tracks = AJP.tracks ? AJP.tracks.list(profile) : [];
     const views = tracks.map((t) => ({ id: t.id, titles: t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [], areas: t.areas && t.areas.length ? t.areas : profile.areas || [], workTypes: t.workTypes && Object.values(t.workTypes).some(Boolean) ? t.workTypes : profile.workTypes }));
     const titled = views.filter((v) => v.titles.length);
     // 1. Role: fits the titles of at least one track (no titles anywhere → every job goes on to scoring)
-    const fitting = titled.length ? titled.filter((v) => titleFits(job.title, v.titles)) : views;
-    if (!fitting.length) return { pass: false, reason: 'title' };
+    const byTitle = titled.length ? titled.filter((v) => titleFits(job.title, v.titles)) : views;
+    if (!byTitle.length) return { pass: false, reason: 'title' };
+    // 1b. Level: near your experience; management titles only for management tracks
+    const fitting = byTitle.filter((v) => levelFits(job.title, v.titles, ctx.years));
+    if (!fitting.length) return { pass: false, reason: 'level' };
     // 2. Location + work type: Job Radar settings when set, else the track's (or profile's) preferences
     const want = settings.remote || 'any';
     const custom = (settings.locations || []).filter(Boolean);
@@ -321,7 +364,7 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 5;
+  const RULES_VERSION = 6;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
@@ -333,11 +376,12 @@
   const isSoft = (name) => SOFT.has(AJP.normKey(name));
   const techMatches = (analysis) => ((analysis && analysis.matched) || []).filter((m) => !isSoft(m.skill)).length;
   function relevant(job, profile) {
+    if (!experienceFits(job)) return false;
     if (job.descriptionLevel !== 'full' || job.techMatched == null) return true; // not judged yet (title only): keep
     const mineTech = ((profile && profile.skills) || []).filter((s) => !isSoft(s.name || s)).length;
     if (!mineTech) return true; // no technical skills in your profile yet: nothing to compare
     return job.techMatched >= Math.min(MIN_TECH_SKILLS, Math.max(1, mineTech));
   }
 
-  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  AJP.radar.core = { RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

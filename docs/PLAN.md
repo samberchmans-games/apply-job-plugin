@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1300 automated + 157 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1305 automated + 158 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1300 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1300) · `./tests/run-tests.sh` (the 634 that need no browser) |
+| Automated tests: 1305 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1305) · `./tests/run-tests.sh` (the 638 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 157 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 158 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | Job Radar levels near your experience: with 8+ years Senior / Lead / Staff / Principal (no junior roles), years asked near yours, management titles only via a management track; "asks N+ yrs" on cards; 1305 tests |
 | 2026-11-21 | `a039d1f` | Job Radar relevance (B40): a listed job must share at least 2 of your technical skills (soft skills don't count); "data center" / "data entry" aren't data work; listed jobs re-scored and re-checked once; 1300 tests |
 | 2026-11-21 | `ceb7a46` | Job Radar: level words ignored in titles (B39); scans end after 4 min and resume, heartbeat lock, Stop clears a dead scan's lock (B38); 25 jobs per page; listed jobs re-checked once when rules change; 1293 tests |
 | 2026-11-21 | `f8bad11` | **Job Radar accuracy + control**: career-track locations; Job preferences = defaults for all tracks; stricter title rule; remote jobs limited to other countries filtered; title-only jobs unscored + description backfill; "N of M skills" like the panel; list re-checked when preferences change, ■ Stop and Restart search; one card per job posted in several places; fixed B33–B37; 1288 tests |
