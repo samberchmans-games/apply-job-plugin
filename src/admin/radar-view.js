@@ -44,6 +44,8 @@
     const st = await AJP.send('radar.status');
     if (!st || st.ok === false) return;
     const s = st.lastSummary;
+    $('#radarStop').hidden = !st.running;
+    $('#radarRestartBox').hidden = !st.prefsChangedAt || st.running;
     $('#radarStatus').innerHTML = st.running
       ? '⏳ Scanning now…'
       : `${st.enabled ? '🟢 On' : '⚪ Off'} · ${st.companies} compan${st.companies === 1 ? 'y' : 'ies'} of yours + the directory · last scan ${s ? `${ago(s.at)}: ${s.companies} checked, ${s.new} new, ${s.matches} match${s.matches === 1 ? '' : 'es'}${s.errors && s.errors.length ? `, ${s.errors.length} with errors` : ''}` : 'not yet'}`;
@@ -85,16 +87,17 @@
     const el = j.eligibility || { status: 'ok', reasons: [], flags: {} };
     const fr = FRESH[AJP.radar.core.freshness(j)];
     const track = tracksById[j.bestTrackId];
-    const meta = [esc(j.companyName), esc(j.locations.slice(0, 2).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
+    const skills = j.score != null && j.skillsTotal ? `${j.skillsMatched} of ${j.skillsTotal} skills` : j.score == null ? 'no description yet: scored when it arrives' : '';
+    const meta = [skills, esc(j.companyName), esc((j.allLocations || j.locations).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}${j.postedAtExact === false ? ' (about)' : ''}` : ''].filter(Boolean).join(' · ');
     const tags = [
       fr ? `<span class="pill ${fr[0]}">${fr[1]}</span>` : '',
-      track && !track.implicit ? `<span class="pill">${esc(track.name)}</span>` : '',
+      track && !track.implicit ? `<span class="pill" title="The career track this job fits best">${esc(track.name)} track</span>` : '',
       j.descriptionLevel === 'title' ? '<span class="pill warn" title="This board gives no job description: the match uses the title only">title match only</span>' : '',
       el.flags && el.flags.sponsors ? '<span class="pill good">Sponsors visas</span>' : '',
       el.status === 'check' ? `<span class="pill warn" title="${esc(el.reasons.join('; '))}">Check: ${esc(el.reasons[0])}</span>` : '',
     ].filter(Boolean).join(' ');
-    return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}">
-      <span class="pill ${j.score >= thr ? 'good' : ''}" title="Best fit: ${esc(track ? track.name : 'your profile')}">${j.score}%</span>
+    return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}" data-keys="${esc((j.keys || [j.key]).join(' '))}">
+      <span class="pill ${j.score != null && j.score >= thr ? 'good' : ''}" title="${j.score == null ? 'No job description to score: open it to judge' : `Best fit: ${esc(track ? track.name : 'your profile')}`}">${j.score == null ? '–' : j.score + '%'}</span>
       <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
         <div class="hint">${meta}</div>${el.status === 'blocked' ? `<div class="hint warn">⚠ ${esc(el.reasons.join('; '))}</div>` : ''}</div>
       <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
@@ -121,6 +124,17 @@
     if (!r || r.ok === false) return void (box.textContent = r ? fail(r) : '');
     const thr = Number($('#radarSettings').threshold.value) || 60;
     const isBlocked = (j) => j.eligibility && j.eligibility.status === 'blocked';
+    // The same job posted once per location (e.g. "Remote US" and "Remote Canada"): one card, every location.
+    const groups = new Map();
+    for (const j of r.jobs) {
+      const k = `${j.board}:${j.company}:${AJP.normKey(j.title)}`;
+      const g = groups.get(k);
+      if (g) {
+        g.keys.push(j.key);
+        g.allLocations = [...new Set([...g.allLocations, ...j.locations])];
+      } else groups.set(k, { ...j, keys: [j.key], allLocations: [...j.locations] });
+    }
+    r.jobs = [...groups.values()];
     const ok = r.jobs.filter((j) => !isBlocked(j));
     const blocked = r.jobs.filter(isBlocked);
     box.innerHTML =
@@ -140,7 +154,7 @@
       : '⚠ Add target roles in <a href="#prefs">Job preferences</a> (or titles in <a href="#tracks">Career tracks</a>) so Job Radar keeps only jobs that fit you.';
   }
 
-  async function jobAction(key, status) {
+  async function jobAction(key, status, keys = [key]) {
     if (status === 'hide') {
       const [board, company] = key.split(':');
       if (!confirm('Hide this company? Its jobs disappear and it won’t be checked again (you can add it back as a company you watch).')) return;
@@ -149,8 +163,12 @@
       renderDirectory();
       return renderJobs();
     }
-    const r = await AJP.send('radar.job.update', { key, status });
-    if (r && r.ok === false) return ui.toast(fail(r));
+    let r = null;
+    for (const k of status === 'saved' ? [key] : keys) {
+      r = await AJP.send('radar.job.update', { key: k, status });
+      if (r && r.ok === false) return ui.toast(fail(r));
+    }
+    if (status === 'saved') for (const k of keys.slice(1)) await AJP.send('radar.job.update', { key: k, status: 'dismissed' }); // the other locations of the same job
     ui.toast(status === 'saved' ? 'Saved to Applications' : status === 'dismissed' ? 'Dismissed: it won’t come back' : 'Restored');
     renderJobs();
     renderStatus();
@@ -301,7 +319,22 @@
     }));
     $('#radarJobs').addEventListener('click', g('jobAction', (e) => {
       const b = e.target.closest('button[data-act]');
-      if (b) return jobAction(b.closest('[data-key]').dataset.key, b.dataset.act);
+      if (b) {
+        const el = b.closest('[data-key]');
+        return jobAction(el.dataset.key, b.dataset.act, (el.dataset.keys || el.dataset.key).split(' '));
+      }
+    }));
+    $('#radarStop').addEventListener('click', g('stop', async () => {
+      await AJP.send('radar.stop');
+      ui.toast('Scan stopped');
+      renderStatus();
+    }));
+    $('#radarRestart').addEventListener('click', g('restart', async () => {
+      const r = await AJP.send('radar.restart');
+      if (r && r.ok === false) return ui.toast(fail(r));
+      ui.toast(`Restarted with your current preferences${r.removed ? `: ${r.removed} job${r.removed === 1 ? '' : 's'} that no longer fit removed` : ''}`);
+      renderJobs();
+      renderStatus();
     }));
     $('#radarWatch').addEventListener('click', g('watchAction', (e) => {
       const b = e.target.closest('button[data-act]');

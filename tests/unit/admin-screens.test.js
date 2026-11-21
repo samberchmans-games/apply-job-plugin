@@ -630,6 +630,29 @@
       await waitFor(async () => ((await stored('radarSettings')).excluded || []).includes('greenhouse:acme'), { msg: 'hidden' });
       await waitFor(() => !$('.radar-job'), { msg: 'job gone' });
     });
+    it('one card per job posted in several places; Dismiss covers all; "N of M skills"; no % without a description', async () => {
+      await load('admin.html', { radarJobs: [
+        job({ id: 1, title: 'Data Engineer', locations: ['Remote US'], score: 54, skillsMatched: 3, skillsTotal: 6 }),
+        job({ id: 2, title: 'Data Engineer', locations: ['Remote Canada'], score: 54, skillsMatched: 3, skillsTotal: 6 }),
+        job({ id: 3, title: 'Lead Data Engineer', score: null, descriptionLevel: 'title' }),
+      ] }, { hash: 'radar', background: true });
+      await waitFor(() => $$('.radar-job').length === 2, { msg: 'grouped' });
+      const first = $$('.radar-job')[0].textContent;
+      ['54%', '3 of 6 skills', 'Remote US', 'Remote Canada'].forEach((t) => includes(first, t));
+      includes($$('.radar-job')[1].textContent, '–');
+      includes($$('.radar-job')[1].textContent, 'no description yet');
+      $$('.radar-job')[0].querySelector('[data-act="dismissed"]').click();
+      await waitFor(async () => (await stored('radarJobs')).filter((j) => j.status === 'dismissed').length === 2, { msg: 'both dismissed' });
+    });
+    it('Stop shows while a scan runs; "Restart search" shows after preferences change', async () => {
+      await load('admin.html', { radarScanState: { lockedAt: Date.now(), prefsChangedAt: Date.now() } }, { hash: 'radar', background: true });
+      await waitFor(() => !$('#radarStop').hidden, { msg: 'stop' });
+      ok($('#radarRestartBox').hidden, 'no restart while running');
+      await w.AJP.store.set('radarScanState', { lockedAt: null, prefsChangedAt: Date.now() });
+      await waitFor(() => $('#radarStop').hidden && !$('#radarRestartBox').hidden, { msg: 'restart offered' });
+      $('#radarRestart').click();
+      await waitFor(async () => !(await stored('radarScanState')).prefsChangedAt, { msg: 'restarted' });
+    });
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });
@@ -654,6 +677,28 @@
       eq([...$('#radar').querySelectorAll('li a')].map((a) => a.textContent), ['Job 6', 'Job 5', 'Job 4', 'Job 3', 'Job 2']);
       $('#radar').querySelector('li a').click();
       await waitFor(() => w.browser.__created.some((t) => t.url === 'https://boards.greenhouse.io/acme/jobs/6'), { msg: 'job opened' });
+    });
+  }, { env: 'browser' });
+
+  describe('admin screens › tracks and defaults', () => {
+    afterEach(closeFrame);
+    it('a career track has its own locations (saved); blank fields show the defaults', async () => {
+      const prof = profile();
+      prof.areas = ['Austin, TX'];
+      prof.tracks = [{ id: 't1', name: 'Data', targetTitles: ['Data Architect'], skills: [] }];
+      await load('admin.html', { profile: prof }, { hash: 'tracks' });
+      await waitFor(() => $('[data-k="areas"]'), { msg: 'field' });
+      includes($('[data-k="areas"]').closest('label').textContent, 'blank = your defaults: Austin, TX');
+      type($('[data-k="areas"]'), 'Seattle, WA; Remote - US');
+      await waitFor(async () => JSON.stringify((await stored('profile')).tracks[0].areas) === JSON.stringify(['Seattle, WA', 'Remote - US']), { msg: 'saved' });
+    });
+    it('Job preferences says it holds the defaults, and that tracks with titles replace the positions list', async () => {
+      const prof = profile();
+      prof.tracks = [{ id: 't1', name: 'Data', targetTitles: ['Data Architect'], skills: [] }];
+      await load('admin.html', { profile: prof }, { hash: 'prefs' });
+      includes($('#prefs').textContent, 'Your defaults for every job');
+      await waitFor(() => !$('#prefsTracksNote').hidden, { msg: 'note' });
+      includes($('#prefsTracksNote').textContent, 'Data (Data Architect)');
     });
   }, { env: 'browser' });
 })();

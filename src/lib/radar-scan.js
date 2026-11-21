@@ -23,12 +23,16 @@
     lockStaleMs: 10 * 60 * 1000,
     retryWaitMaxMs: 60000,
     pauseAfterFailures: 5,
+    backfillPerScan: 20, // title-only jobs (detail budget used earlier) get their description and a real score later
     // Built-in directory (radar-directory.js): scanned in rotation so every company is covered about once a day.
     directoryMinPerScan: 30,
     directoryFailSkip: 3, // a directory company failing 3 scans in a row is skipped until the next refresh
     bytesPerScan: 50 * 1024 * 1024, // download budget per scan (directory slice stops when it is used)
   };
   const serial = AJP.serial();
+  // Stop: the running scan finishes the request in flight, then ends (its queue is dropped, nothing resumes).
+  let cancelRequested = false;
+  const cancel = () => (cancelRequested = true);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---- HTTP: timeout, JSON / text, status → RADAR_* codes, one retry on 429 / 5xx -------------------
@@ -81,6 +85,7 @@
       used: 0,
       bytes: 0,
       async gate(url) {
+        if (cancelRequested) throw Object.assign(new Error('scan stopped'), { budget: true, cancelled: true });
         if (this.used >= CONFIG.requestsPerScan) throw Object.assign(new Error('scan budget used'), { budget: true });
         this.used++;
         let host = '';
@@ -96,10 +101,18 @@
     };
   }
 
+  // A job with no description is not scored: skills named in a title alone ("Machine Learning") would read as 100%.
   function bestScore(job, profile, resumes) {
+    if (job.descriptionLevel === 'title') {
+      const tracks = AJP.tracks.list(profile);
+      const fit = tracks.find((t) => AJP.radar.core.titleFits(job.title, t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []));
+      return { score: null, bestTrackId: (fit || tracks[0] || {}).id || null };
+    }
     const r = AJP.tracks.analyzeAll({ jdText: job.description || job.title, jobTitle: job.title, jobLocation: job.locations.join('; '), profile, resumes });
     const best = r.results.find((x) => x.track.id === r.bestId) || r.results[0];
-    return { score: best ? best.analysis.score || 0 : 0, bestTrackId: r.bestId };
+    const a = best && best.analysis;
+    // Same numbers as the job page's panel: score, and "N of M skills match".
+    return { score: a && a.score != null ? a.score : null, bestTrackId: r.bestId, skillsMatched: a ? a.matched.length : 0, skillsTotal: a ? a.jdSkillCount : 0 };
   }
 
   async function scanCompany(entry, { fetchImpl, counter, settings, profile, resumes, seen, now }) {
@@ -242,6 +255,7 @@
       return true;
     });
     if (!got) throw AJP.err('RADAR_BUSY');
+    cancelRequested = false;
     const summary = { companies: 0, requests: 0, listed: 0, new: 0, matches: [], errors: [], ms: 0, resumed: false };
     try {
       const [settings, watchlist, profile, resumes, state] = await Promise.all(['radarSettings', 'radarWatchlist', 'profile', 'resumes', 'radarScanState'].map((k) => AJP.store.get(k)));
@@ -273,6 +287,10 @@
       let stopped = false;
       const worker = async () => {
         while (!stopped && next < queue.length) {
+          if (cancelRequested) {
+            stopped = true;
+            break;
+          }
           const key = queue[next++];
           const entry = byKey[key];
           if (!entry) continue;
@@ -284,7 +302,7 @@
             result = { key, ...r, companyName: (r.jobs[0] && r.jobs[0].companyName !== r.entry.company && r.jobs[0].companyName) || null };
             summary.listed += r.total;
             summary.new += r.jobs.length;
-            summary.matches.push(...r.jobs.filter((j) => j.score >= (Number(settings.threshold) || 60) && !(j.eligibility && j.eligibility.status === 'blocked')).map((j) => ({ key: j.key, title: j.title, companyName: j.companyName, score: j.score })));
+            summary.matches.push(...r.jobs.filter((j) => j.score != null && j.score >= (Number(settings.threshold) || 60) && !(j.eligibility && j.eligibility.status === 'blocked')).map((j) => ({ key: j.key, title: j.title, companyName: j.companyName, score: j.score })));
           } catch (err) {
             if (err && err.budget) {
               stopped = true; // the rest wait for the next scan (the queue keeps them)
@@ -307,10 +325,18 @@
         }
       };
       await Promise.all(Array.from({ length: Math.min(CONFIG.concurrency, queue.length) }, worker));
+      if (!stopped && !cancelRequested) {
+        try {
+          summary.backfilled = await backfill({ fetchImpl, counter, now });
+        } catch (e) {
+          log.warn('Description backfill failed', { error: e.message });
+        }
+      }
       summary.requests = counter.used;
       summary.bytes = counter.bytes;
       summary.directory = slice.length;
       summary.stopped = stopped;
+      summary.cancelled = cancelRequested;
       if (slice.length) {
         await AJP.store.update('radarScanState', (s) => {
           s.dirAt = now;
@@ -320,8 +346,8 @@
           s.dirFail = f;
         });
       }
-      if (!stopped) await AJP.store.update('radarScanState', (s) => void Object.assign(s, { queue: [], done: [] }));
-      else await AJP.store.update('radarScanState', (s) => void (s.queue = (s.queue || []).filter((k) => watchlist.some((w) => w.key === k))));
+      if (!stopped || cancelRequested) await AJP.store.update('radarScanState', (s) => void Object.assign(s, { queue: [], done: [] }));
+      else if (stopped) await AJP.store.update('radarScanState', (s) => void (s.queue = (s.queue || []).filter((k) => watchlist.some((w) => w.key === k))));
       await serial(async () => {
         const [jobs, seenNow] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarSeen')]);
         const p = AJP.radar.core.prune({ jobs, seen: seenNow }, now);
@@ -335,6 +361,35 @@
     } finally {
       await serial(() => AJP.store.update('radarScanState', (s) => void Object.assign(s, { lockedAt: null, lastSummary: { ...summary, matches: summary.matches.length, at: new Date(now).toISOString() } })));
     }
+  }
+
+  // Title-only jobs already listed (their company had more matches than the detail budget, or a detail call failed):
+  // fetch their descriptions now, a few per scan, and score them like the job page.
+  async function backfill({ fetchImpl, counter, now }) {
+    const C = AJP.radar.core;
+    const [profile, resumes, list] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes'), AJP.store.get('radarJobs')]);
+    const todo = list.filter((j) => j.status === 'new' && j.descriptionLevel === 'title' && AJP.radar.boards.get(j.board) && AJP.radar.boards.get(j.board).detailRequest).slice(0, CONFIG.backfillPerScan);
+    const done = {};
+    for (const j of todo) {
+      const adapter = AJP.radar.boards.get(j.board);
+      const entry = { board: j.board, company: j.company, companyName: j.companyName, ...(j.entry || {}) };
+      const id = j.key.split(':').slice(2).join(':');
+      const req = adapter.detailRequest({ ...j, id }, entry);
+      if (!req) continue;
+      try {
+        await counter.gate(req.url);
+        const body = await request(req, { fetchImpl, responseType: adapter.detailType || adapter.responseType, ctx: { board: j.board, company: j.company }, counter });
+        const d = adapter.parseDetail(body, { ...j, id }, entry);
+        const merged = C.normalize({ ...j, id, ...d, raw: { workplaceType: j.remote }, postedAt: d.postedAt || j.postedAt, foundAt: j.foundAt }, entry);
+        if (merged.descriptionLevel !== 'full') continue;
+        done[j.key] = { ...merged, key: j.key, status: j.status, notifiedAt: j.notifiedAt, ...bestScore(merged, profile, resumes), eligibility: C.eligibility(merged.description, profile) };
+      } catch (err) {
+        if (err && err.budget) break;
+        log.debug('Description could not be fetched yet', { board: j.board, code: AJP.toAppError(err).code });
+      }
+    }
+    if (Object.keys(done).length) await serial(() => AJP.store.update('radarJobs', (l) => l.map((j) => done[j.key] || j)));
+    return Object.keys(done).length;
   }
 
   // Check one board before saving it to the watchlist: fetch the list once → company name + open jobs.
@@ -361,5 +416,5 @@
     return { entry: e, openJobs: out.total != null ? out.total : out.jobs.length, companyName: (named && named.companyName) || out.companyName || null };
   }
 
-  AJP.radar.scan = { CONFIG, run, probe, request };
+  AJP.radar.scan = { CONFIG, run, probe, request, cancel };
 })();

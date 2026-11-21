@@ -154,6 +154,7 @@
     it('detail budget per company: jobs over it stay title-only (best title fit first)', async () => {
       await seed([{ board: 'smartrecruiters', company: 'WayneEnterprises' }]);
       AJP.radar.scan.CONFIG.detailPerCompany = 1;
+      AJP.radar.scan.CONFIG.backfillPerScan = 0; // the later backfill is tested on its own
       await AJP.radar.scan.run({ now: NOW, fetchImpl: fake([[/offset=0/, res(FX.smartrecruiters.page1)], [/offset=2/, res(FX.smartrecruiters.page2)], [/postings\/\d+$/, () => res(FX.smartrecruiters.detail)]]) });
       const jobs = await AJP.store.get('radarJobs');
       eq([jobs.filter((j) => j.descriptionLevel === 'full').length, jobs.filter((j) => j.descriptionLevel === 'title').length], [1, 2]);

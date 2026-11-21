@@ -72,7 +72,9 @@
     <!-- PREFERENCES -->
     <section id="prefs">
       <h1>Job preferences</h1>
+      <p class="hint"><b>Your defaults for every job.</b> Career tracks can replace any of these for one direction (titles, salary, locations, work type); a track field left blank uses the default here.</p>
       <h3>Positions you're looking for</h3>
+      <p id="prefsTracksNote" class="hint" hidden></p>
       <div class="chipbox" data-list="targetRoles" data-placeholder="e.g. Senior Software Engineer — press Enter"></div>
       <h3>Salary range</h3>
       <div class="grid">
@@ -95,7 +97,7 @@
     <!-- TRACKS -->
     <section id="tracks">
       <h1>Career tracks</h1>
-      <p class="hint">Looking in more than one direction (e.g. <b>AWS Cloud Architect</b> and <b>Java Architect</b>)? Add up to 3 tracks. Every job is scored against each track, the best one is picked automatically (you can switch in the panel), and tailoring, autofill and applications use that track's skills and resume. Your <b>Skills</b> tab holds the core skills shared by all tracks.</p>
+      <p class="hint">Looking in more than one direction (e.g. <b>AWS Cloud Architect</b> and <b>Java Architect</b>)? Add up to 3 tracks. Each track has its own titles, skills, resume and, when you want, its own salary, locations and work type (blank = your <a href="#prefs">Job preferences</a> defaults). Every job is scored against each track, the best one is picked automatically (you can switch in the panel), and tailoring, autofill and applications use that track's skills and resume. Your <b>Skills</b> tab holds the core skills shared by all tracks.</p>
       <div id="trackCards" class="cards"></div>
       <div class="row"><button id="trackAdd" class="primary">+ Add track</button></div>
       <h3>Recent jobs across your tracks</h3>
@@ -238,7 +240,8 @@
     <section id="radar">
       <h1>Job Radar</h1>
       <p class="hint">Watches the careers pages of companies you choose, finds new jobs that fit your career tracks, scores them like a job page, and tells you. It reads the companies' public job boards; nothing is sent anywhere else, and applying stays your click.</p>
-      <div class="row"><span id="radarStatus" class="hint"></span><button id="radarScan">Scan now</button></div>
+      <div class="row"><span id="radarStatus" class="hint"></span><button id="radarScan">Scan now</button><button id="radarStop" hidden>■ Stop</button></div>
+      <div id="radarRestartBox" class="banner" hidden>Your preferences changed: the list was re-checked with them. <button id="radarRestart" class="primary">Restart search</button> <span class="hint">to look at every company again with the new preferences.</span></div>
       <p id="radarTracks" class="hint"></p>
       <h3>New jobs</h3>
       <div class="row"><select id="radarFilter"><option value="new">New</option><option value="saved">Saved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select><select id="radarSort"><option value="match">Best match first</option><option value="newest">Newest first</option></select><span class="hint">Apply early: <b>Posted today</b> and <b>This week</b> are marked. Save adds the job to Applications with its description; Dismiss hides it for good.</span></div>

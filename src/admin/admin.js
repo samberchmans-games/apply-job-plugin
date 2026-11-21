@@ -51,6 +51,7 @@
     if (id === 'applications') renderApps();
     if (id === 'resumes') renderResumes();
     if (id === 'tracks') AJP.tracksView.render();
+    if (id === 'prefs') renderPrefsTracksNote();
     if (id === 'radar') {
       const add = new URLSearchParams((location.hash.split('?')[1] || '')).get('add');
       AJP.radarView.prefill(add);
@@ -657,6 +658,16 @@
   }
 
 
+  // With career tracks, "Positions you're looking for" is only the fallback: say so, and show the tracks' titles.
+  async function renderPrefsTracksNote() {
+    const box = $('#prefsTracksNote');
+    if (!box) return;
+    const p = await AJP.store.get('profile');
+    const tr = (p.tracks || []).filter((t) => t.targetTitles && t.targetTitles.length);
+    box.hidden = !tr.length;
+    box.innerHTML = tr.length ? `You have career tracks, so jobs are matched to their titles: ${tr.map((t) => `<b>${esc(t.name)}</b> (${esc(t.targetTitles.join(', '))})`).join(' · ')}. The positions below are used only for tracks without titles. <a href="#tracks">Edit career tracks</a>` : '';
+  }
+
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
     'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection' };
@@ -964,6 +975,7 @@
     if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if (changes.radarJobs || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
+    if (changes.profile && on === 'prefs') renderPrefsTracksNote();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();
   });
 

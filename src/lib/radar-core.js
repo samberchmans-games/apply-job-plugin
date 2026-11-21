@@ -177,16 +177,53 @@
    * further (locations, work type, minimum salary). Unknown values pass: better to show a job than to hide a good one.
    *   → { pass, reason?, trackId? }
    */
+  // A job title fits a target title when most of its words are there: all of a 2-word title, 2 of 3, 3 of 4…
+  // ("Data Engineer" ≠ "Senior Software Engineer"). Word forms count ("engineer" ~ "engineering", "sr" = "senior").
+  const STOP = new Set(['and', 'the', 'of', 'for', 'remote', 'hybrid', 'a', 'an', 'to', 'in', 'at', 'with']);
+  const words = (s) => AJP.normKey(String(s || '').replace(/\bsr\b\.?/gi, 'senior').replace(/\bjr\b\.?/gi, 'junior')).split(' ').filter((w) => w.length > 1 && !STOP.has(w));
+  const same = (a, b) => a === b || (a.length >= 5 && b.length >= 5 && (a.startsWith(b) || b.startsWith(a)));
+  function titleFits(jobTitle, titles) {
+    const J = words(jobTitle);
+    return (titles || []).some((t) => {
+      const T = [...new Set(words(t))];
+      if (!T.length) return false;
+      const hit = T.filter((w) => J.some((j) => same(w, j))).length;
+      return hit >= Math.ceil(T.length * 0.6);
+    });
+  }
+  // Countries / regions named in locations (remote jobs are often limited to one: "Remote Canada", "Remote - EMEA").
+  const COUNTRIES = { 'united states': /\b(united states|usa|u\.s\.a?\.?|us)\b/i, canada: /\bcanada\b/i, mexico: /\bmexico\b/i, brazil: /\bbrazil\b/i, 'united kingdom': /\b(united kingdom|uk|england|scotland|london)\b/i, ireland: /\bireland\b/i, germany: /\bgermany\b/i, france: /\bfrance\b/i, spain: /\bspain\b/i, portugal: /\bportugal\b/i, netherlands: /\bnetherlands\b/i, poland: /\bpoland\b/i, india: /\bindia\b/i, singapore: /\bsingapore\b/i, australia: /\baustralia\b/i, japan: /\bjapan\b/i, israel: /\bisrael\b/i, argentina: /\bargentina\b/i, colombia: /\bcolombia\b/i, philippines: /\bphilippines\b/i, romania: /\bromania\b/i, sweden: /\bsweden\b/i, switzerland: /\bswitzerland\b/i, italy: /\bitaly\b/i, emea: /\b(emea|europe|eu)\b/i, apac: /\b(apac|asia)\b/i, latam: /\blatam\b/i };
+  const US_STATE = /,\s*(A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY])\b/;
+  const countriesIn = (list) => {
+    const out = new Set();
+    for (const l of list || []) {
+      for (const [c, re] of Object.entries(COUNTRIES)) if (re.test(l)) out.add(c);
+      if (US_STATE.test(l)) out.add('united states');
+    }
+    return out;
+  };
+  // A remote job limited to other countries does not fit (when your places tell which country you are in).
+  function remoteCountryFits(job, places) {
+    const mine = countriesIn(places);
+    if (!mine.size) return true;
+    const theirs = countriesIn(job.locations);
+    return !theirs.size || [...theirs].some((c) => mine.has(c));
+  }
   const placeKey = (s) => AJP.normKey(String(s || '').replace(/\b(remote|hybrid|on-?site)\b/gi, ' '));
   function placeFits(job, areas) {
     const places = (areas || []).map((a) => String(a)).filter(Boolean);
     if (!places.length || !job.locations.length) return true;
     if (job.remote === 'remote' && places.some((p) => /remote/i.test(p))) return true;
-    const locs = job.locations.map((l) => AJP.normKey(l));
-    return places.some((p) => {
+    const locs = job.locations.map((l) => ` ${AJP.normKey(l)} `);
+    // "Remote - US" is a wish for remote work (handled by remoteCountryFits), not a place for on-site jobs.
+    const onsite = places.filter((p) => !/\bremote\b/i.test(p));
+    if (!onsite.length) return job.remote !== 'onsite' && job.remote !== 'hybrid' ? true : false;
+    // Whole words only ("us" is not in "austin").
+    const has = (l, k) => k && l.includes(` ${k} `);
+    return onsite.some((p) => {
       const city = placeKey(p.split(',')[0]);
       const full = placeKey(p);
-      return (city && locs.some((l) => l.includes(city))) || (full && locs.some((l) => l.includes(full)));
+      return locs.some((l) => has(l, city) || has(l, full));
     });
   }
   function workTypeFits(job, wt) {
@@ -198,7 +235,7 @@
     const views = tracks.map((t) => ({ id: t.id, titles: t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [], areas: t.areas && t.areas.length ? t.areas : profile.areas || [], workTypes: t.workTypes && Object.values(t.workTypes).some(Boolean) ? t.workTypes : profile.workTypes }));
     const titled = views.filter((v) => v.titles.length);
     // 1. Role: fits the titles of at least one track (no titles anywhere → every job goes on to scoring)
-    const fitting = titled.length ? titled.filter((v) => AJP.tracks.titleFit(job.title, { targetTitles: v.titles }) >= 0.34) : views;
+    const fitting = titled.length ? titled.filter((v) => titleFits(job.title, v.titles)) : views;
     if (!fitting.length) return { pass: false, reason: 'title' };
     // 2. Location + work type: Job Radar settings when set, else the track's (or profile's) preferences
     const want = settings.remote || 'any';
@@ -206,7 +243,7 @@
     const placed = fitting.filter((v) => {
       const wtOk = want !== 'any' ? !job.remote || job.remote === want || (want === 'hybrid' && job.remote === 'remote') : workTypeFits(job, v.workTypes);
       if (!wtOk) return false;
-      if (job.remote === 'remote') return true; // remote work fits any place (when unsure, show it)
+      if (job.remote === 'remote') return remoteCountryFits(job, custom.length ? custom : v.areas); // remote: any place in your country
       return placeFits(job, custom.length ? custom : v.areas);
     });
     if (!placed.length) return { pass: false, reason: want !== 'any' || fitting.every((v) => !workTypeFits(job, v.workTypes)) ? 'remote' : 'location' };
@@ -271,5 +308,5 @@
     return { jobs: keepJobs, seen: keepSeen };
   }
 
-  AJP.radar.core = { LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, eligibility, freshness, markSeen, prune };
+  AJP.radar.core = { LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

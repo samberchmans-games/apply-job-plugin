@@ -90,6 +90,7 @@
       resumeId: t.resumeId || null,
       salary: t.salary && (t.salary.min || t.salary.max) ? { min: String(t.salary.min || ''), max: String(t.salary.max || '') } : null,
       workTypes: t.workTypes && Object.values(t.workTypes).some(Boolean) ? t.workTypes : null,
+      areas: (Array.isArray(t.areas) ? t.areas : String(t.areas || '').split(/[;\n]+/)).map((x) => String(x).trim()).filter(Boolean).slice(0, 10),
     }));
   }
 

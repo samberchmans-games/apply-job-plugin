@@ -22,6 +22,8 @@
     renderInsights();
   }, 450);
 
+  let defaults = { targetRoles: [], areas: [], salary: {}, workTypes: {} };
+  const wtText = (w) => ['remote', 'hybrid', 'onsite'].filter((k) => w && w[k]).map((k) => (k === 'onsite' ? 'On-site' : k[0].toUpperCase() + k.slice(1))).join(', ') || 'any';
   function card(t, i, resumes) {
     return `<div class="card track" data-i="${i}">
       <div class="grid">
@@ -29,11 +31,12 @@
         <label class="wide">Target job titles (comma-separated)<input data-k="targetTitles" value="${esc(csv(t.targetTitles))}" placeholder="Cloud Architect, Solutions Architect AWS"></label>
         <label class="wide">Track skills, added to your core skills (comma-separated)<input data-k="skills" value="${esc(csv(t.skills))}" placeholder="AWS, Terraform, Kubernetes"></label>
         <label>Resume for this track<select data-k="resumeId"><option value="">Active resume</option>${resumes.items.map((r) => `<option value="${esc(r.id)}" ${r.id === t.resumeId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
-        <label>Min salary (optional)<input type="number" data-k="salary.min" value="${esc((t.salary && t.salary.min) || '')}"></label>
-        <label>Max salary (optional)<input type="number" data-k="salary.max" value="${esc((t.salary && t.salary.max) || '')}"></label>
+        <label>Min salary (blank = default)<input type="number" data-k="salary.min" value="${esc((t.salary && t.salary.min) || '')}" placeholder="${esc(defaults.salary.min || '')}"></label>
+        <label>Max salary (blank = default)<input type="number" data-k="salary.max" value="${esc((t.salary && t.salary.max) || '')}" placeholder="${esc(defaults.salary.max || '')}"></label>
+        <label class="wide">Locations for this track (separate with ;; blank = your defaults: ${esc(defaults.areas.join('; ') || 'none set')})<input data-k="areas" value="${esc((t.areas || []).join('; '))}" placeholder="${esc(defaults.areas.join('; ') || 'e.g. Austin, TX; Remote - US')}"></label>
       </div>
       <div class="row">
-        <span class="hint">Work type (optional):</span>
+        <span class="hint">Work type (none ticked = default: ${esc(wtText(defaults.workTypes))}):</span>
         ${['remote', 'hybrid', 'onsite'].map((w) => `<label class="check"><input type="checkbox" data-k="workTypes.${w}" ${t.workTypes && t.workTypes[w] ? 'checked' : ''}> ${w === 'onsite' ? 'On-site' : w[0].toUpperCase() + w.slice(1)}</label>`).join('')}
         <button class="small danger" data-del="${i}" style="margin-left:auto">Delete track</button>
       </div>
@@ -44,6 +47,7 @@
   async function render() {
     const [profile, resumes] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes')]);
     tracks = AJP.clone(profile.tracks || []);
+    defaults = { targetRoles: profile.targetRoles || [], areas: profile.areas || [], salary: profile.salary || {}, workTypes: profile.workTypes || {} };
     $('#trackCards').innerHTML = tracks.length
       ? tracks.map((t, i) => card(t, i, resumes)).join('')
       : '<p class="hint">No tracks yet: every job is scored against your whole profile (“General”). Add tracks if you are looking in more than one direction.</p>';
@@ -97,6 +101,7 @@
       if (!k || !card) return;
       const t = tracks[+card.dataset.i];
       if (k === 'targetTitles' || k === 'skills') t[k] = split(e.target.value);
+      else if (k === 'areas') t.areas = e.target.value.split(/;+/).map((x) => x.trim()).filter(Boolean);
       else if (k.startsWith('salary.')) t.salary = { ...(t.salary || {}), [k.slice(7)]: e.target.value };
       else if (k.startsWith('workTypes.')) t.workTypes = { ...(t.workTypes || {}), [k.slice(10)]: e.target.checked };
       else t[k] = e.target.value || (k === 'resumeId' ? null : '');

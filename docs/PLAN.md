@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1274 automated + 152 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1288 automated + 156 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1274 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1274) · `./tests/run-tests.sh` (the 623 that need no browser) |
+| Automated tests: 1288 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1288) · `./tests/run-tests.sh` (the 628 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 152 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 156 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -273,6 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
+| 2026-11-21 | (pending) | **Job Radar accuracy + control**: career-track locations; Job preferences = defaults for all tracks; stricter title rule; remote jobs limited to other countries filtered; title-only jobs unscored + description backfill; "N of M skills" like the panel; list re-checked when preferences change, ■ Stop and Restart search; one card per job posted in several places; fixed B33–B37; 1288 tests |
 | 2026-11-21 | `4ce1ba5` | **Job Radar built-in company directory**: 322 companies (Greenhouse, Lever, Ashby) checked live by `tools/build_radar_directory.py`, on by default, scanned a slice at a time (all about once a day) on allowed boards, quiet failures, 50 MB download budget; Greenhouse light lists with descriptions only for matching jobs; Hide company; 1274 tests |
 | 2026-11-21 | `4b19a6d` | **Job Radar follows your career tracks** (up to 3: titles, then each track's places / work types); **eligibility** from the job text (no visa sponsorship, citizenship, clearance) against Auto-apply details (+ new "U.S. citizen?"): conflicts shown apart with the reason and never alerted; **freshness** labels (Posted today / This week) + Newest first sort; Allow all 11 boards in one prompt; 1263 tests |
 | 2026-11-21 | `d149a52` … `259d3e8` (`feature/job-radar`) | **Job Radar (step 19)**: watch company careers boards on 11 job boards (Greenhouse, Lever, Ashby, Workable, Recruitee, Breezy HR, SmartRecruiters, Rippling, Personio, Teamtailor, Workday), each against a captured live response; resumable, polite scan engine (budgets, coded errors, retries, pause after 5 failures); scoring with the career tracks; Admin → Job Radar (new jobs, watchlist incl. careers pages and lists, settings), popup box, panel "Watch this company", notifications (daily summary / per scan), blue badge; per-board optional permissions; fixed B31, B32; 1237 tests |

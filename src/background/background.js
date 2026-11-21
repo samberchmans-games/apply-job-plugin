@@ -319,7 +319,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function radarNewCount() {
     const [jobs, rs] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarSettings')]);
     const thr = Number(rs.threshold) || 60;
-    return jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !(j.eligibility && j.eligibility.status === 'blocked') && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
+    return jobs.filter((j) => j.status === 'new' && j.score != null && j.score >= thr && !(j.eligibility && j.eligibility.status === 'blocked') && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
   }
   // Host permissions a watchlist entry needs (optional_host_permissions, asked for in Admin on the first company).
   const radarHosts = (entry) => AJP.radar.boards.hostsFor(entry);
@@ -351,7 +351,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function radarAlert(now = Date.now()) {
     const [rs, jobs] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarJobs')]);
     const thr = Number(rs.threshold) || 60;
-    const pending = jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !j.notifiedAt && !(j.eligibility && j.eligibility.status === 'blocked'));
+    const pending = jobs.filter((j) => j.status === 'new' && j.score != null && j.score >= thr && !j.notifiedAt && !(j.eligibility && j.eligibility.status === 'blocked'));
     refreshBadgeSoon();
     if (!pending.length) return null;
     if (rs.notify === 'digest' && rs.lastDigestAt && now - Date.parse(rs.lastDigestAt) < 24 * 3600 * 1000) return null;
@@ -373,6 +373,42 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     log.info('Radar alert', { jobs: pending.length, companies: companies.length, mode: rs.notify });
     return { title, message, count: pending.length };
   }
+  // Preferences changed (titles, places, work types, tracks, work authorization, Job Radar filters): re-check the jobs
+  // already listed with them (local, instant), and remember it so Admin can offer "Restart search".
+  const radarPrefsSig = (p, rs) => JSON.stringify([p.targetRoles, p.areas, p.workTypes, (p.tracks || []).map((t) => [t.id, t.targetTitles, t.areas, t.workTypes]), p.autoApply && [p.autoApply.requireSponsorship, p.autoApply.citizen], rs.locations, rs.remote, rs.minSalary]);
+  async function radarRefilter() {
+    const [profile, rs] = await Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings')]);
+    const C = AJP.radar.core;
+    let removed = 0;
+    await serialRadar(() =>
+      AJP.store.update('radarJobs', (list) =>
+        list
+          .filter((j) => {
+            if (j.status !== 'new') return true;
+            const ok = C.quickFilter(j, rs, profile).pass;
+            if (!ok) removed++;
+            return ok;
+          })
+          .map((j) => (j.status === 'new' ? { ...j, eligibility: C.eligibility(j.description, profile), ...(j.descriptionLevel === 'title' ? { score: null } : {}) } : j))
+      )
+    );
+    await AJP.store.update('radarScanState', (s) => void ((s.prefsSig = radarPrefsSig(profile, rs)), (s.prefsChangedAt = Date.now())));
+    refreshBadgeSoon();
+    log.info('Radar list re-checked with your preferences', { removed });
+    return { removed };
+  }
+  const radarRefilterSoon = AJP.debounce(() => radarRefilter().catch((e) => log.warn('Radar re-check failed', { error: e.message })), 800);
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !(changes.profile || changes.radarSettings)) return;
+    Promise.all([AJP.store.get('profile'), AJP.store.get('radarSettings'), AJP.store.get('radarScanState')])
+      .then(([p, rs, st]) => {
+        const sig = radarPrefsSig(p, rs);
+        if (st.prefsSig !== sig) (st.prefsSig ? radarRefilterSoon() : AJP.store.update('radarScanState', (s) => void (s.prefsSig = sig)));
+      })
+      .catch((e) => log.warn('Radar preference check failed', { error: e.message }));
+  });
+  AJP.radarRefilter = radarRefilter; // tests
+
   async function radarScan(opts = {}) {
     const rs = await AJP.store.get('radarSettings');
     if (!rs.enabled && !opts.force && !opts.onlyKey) return { skipped: 'disabled' };
@@ -759,7 +795,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     // ---- Job Radar messages (docs/JOB-FINDER.md §13) ----
     async 'radar.status'() {
       const [rs, st, list] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarScanState'), AJP.store.get('radarWatchlist')]);
-      return { enabled: !!rs.enabled, running: !!(st.lockedAt && Date.now() - st.lockedAt < AJP.radar.scan.CONFIG.lockStaleMs), lastSummary: st.lastSummary || null, newCount: await radarNewCount(), companies: list.length };
+      return { prefsChangedAt: st.prefsChangedAt || null, enabled: !!rs.enabled, running: !!(st.lockedAt && Date.now() - st.lockedAt < AJP.radar.scan.CONFIG.lockStaleMs), lastSummary: st.lastSummary || null, newCount: await radarNewCount(), companies: list.length };
     },
     async 'radar.detect'({ url, html } = {}) {
       const hit = (url && AJP.radar.detect.fromUrl(url)) || (html && AJP.radar.detect.fromHtml(html, url));
@@ -811,6 +847,30 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     async 'radar.watch.list'() {
       return { entries: await AJP.store.get('radarWatchlist') };
     },
+    // Stop the running scan (the request in flight finishes; nothing resumes).
+    async 'radar.stop'() {
+      AJP.radar.scan.cancel();
+      for (let i = 0; i < 100; i++) {
+        const st = await AJP.store.get('radarScanState');
+        if (!st.lockedAt) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      log.info('Radar scan stopped by you');
+      return {};
+    },
+    // Restart with the current preferences: stop, re-check the list, forget which jobs were seen (so every company's
+    // jobs are judged again), start a fresh scan (your companies + a directory slice).
+    async 'radar.restart'() {
+      await handlers['radar.stop']();
+      const r = await radarRefilter();
+      await serialRadar(async () => {
+        const keep = new Set((await AJP.store.get('radarJobs')).map((j) => j.key));
+        await AJP.store.update('radarSeen', (seen) => Object.fromEntries(Object.entries(seen).filter(([k]) => keep.has(k))));
+        await AJP.store.update('radarScanState', (s) => void Object.assign(s, { dirAt: null, queue: [], done: [], prefsChangedAt: null }));
+      });
+      radarScan({ force: true }).catch((e) => log.warn('Radar restart scan failed', { code: AJP.toAppError(e).code }));
+      return { removed: r.removed, restarted: true };
+    },
     async 'radar.scanNow'({ key } = {}) {
       return { summary: await radarScan({ force: true, onlyKey: key || null }) };
     },
@@ -818,7 +878,8 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       const blocked = (j) => !!(j.eligibility && j.eligibility.status === 'blocked');
       const jobs = (await AJP.store.get('radarJobs')).filter((j) => (status === 'all' || j.status === status) && (eligible == null || blocked(j) !== !!eligible));
       const posted = (j) => Date.parse(j.postedAt || j.foundAt) || 0;
-      jobs.sort((a, b) => (sort === 'newest' ? posted(b) - posted(a) || (b.score || 0) - (a.score || 0) : (b.score || 0) - (a.score || 0) || posted(b) - posted(a)));
+      const sc = (j) => (j.score == null ? -1 : j.score);
+      jobs.sort((a, b) => (sort === 'newest' ? posted(b) - posted(a) || sc(b) - sc(a) : sc(b) - sc(a) || posted(b) - posted(a)));
       return { jobs: jobs.slice(0, limit) };
     },
     async 'radar.viewed'() {
