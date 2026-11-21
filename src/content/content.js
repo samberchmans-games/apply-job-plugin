@@ -32,6 +32,23 @@
     say(`${esc(r.error || 'Something went wrong.')}${r.hint ? `<br><span class="muted">${esc(r.hint)}</span>` : ''} <span class="muted code">(${esc(r.code || 'AJP-INTERNAL')})</span>`, true);
   };
 
+  // Job Radar: is this page (or a board it embeds) a supported job board? Then offer "Watch this company".
+  let radarChecked = '';
+  async function checkRadar() {
+    if (!isTop || radarChecked === location.href || !AJP.radar || !AJP.radar.detect) return;
+    radarChecked = location.href;
+    const D = AJP.radar.detect;
+    let url = D.fromUrl(location.href) ? location.href : '';
+    if (!url) {
+      const srcs = [...document.querySelectorAll('iframe[src], script[src], a[href*="greenhouse.io"], a[href*="lever.co"], a[href*="ashbyhq.com"]')].slice(0, 200).map((el) => el.src || el.href);
+      url = srcs.find((u) => D.fromUrl(u)) || '';
+    }
+    if (!url) return void (state.radar = null);
+    const r = await AJP.send('radar.detect', { url });
+    state.radar = r && r.ok !== false ? { url, key: r.key, label: r.label, watched: r.watched } : null;
+    render();
+  }
+
   async function analyze({ text = null, keepAi = false } = {}) {
     const t0 = performance.now();
     let job;
@@ -52,6 +69,7 @@
       return null;
     }
     state.error = '';
+    checkRadar().catch((e) => log.debug('Radar check skipped', { error: e.message }));
     if (!keepAi || jdText !== job.text) {
       state.aiSkills = null;
       state.aiUsed = false;
@@ -319,6 +337,24 @@
       AJP.send('openAdmin', { hash: 'applications' });
     },
 
+    // Job Radar: watch this company's job board. Without the board's permission yet, Admin opens with the link
+    // filled in (the browser only lets an extension page ask for it).
+    async watchCompany() {
+      const rd = state.radar;
+      if (!rd) return;
+      const r = await AJP.send('radar.watch.add', { url: rd.url });
+      if (r && r.code === 'AJP-RADAR-PERM') {
+        await AJP.send('openAdmin', { hash: 'radar?add=' + encodeURIComponent(rd.url) });
+        return say(`Allow access to ${AJP.panel.esc(rd.label)} in the Admin tab that just opened, then click Add.`);
+      }
+      if (!r || r.ok === false) return say(`${AJP.panel.esc((r && r.error) || 'Could not add the company.')} ${AJP.panel.esc((r && r.hint) || '')} (${AJP.panel.esc((r && r.code) || 'AJP-INTERNAL')})`, true);
+      rd.watched = true;
+      say(`🛰 Watching <b>${AJP.panel.esc(r.entry.companyName)}</b>${r.exists ? '' : `: ${r.entry.openJobs} open job${r.entry.openJobs === 1 ? '' : 's'} today`}. New jobs that fit you will appear in Job Radar. <a data-act="openRadar">Open Job Radar</a>`);
+    },
+    openRadar() {
+      AJP.send('openAdmin', { hash: 'radar' });
+    },
+
     async askYes() {
       const job = state.ask;
       state.ask = null;
@@ -532,6 +568,6 @@
       setTimeout(auto, 1200);
     }, 1000);
   }
-  AJP.contentHooks = { holdIfApplying, applyPhase, state }; // for tests only
+  AJP.contentHooks = { holdIfApplying, applyPhase, state, checkRadar, render, resetRadar: () => (radarChecked = "") }; // for tests only
   log.debug('Content ready', { host: location.hostname, top: isTop });
 })();

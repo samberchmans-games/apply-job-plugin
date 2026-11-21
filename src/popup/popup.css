@@ -10,3 +10,6 @@ button { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .err { color: #dc2626; margin-top: 8px; }
 footer { margin-top: 10px; color: var(--muted); font-size: 11px; }
+.radar { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; line-height: 1.5; }
+.radar ul { margin: 4px 0; padding-left: 16px; }
+.radar .muted { color: var(--muted); }

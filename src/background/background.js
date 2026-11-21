@@ -760,8 +760,10 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
     async 'radar.detect'({ url, html } = {}) {
       const hit = (url && AJP.radar.detect.fromUrl(url)) || (html && AJP.radar.detect.fromHtml(html, url));
-      if (!hit) throw AJP.err('RADAR_UNSUPPORTED', { url: url ? String(url).slice(0, 200) : undefined });
-      return { entry: hit, key: AJP.radar.detect.keyOf(hit), hosts: radarHosts(hit), label: AJP.radar.boards.get(hit.board) ? AJP.radar.boards.get(hit.board).label : hit.board };
+      if (!hit || !AJP.radar.boards.get(hit.board)) throw AJP.err('RADAR_UNSUPPORTED', { url: url ? String(url).slice(0, 200) : undefined, board: hit && hit.board });
+      const key = AJP.radar.detect.keyOf(hit);
+      const watched = (await AJP.store.get('radarWatchlist')).some((w) => w.key === key);
+      return { entry: hit, key, watched, hosts: radarHosts(hit), label: AJP.radar.boards.get(hit.board).label };
     },
     async 'radar.watch.add'(msg = {}) {
       return radarAdd(msg);

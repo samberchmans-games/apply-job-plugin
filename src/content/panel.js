@@ -50,6 +50,7 @@
   .msg.ask { background: #eff6ff; }
   .q { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-top: 6px; }
   .muted { color: #6b7280; font-size: 12px; }
+  .radar-line { margin-top: 6px; }
   .code { font-family: ui-monospace, Menlo, monospace; }
   a { color: #2563eb; cursor: pointer; }
   @media (prefers-color-scheme: dark) {
@@ -166,7 +167,8 @@
           <button class="b" data-act="tailor" ${dis('tailor')}>📝 Tailor resume</button>
           <button class="b p" data-act="autofill" ${dis('autofill')}>⚡ Autofill form</button>
           <button class="b" data-act="applied">✔ Mark applied</button>
-        </div>`;
+        </div>
+        ${state.radar ? `<div class="radar-line">${state.radar.watched ? `<span class="muted">🛰 You watch this company in Job Radar</span>` : `<button class="b small" data-act="watchCompany" title="Job Radar checks this company's ${esc(state.radar.label)} board every few hours and tells you about new jobs that fit you">🛰 Watch this company</button>`}</div>` : ''}`;
     } else if (state.held) {
       // An application held across pages (Apply → sign up / log in → form).
       const h = state.held;

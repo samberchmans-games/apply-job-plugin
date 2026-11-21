@@ -17,7 +17,7 @@
     if (background) {
       html = dir === 'admin'
         ? html.replace('<script src="tracker-view.js"></script>', '<script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="tracker-view.js"></script>')
-        : html.replace('<script src="popup.js"></script>', '<script src="../lib/skills-dictionary.js"></script><script src="../lib/matcher.js"></script><script src="../lib/ai.js"></script><script src="../lib/resume-engine.js"></script><script src="../lib/tracks.js"></script><script src="../lib/issue-report.js"></script><script src="../lib/pdf-writer.js"></script><script src="../background/background.js"></script>\n<script src="popup.js"></script>');
+        : html.replace('<script src="popup.js"></script>', '<script src="../lib/skills-dictionary.js"></script><script src="../lib/matcher.js"></script><script src="../lib/ai.js"></script><script src="../lib/resume-engine.js"></script><script src="../lib/tracks.js"></script><script src="../lib/issue-report.js"></script><script src="../lib/pdf-writer.js"></script><script src="../lib/radar-core.js"></script><script src="../lib/radar-detect.js"></script><script src="../lib/radar-boards.js"></script><script src="../lib/radar-scan.js"></script><script src="../background/background.js"></script>\n<script src="popup.js"></script>');
     }
     html = html.replace('<head>', `<head><base href="${new URL(`../src/${dir}/`, location.href).href}"><script>window.__SEED__=${JSON.stringify(seed)}</script>${before}`)
       .replace('<script src="../lib/core.js"></script>', '<script src="../../tests/mocks/browser-mock.js"></script><script>browser.storage.local.set(window.__SEED__)</script><script src="../lib/core.js"></script>');
@@ -556,6 +556,27 @@
     it('#radar?add=<link> (from "Watch this company") fills the link in', async () => {
       await load('admin.html', {}, { hash: 'radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'), background: true });
       await waitFor(() => $('#radarUrl').value === 'https://jobs.lever.co/globex', { msg: 'prefilled' });
+    });
+  }, { env: 'browser' });
+
+  describe('admin screens › popup Job Radar box', () => {
+    afterEach(closeFrame);
+    const job = (id, score) => ({ key: 'greenhouse:acme:' + id, board: 'greenhouse', company: 'acme', companyName: 'Acme Corp', title: 'Job ' + id, locations: [], url: 'https://boards.greenhouse.io/acme/jobs/' + id, score, status: 'new', foundAt: new Date().toISOString(), descriptionLevel: 'full' });
+    it('no companies yet → an invitation that opens Job Radar', async () => {
+      await load('popup.html', {}, { background: true });
+      await waitFor(() => !$('#radar').hidden, { msg: 'box' });
+      includes($('#radar').textContent, 'watch companies');
+      $('#radarAll').click();
+      await waitFor(() => w.browser.__created.some((t) => /admin\.html#radar/.test(t.url)), { msg: 'opened' });
+    });
+    it('new matches: the count (same as the badge), the top 5 by match, See all', async () => {
+      const jobs = [1, 2, 3, 4, 5, 6].map((n) => job(n, n * 10));
+      await load('popup.html', { radarJobs: jobs, radarWatchlist: [{ key: 'greenhouse:acme', board: 'greenhouse', company: 'acme', companyName: 'Acme Corp' }] }, { background: true });
+      await waitFor(() => !$('#radar').hidden, { msg: 'box' });
+      includes($('#radar').textContent, '1 new job match'); // only Job 6 (60%) reaches the default 60% threshold
+      eq([...$('#radar').querySelectorAll('li a')].map((a) => a.textContent), ['Job 6', 'Job 5', 'Job 4', 'Job 3', 'Job 2']);
+      $('#radar').querySelector('li a').click();
+      await waitFor(() => w.browser.__created.some((t) => t.url === 'https://boards.greenhouse.io/acme/jobs/6'), { msg: 'job opened' });
     });
   }, { env: 'browser' });
 })();

@@ -156,4 +156,59 @@
       await waitFor(() => mock.__created.some((t) => /admin\.html#radar/.test(t.url)), { msg: 'opened' });
     });
   }, { env: 'browser' });
+
+  describe('radar panel › Watch this company', () => {
+    beforeEach(before);
+    afterEach(() => {
+      after();
+      AJP.panel.remove();
+      document.querySelectorAll('.radar-test').forEach((n) => n.remove());
+      AJP.contentHooks.state.radar = null;
+    });
+    const shadow = () => document.querySelector('ajp-panel').shadowRoot;
+    const analysis = { score: 70, matched: [{ skill: 'Python', weight: 3, source: 'profile' }], missing: [], jdSkillCount: 1, ms: 1, fit: { workType: { job: ['remote'], wanted: ['remote'], ok: true }, salary: { job: { min: 150000, max: 190000, hourly: false }, ok: true }, location: { matched: null, ok: null } } };
+    it('the panel shows the button for a supported board, and "You watch" once watched', () => {
+      AJP.panel.render({ job: { title: 'Dev' }, analysis, radar: { url: 'https://boards.greenhouse.io/acme', label: 'Greenhouse', watched: false } }, {});
+      ok(shadow().querySelector('[data-act="watchCompany"]'));
+      AJP.panel.render({ job: { title: 'Dev' }, analysis, radar: { url: 'x', label: 'Greenhouse', watched: true } }, {});
+      notOk(shadow().querySelector('[data-act="watchCompany"]'));
+      includes(shadow().textContent, 'You watch this company');
+    });
+    it('detect: only boards Job Radar can read; says whether it is already watched', async () => {
+      eq((await AJP.send('radar.detect', { url: 'https://ats.rippling.com/vandelay/jobs' })).code, 'AJP-RADAR-UNSUP', 'no adapter yet');
+      net([[/boards\/acme\//, res(gh(['Data Engineer']))]]);
+      eq((await AJP.send('radar.detect', { url: 'https://boards.greenhouse.io/acme/jobs/1' })).watched, false);
+      await AJP.send('radar.watch.add', { url: 'https://boards.greenhouse.io/acme' });
+      eq((await AJP.send('radar.detect', { url: 'https://boards.greenhouse.io/acme/jobs/1' })).watched, true);
+    });
+    it('a company careers page that embeds a Greenhouse board is recognised', async () => {
+      const f = document.createElement('iframe');
+      f.className = 'radar-test';
+      f.setAttribute('src', 'about:blank#https://boards.greenhouse.io/embed/job_board?for=acme');
+      const a = document.createElement('a');
+      a.className = 'radar-test';
+      a.href = 'https://boards.greenhouse.io/embed/job_board?for=acme';
+      document.body.appendChild(a);
+      AJP.contentHooks.resetRadar();
+      await AJP.contentHooks.checkRadar();
+      eq([AJP.contentHooks.state.radar.key, AJP.contentHooks.state.radar.label], ['greenhouse:acme', 'Greenhouse']);
+    });
+    it('click: watched in one go when the board is allowed; without permission Admin opens with the link filled in', async () => {
+      net([[/boards\/acme\//, res(gh(['Data Engineer']))]]);
+      const st = AJP.contentHooks.state;
+      st.job = { title: 'Dev' };
+      st.analysis = analysis;
+      st.radar = { url: 'https://boards.greenhouse.io/acme', key: 'greenhouse:acme', label: 'Greenhouse', watched: false };
+      AJP.contentHooks.render();
+      shadow().querySelector('[data-act="watchCompany"]').click();
+      await waitFor(() => /Watching/.test(shadow().textContent), { msg: 'watching' });
+      eq((await AJP.send('radar.watch.list')).entries.map((e) => e.key), ['greenhouse:acme']);
+      st.radar = { url: 'https://jobs.lever.co/globex', key: 'lever:globex', label: 'Lever', watched: false };
+      mock.__created.length = 0;
+      AJP.contentHooks.render();
+      shadow().querySelector('[data-act="watchCompany"]').click();
+      await waitFor(() => mock.__created.some((t) => t.url.includes('#radar?add=' + encodeURIComponent('https://jobs.lever.co/globex'))), { msg: 'admin opened' });
+      includes(shadow().textContent, 'Allow access to Lever');
+    });
+  }, { env: 'browser' });
 })();
