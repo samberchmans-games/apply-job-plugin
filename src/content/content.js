@@ -40,7 +40,7 @@
     const D = AJP.radar.detect;
     let url = D.fromUrl(location.href) ? location.href : '';
     if (!url) {
-      const srcs = [...document.querySelectorAll('iframe[src], script[src], a[href*="greenhouse.io"], a[href*="lever.co"], a[href*="ashbyhq.com"]')].slice(0, 200).map((el) => el.src || el.href);
+      const srcs = [...document.querySelectorAll('iframe[src], script[src], ' + ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'recruitee.com', 'breezy.hr', 'smartrecruiters.com', 'rippling.com', 'personio.', 'teamtailor.com', 'myworkdayjobs.com'].map((h) => `a[href*="${h}"]`).join(', '))].slice(0, 200).map((el) => el.src || el.href);
       url = srcs.find((u) => D.fromUrl(u)) || '';
     }
     if (!url) return void (state.radar = null);

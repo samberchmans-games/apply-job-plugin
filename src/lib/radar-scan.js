@@ -127,7 +127,7 @@
           await counter.gate(req.url);
           body = await request(req, opts);
         }
-        const out = adapter.parseList(body, e, ctx);
+        const out = adapter.parseList(body, e, ctx, req);
         if (page === 0 && s === 0) total = out.total != null ? out.total : out.jobs.length;
         partials.push(...out.jobs);
         req = out.next;
@@ -287,15 +287,17 @@
     let e = { ...entry };
     let body;
     const first = (x) => (adapter.listRequests ? adapter.listRequests(x, ctx) : [adapter.listRequest(x, ctx)])[0];
+    let req = first(e);
     try {
-      body = await request(first(e), opts);
+      body = await request(req, opts);
     } catch (err) {
       const alt = AJP.toAppError(err).code === 'AJP-RADAR-404' && adapter.onNotFound && adapter.onNotFound(e);
       if (!alt) throw err;
       e = alt;
-      body = await request(first(e), opts);
+      req = first(e);
+      body = await request(req, opts);
     }
-    const out = adapter.parseList(body, e, ctx);
+    const out = adapter.parseList(body, e, ctx, req);
     const named = out.jobs.find((j) => j.companyName);
     return { entry: e, openJobs: out.total != null ? out.total : out.jobs.length, companyName: (named && named.companyName) || out.companyName || null };
   }

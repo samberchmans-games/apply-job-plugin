@@ -175,7 +175,7 @@
       includes(shadow().textContent, 'You watch this company');
     });
     it('detect: only boards Job Radar can read; says whether it is already watched', async () => {
-      eq((await AJP.send('radar.detect', { url: 'https://ats.rippling.com/vandelay/jobs' })).code, 'AJP-RADAR-UNSUP', 'no adapter yet');
+      eq((await AJP.send('radar.detect', { url: 'https://www.indeed.com/viewjob?jk=1' })).code, 'AJP-RADAR-UNSUP', 'no public feed');
       net([[/boards\/acme\//, res(gh(['Data Engineer']))]]);
       eq((await AJP.send('radar.detect', { url: 'https://boards.greenhouse.io/acme/jobs/1' })).watched, false);
       await AJP.send('radar.watch.add', { url: 'https://boards.greenhouse.io/acme' });
