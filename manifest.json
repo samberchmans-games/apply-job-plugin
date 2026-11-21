@@ -16,7 +16,8 @@
     "activeTab",
     "scripting",
     "contextMenus",
-    "alarms"
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
@@ -28,6 +29,22 @@
     "http://localhost:11434/*",
     "http://127.0.0.1:11434/*",
     "https://api.github.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://boards-api.greenhouse.io/*",
+    "https://api.lever.co/*",
+    "https://api.eu.lever.co/*",
+    "https://api.ashbyhq.com/*",
+    "https://apply.workable.com/*",
+    "https://*.recruitee.com/*",
+    "https://*.jobs.personio.de/*",
+    "https://*.jobs.personio.com/*",
+    "https://api.smartrecruiters.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.breezy.hr/*",
+    "https://*.teamtailor.com/*",
+    "https://ats.rippling.com/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "src/background/background.js",
@@ -45,6 +62,10 @@
       "src/lib/tracks.js",
       "src/lib/issue-report.js",
       "src/lib/pdf-writer.js",
+      "src/lib/radar-core.js",
+      "src/lib/radar-detect.js",
+      "src/lib/radar-boards.js",
+      "src/lib/radar-scan.js",
       "src/background/background.js"
     ]
   },
@@ -82,6 +103,7 @@
         "src/content/ats.js",
         "src/content/entries.js",
         "src/content/apply-detector.js",
+        "src/lib/radar-detect.js",
         "src/content/panel.js",
         "src/content/content.js"
       ],

@@ -104,6 +104,9 @@
       mock.__tabMsgs.length = 0;
       mock.__created.length = 0;
       mock.__injected.length = 0;
+      mock.__notes.length = 0;
+      mock.__granted.clear();
+      mock.__refuse = false;
     },
     runtime: {
       id: 'test-extension',
@@ -154,6 +157,30 @@
       },
     },
     contextMenus: { removeAll: async () => {}, create() {}, onClicked: { addListener() {} } },
+    // Optional host permissions: tests grant / refuse with __granted / __refuse.
+    __granted: new Set(),
+    __refuse: false,
+    permissions: {
+      async contains({ origins = [] }) {
+        return origins.every((o) => mock.__granted.has(o));
+      },
+      async request({ origins = [] }) {
+        if (mock.__refuse) return false;
+        origins.forEach((o) => mock.__granted.add(o));
+        return true;
+      },
+    },
+    __notes: [],
+    notifications: {
+      async create(id, opts) {
+        mock.__notes.push({ id, ...clone(opts) });
+        return id;
+      },
+      async clear() {
+        return true;
+      },
+      onClicked: { addListener: (fn) => (mock.__noteClick = fn) },
+    },
   };
 
   globalThis.browser = mock;

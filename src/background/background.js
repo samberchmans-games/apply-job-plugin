@@ -8,7 +8,7 @@
  */
 /* global importScripts */
 if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai)) {
-  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js');
+  importScripts('../lib/core.js', '../lib/logger.js', '../lib/errors.js', '../lib/storage.js', '../lib/skills-dictionary.js', '../lib/matcher.js', '../lib/experience.js', '../lib/ai.js', '../lib/tracker.js', '../lib/resume-engine.js', '../lib/tracks.js', '../lib/issue-report.js', '../lib/pdf-writer.js', '../lib/radar-core.js', '../lib/radar-detect.js', '../lib/radar-boards.js', '../lib/radar-scan.js');
 }
 
 (function () {
@@ -161,7 +161,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     try {
       const [apps, settings, promptState, reports] = await Promise.all([AJP.store.get('applications'), AJP.store.get('settings'), AJP.store.get('promptState'), AJP.store.get('reports')]);
       const due = AJP.tracker.dueFollowUps(apps, Date.now(), Number(settings.tracker.followUpDays) || 7);
-      // Priority: a problem to report (!) → a report that got fixed (✓) → follow-ups due (count).
+      // Priority: a problem to report (!) → a report that got fixed (✓) → new Job Radar matches (blue) → follow-ups due (amber).
       if (promptState.pending) {
         await api.action.setBadgeText({ text: '!' });
         await api.action.setBadgeBackgroundColor({ color: '#dc2626' });
@@ -170,6 +170,12 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       if (reports.some((r) => r.status === 'fixed' && r.seen === false)) {
         await api.action.setBadgeText({ text: '✓' });
         await api.action.setBadgeBackgroundColor({ color: '#059669' });
+        return due.length;
+      }
+      const radarNew = await radarNewCount();
+      if (radarNew) {
+        await api.action.setBadgeText({ text: String(radarNew) });
+        await api.action.setBadgeBackgroundColor({ color: '#2563eb' });
         return due.length;
       }
       await api.action.setBadgeText({ text: due.length ? String(due.length) : '' });
@@ -212,6 +218,23 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       log.warn('Retention alarm unavailable', { error: e.message });
     }
   }
+  // Job Radar: an hourly tick; radar-scan only scans companies whose interval (default 3 h) has passed.
+  if (api.alarms) {
+    try {
+      api.alarms.create('ajp-radar', { periodInMinutes: 60, delayInMinutes: 1 });
+      api.alarms.onAlarm.addListener((a) => a.name === 'ajp-radar' && radarScan().catch((e) => log[AJP.toAppError(e).code === 'AJP-RADAR-BUSY' ? 'debug' : 'warn']('Radar scan failed', { code: AJP.toAppError(e).code })));
+    } catch (e) {
+      log.warn('Radar alarm unavailable', { error: e.message });
+    }
+  }
+  if (api.notifications && api.notifications.onClicked) {
+    api.notifications.onClicked.addListener((id) => {
+      if (id !== 'ajp-radar') return;
+      handlers.openAdmin({ hash: 'radar' }).catch((e) => log.warn('Could not open Job Radar', { error: e.message }));
+    });
+  }
+  AJP.radarScan = radarScan; // tests
+  AJP.radarAlert = radarAlert;
   // AI model manager (ai.js): re-check each provider's current models once a day (model lists only, no AI usage),
   // so retired or renamed models are replaced before anyone hits them.
   async function refreshModelsIfStale() {
@@ -289,6 +312,78 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       .sort((x, y) => rank[x.importance] - rank[y.importance] || y.weight - x.weight)
       .slice(0, 10)
       .map((m) => ({ skill: m.skill, importance: m.importance, inProfile: mine.has(AJP.norm(m.skill)) }));
+  }
+
+  // ---- Job Radar (docs/JOB-FINDER.md) -----------------------------------------
+  // New matches since the user last looked at the list: the blue badge count.
+  async function radarNewCount() {
+    const [jobs, rs] = await Promise.all([AJP.store.get('radarJobs'), AJP.store.get('radarSettings')]);
+    const thr = Number(rs.threshold) || 60;
+    return jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && (!rs.lastViewedAt || String(j.foundAt) > rs.lastViewedAt)).length;
+  }
+  // Host permissions a watchlist entry needs (optional_host_permissions, asked for in Admin on the first company).
+  function radarHosts(entry) {
+    const a = AJP.radar.boards.get(entry.board);
+    const hosts = a ? [...a.hosts] : [];
+    if (entry.board === 'teamtailor' && entry.domain && !/\.teamtailor\.com$/.test(entry.domain)) hosts.push(`https://${entry.domain}/*`);
+    return hosts;
+  }
+  async function radarAllowed(entry) {
+    const origins = radarHosts(entry);
+    if (!origins.length || !api.permissions || !api.permissions.contains) return true;
+    try {
+      return await api.permissions.contains({ origins });
+    } catch (e) {
+      log.warn('Permission check failed', { board: entry.board, error: e.message });
+      return false;
+    }
+  }
+  const serialRadar = AJP.serial();
+  async function radarAdd(input, { fetchImpl } = {}) {
+    const found = input.url ? AJP.radar.detect.fromUrl(input.url) : input.board && input.company ? { board: input.board, company: input.company, ...(input.site ? { site: input.site } : {}), ...(input.region ? { region: input.region } : {}), ...(input.wd ? { wd: input.wd } : {}), ...(input.domain ? { domain: input.domain } : {}) } : null;
+    if (!found || !AJP.radar.boards.get(found.board)) throw AJP.err('RADAR_UNSUPPORTED', { url: input.url ? String(input.url).slice(0, 200) : undefined, board: found && found.board });
+    if (!(await radarAllowed(found))) throw AJP.err('RADAR_PERMISSION', { board: found.board, origins: radarHosts(found) });
+    const key = AJP.radar.detect.keyOf(found);
+    const existing = (await AJP.store.get('radarWatchlist')).find((w) => w.key === key);
+    if (existing) return { entry: existing, exists: true };
+    const probe = await AJP.radar.scan.probe(found, { fetchImpl });
+    const entry = { key, ...probe.entry, companyName: probe.companyName || found.company, paused: false, addedAt: new Date().toISOString(), lastScanAt: null, lastError: null, failuresInRow: 0, openJobs: probe.openJobs };
+    await serialRadar(() => AJP.store.update('radarWatchlist', (l) => (l.some((w) => w.key === key) ? l : [...l, entry])));
+    log.info('Radar company added', { board: entry.board, company: entry.company, openJobs: entry.openJobs });
+    return { entry, exists: false };
+  }
+  // Alert: per scan, or one daily summary (radarSettings.notify). Matches are announced once (notifiedAt).
+  async function radarAlert(now = Date.now()) {
+    const [rs, jobs] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarJobs')]);
+    const thr = Number(rs.threshold) || 60;
+    const pending = jobs.filter((j) => j.status === 'new' && (j.score || 0) >= thr && !j.notifiedAt);
+    refreshBadgeSoon();
+    if (!pending.length) return null;
+    if (rs.notify === 'digest' && rs.lastDigestAt && now - Date.parse(rs.lastDigestAt) < 24 * 3600 * 1000) return null;
+    const companies = [...new Set(pending.map((j) => j.companyName))];
+    const title = `${pending.length} new job${pending.length === 1 ? '' : 's'} at ${thr}%+ match`;
+    const message = `${companies.slice(0, 3).join(', ')}${companies.length > 3 ? ` and ${companies.length - 3} more` : ''}`;
+    const keys = new Set(pending.map((j) => j.key));
+    await serialRadar(async () => {
+      await AJP.store.update('radarJobs', (l) => l.map((j) => (keys.has(j.key) ? { ...j, notifiedAt: new Date(now).toISOString() } : j)));
+      await AJP.store.update('radarSettings', (s) => void (s.lastDigestAt = new Date(now).toISOString()));
+    });
+    if (api.notifications && api.notifications.create) {
+      try {
+        await api.notifications.create('ajp-radar', { type: 'basic', iconUrl: api.runtime.getURL('icons/icon-128.png'), title, message });
+      } catch (e) {
+        log.warn('Notification failed; the badge and lists still show the jobs', { error: e.message });
+      }
+    }
+    log.info('Radar alert', { jobs: pending.length, companies: companies.length, mode: rs.notify });
+    return { title, message, count: pending.length };
+  }
+  async function radarScan(opts = {}) {
+    const rs = await AJP.store.get('radarSettings');
+    if (!rs.enabled && !opts.force && !opts.onlyKey) return { skipped: 'disabled' };
+    const summary = await AJP.radar.scan.run(opts);
+    summary.alert = await radarAlert();
+    return summary;
   }
 
   // ---- Message handlers ------------------------------------------------------
@@ -661,6 +756,106 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       if (!job) return {};
       await serialData(() => AJP.store.update('tabJobs', (all) => void (all.__pending = { job: { ...job, jobKey: AJP.tracker.jobKey(job.url) }, at: Date.now() })));
       return {};
+    },
+
+    // ---- Job Radar messages (docs/JOB-FINDER.md §13) ----
+    async 'radar.status'() {
+      const [rs, st, list] = await Promise.all([AJP.store.get('radarSettings'), AJP.store.get('radarScanState'), AJP.store.get('radarWatchlist')]);
+      return { enabled: !!rs.enabled, running: !!(st.lockedAt && Date.now() - st.lockedAt < AJP.radar.scan.CONFIG.lockStaleMs), lastSummary: st.lastSummary || null, newCount: await radarNewCount(), companies: list.length };
+    },
+    async 'radar.detect'({ url, html } = {}) {
+      const hit = (url && AJP.radar.detect.fromUrl(url)) || (html && AJP.radar.detect.fromHtml(html, url));
+      if (!hit) throw AJP.err('RADAR_UNSUPPORTED', { url: url ? String(url).slice(0, 200) : undefined });
+      return { entry: hit, key: AJP.radar.detect.keyOf(hit), hosts: radarHosts(hit), label: AJP.radar.boards.get(hit.board) ? AJP.radar.boards.get(hit.board).label : hit.board };
+    },
+    async 'radar.watch.add'(msg = {}) {
+      return radarAdd(msg);
+    },
+    async 'radar.watch.addList'({ text = '' } = {}) {
+      const lines = [...new Set(String(text).split(/[\r\n,;]+/).map((l) => l.trim().replace(/^["']|["']$/g, '')).filter((l) => l && !/^#/.test(l)))].slice(0, 300);
+      const added = [];
+      const skipped = [];
+      for (const line of lines) {
+        try {
+          const r = await radarAdd({ url: line });
+          (r.exists ? skipped : added).push(r.exists ? { line, reason: 'Already in the watchlist' } : { line, entry: r.entry });
+        } catch (e) {
+          const d = AJP.describeError(e);
+          skipped.push({ line, reason: d.message, code: d.code });
+        }
+      }
+      if (skipped.length) log.info('Radar list: some lines skipped', { added: added.length, skipped: skipped.length, codes: [...new Set(skipped.map((s) => s.code).filter(Boolean))] });
+      return { added, skipped };
+    },
+    async 'radar.watch.update'({ key, paused, companyName } = {}) {
+      let out = null;
+      await serialRadar(() =>
+        AJP.store.update('radarWatchlist', (l) =>
+          l.map((w) => {
+            if (w.key !== key) return w;
+            out = { ...w, ...(paused != null ? { paused: !!paused } : {}), ...(paused === false ? { failuresInRow: 0, lastError: null } : {}), ...(companyName ? { companyName: String(companyName).slice(0, 80) } : {}) };
+            return out;
+          })
+        )
+      );
+      return { entry: out };
+    },
+    async 'radar.watch.remove'({ key } = {}) {
+      await serialRadar(async () => {
+        await AJP.store.update('radarWatchlist', (l) => l.filter((w) => w.key !== key));
+        await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && `${j.board}:${j.company}` === key.split(':').slice(0, 2).join(':'))));
+      });
+      refreshBadgeSoon();
+      return {};
+    },
+    async 'radar.watch.list'() {
+      return { entries: await AJP.store.get('radarWatchlist') };
+    },
+    async 'radar.scanNow'({ key } = {}) {
+      return { summary: await radarScan({ force: true, onlyKey: key || null }) };
+    },
+    async 'radar.jobs'({ status = 'new', limit = 200 } = {}) {
+      const jobs = (await AJP.store.get('radarJobs')).filter((j) => status === 'all' || j.status === status);
+      jobs.sort((a, b) => (b.score || 0) - (a.score || 0) || String(b.foundAt).localeCompare(String(a.foundAt)));
+      return { jobs: jobs.slice(0, limit) };
+    },
+    async 'radar.viewed'() {
+      await serialRadar(() => AJP.store.update('radarSettings', (s) => void (s.lastViewedAt = new Date().toISOString())));
+      await refreshBadge();
+      return {};
+    },
+    async 'radar.job.update'({ key, status } = {}) {
+      if (!['new', 'saved', 'dismissed'].includes(status)) throw AJP.err('INTERNAL', { original: 'bad status ' + status });
+      let job = null;
+      await serialRadar(() => AJP.store.update('radarJobs', (l) => l.map((j) => (j.key === key ? (job = { ...j, status, ...(status === 'dismissed' ? { dismissedAt: new Date().toISOString() } : {}) }) : j))));
+      if (!job) return { job: null };
+      let app = null;
+      if (status === 'saved') {
+        app = await saveApplication({ url: job.url, company: job.companyName, title: job.title, location: job.locations.join('; '), score: job.score, trackId: job.bestTrackId, status: 'in progress', source: 'Job Radar', snapshot: { jd: job.description, salary: job.salary, location: job.locations.join('; '), source: 'Job Radar', savedAt: new Date().toISOString() } }, null);
+        log.info('Radar job saved to Applications', { board: job.board });
+      }
+      refreshBadgeSoon();
+      return { job, app };
+    },
+    async 'radar.settings.get'() {
+      return { settings: await AJP.store.get('radarSettings') };
+    },
+    async 'radar.settings.save'({ settings = {} } = {}) {
+      const allowed = ['enabled', 'intervalHours', 'threshold', 'locations', 'remote', 'minSalary', 'notify'];
+      let out = null;
+      await serialRadar(() =>
+        AJP.store.update('radarSettings', (s) => {
+          for (const k of allowed) if (k in settings) s[k] = settings[k];
+          s.intervalHours = Math.max(AJP.radar.scan.CONFIG.minIntervalHours, Math.min(48, Number(s.intervalHours) || 3));
+          s.threshold = Math.max(0, Math.min(100, Number(s.threshold) || 60));
+          s.locations = (Array.isArray(s.locations) ? s.locations : String(s.locations || '').split(/[;\n]+/)).map((x) => String(x).trim()).filter(Boolean).slice(0, 20);
+          if (!['any', 'remote', 'hybrid', 'onsite'].includes(s.remote)) s.remote = 'any';
+          if (!['perScan', 'digest'].includes(s.notify)) s.notify = 'digest';
+          out = { ...s };
+        })
+      );
+      refreshBadgeSoon();
+      return { settings: out };
     },
 
     // Admin → AI settings → "Re-check models now": forget remembered / set-aside models, read the current lists.
