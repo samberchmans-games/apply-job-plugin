@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Job Radar: a JD's general years and its leading / managing years are read separately; leadership years never filter a job out; cards show both; 1310 tests |
+| 2026-11-21 | `54915b0` | Job Radar: a JD's general years and its leading / managing years are read separately; leadership years never filter a job out; cards show both; 1310 tests |
 | 2026-11-21 | `e902f9d` | Job Radar levels near your experience: with 8+ years Senior / Lead / Staff / Principal (no junior roles), years asked near yours, management titles only via a management track; "asks N+ yrs" on cards; 1305 tests |
 | 2026-11-21 | `a039d1f` | Job Radar relevance (B40): a listed job must share at least 2 of your technical skills (soft skills don't count); "data center" / "data entry" aren't data work; listed jobs re-scored and re-checked once; 1300 tests |
 | 2026-11-21 | `ceb7a46` | Job Radar: level words ignored in titles (B39); scans end after 4 min and resume, heartbeat lock, Stop clears a dead scan's lock (B38); 25 jobs per page; listed jobs re-checked once when rules change; 1293 tests |
