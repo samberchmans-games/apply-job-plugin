@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending) | Fixed B26: OpenRouter picks capable free models (never small "flash" ones first, never paid), and a free model busy upstream is swapped for another free model instead of failing; 1130 tests |
+| 2026-11-21 | `8fafc85` | Fixed B26: OpenRouter picks capable free models (never small "flash" ones first, never paid), and a free model busy upstream is swapped for another free model instead of failing; 1130 tests |
 | 2026-11-21 | `6c96c9a` | **More AI providers**: Anthropic Claude (paid, optional, bring your own key; default Opus 5.5, "Tailoring model" for Sonnet / Haiku; refusal and no-credit errors; server-side fallback), NVIDIA NIM and Mistral (free keys); model discovery for all three; backups blank every key; 1126 tests |
 | 2026-11-20 | `d37a86a` | **Which AI did the work**: Recent AI calls in Admin (task, provider · model, time, result; no prompts); test buttons, panel (tailoring, deep analysis, drafted answers) and review screen name the provider · model; 1105 tests |
 | 2026-11-20 | `f747ede` | Retired AI models replaced automatically: on "model not found" the provider's model list is read, a capable chat model picked and remembered (Groq, Gemini, OpenRouter); 1101 tests |
