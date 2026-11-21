@@ -273,7 +273,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 
 | Date | Commit | Change |
 |---|---|---|
-| 2026-11-21 | (pending, `feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |
+| 2026-11-21 | `e4f673d` (`feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |
 | 2026-11-21 | `bc06f86` | Fixed B42: NVIDIA default moved to a current fast model; ranking prefers fast chat models and keeps fallbacks; 410 Gone replaces the model in the same call; saved shortlists rebuilt once; 1318 tests |
 | 2026-11-21 | `f6f853d` | Fixed B41: a busy AI no longer holds tailoring for minutes (60 s per model, 75 s budget); the panel offers "Try with …" for your other keys, never switching providers by itself; 1315 tests |
 | 2026-11-21 | `54915b0` | Job Radar: a JD's general years and its leading / managing years are read separately; leadership years never filter a job out; cards show both; 1310 tests |
