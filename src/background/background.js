@@ -451,7 +451,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Resume enhancement v2 — see src/lib/resume-engine.js for the rules.
-    async 'resume.enhance'({ jd, job, trackId, score }, sender, { tid, log: mlog }) {
+    async 'resume.enhance'({ jd, job, trackId, score, via }, sender, { tid, log: mlog }) {
       const E = AJP.resumeEngine;
       // Tailoring is for close matches only: a small honest lift, never a rewrite to chase a far-off job.
       const lim = E.limits(await AJP.store.get('settings'));
@@ -462,13 +462,13 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       if (!doc.bullets.length) throw AJP.err('RESUME_STRUCTURE', { lines: doc.lines.length });
 
       // 1) requirements + evidence (AI) → 2) verify quotes (code)
-      const analysis = await AJP.ai.tasks.analyzeForResume({ jd, resumeText: ctx.resumeText, tid });
+      const analysis = await AJP.ai.tasks.analyzeForResume({ jd, resumeText: ctx.resumeText, tid, via });
       const { requirements, droppedQuotes } = E.verifyRequirements(analysis.requirements, ctx.resumeText);
       const ats = (Array.isArray(analysis.ats_keywords) ? analysis.ats_keywords : []).map(String).slice(0, 20);
       const skills = (ctx.profile.skills || []).map((x) => x.name || x);
 
       // 3) targeted edits (AI) → 4) validate every edit (code)
-      const proposal = await AJP.ai.tasks.proposeResumeEdits({ doc, requirements, atsKeywords: ats, skills, job, maxEdits: lim.maxEdits, tid });
+      const proposal = await AJP.ai.tasks.proposeResumeEdits({ doc, requirements, atsKeywords: ats, skills, job, maxEdits: lim.maxEdits, tid, via });
       const vctx = { doc, resumeText: ctx.resumeText, jdText: jd, allowedSkills: E.allowedSkills(doc, ctx.resumeText, ctx.profile.skills) };
       const seen = new Set();
       const proposed = (Array.isArray(proposal.edits) ? proposal.edits : []).slice(0, 20).map((e, i) => {
@@ -524,6 +524,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         skillPicks: [],
         confirmedSkills: [],
         ai: AJP.ai.last ? { provider: AJP.ai.last.provider, model: AJP.ai.last.model, label: AJP.ai.last.label } : null, // who tailored it
+        via: via || '', // the provider picked for this job: adding skills in the review stays with it
       };
       await serialData(() => AJP.store.update('enhancements', (list) => [draft, ...list].slice(0, 20)));
       const blockedBy = {};
@@ -567,7 +568,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       let ai = [];
       if (list.length) {
         try {
-          const r = await AJP.ai.tasks.weaveSkills({ picks: list.map((p) => ({ ...p, lines: linesOf(p.role).map((b) => ({ id: b.id, text: b.text })) })), job: d.job, tid });
+          const r = await AJP.ai.tasks.weaveSkills({ picks: list.map((p) => ({ ...p, lines: linesOf(p.role).map((b) => ({ id: b.id, text: b.text })) })), job: d.job, tid, via: d.via || '' });
           ai = Array.isArray(r && r.edits) ? r.edits : [];
         } catch (e) {
           const x = AJP.toAppError(e);
@@ -723,6 +724,10 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     },
 
     // Chrome built-in AI as the background sees it (that's where AI calls run).
+    async 'ai.alternatives'({ exclude } = {}) {
+      return AJP.ai.alternatives(exclude);
+    },
+
     async 'ai.localStatus'() {
       return AJP.ai.local.status();
     },

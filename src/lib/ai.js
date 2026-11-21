@@ -34,7 +34,7 @@
   // patienceMs: for resume tailoring, a free-tier rate limit ("try again in 20s") is waited out once, up to this long.
   // testTimeoutMs: "Test connection" asks for one word; a model that can't say OK in 30 s is not usable anyway.
   // tries: one retry of a temporary failure on the same model, then the model manager moves on to the next model.
-  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
+  const CONFIG = { timeoutMs: 90000, testTimeoutMs: 30000, listTimeoutMs: 15000, tailorTimeoutMs: 60000, chainMs: 75000, maxSwitches: 2, tries: 2, localMaxChars: 16000, patienceMs: 60000 }; // tests shorten these
 
   // Network goes through the shared standard (errors.js AJP.http): timeout, coded errors, retries for
   // temporary failures (server errors, network blips, short rate-limit waits). Timeouts are not retried
@@ -520,17 +520,22 @@
    * group 'tailor' uses settings.ai.tailorProvider when set (e.g. Chrome built-in AI for everyday tasks, Gemini or Groq
    * for resume tailoring). patient: wait out one free-tier rate limit of up to CONFIG.patienceMs, then retry.
    */
-  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false, timeoutMs }) {
+  async function complete({ system, prompt, json = false, task = 'complete', tid, group = '', patient = false, timeoutMs, via = '' }) {
     const settings = await AJP.store.get('settings');
     const cfg = { ...settings.ai, timeoutMs: timeoutMs || CONFIG.timeoutMs };
-    const own = group === 'tailor' && cfg.tailorProvider && cfg.tailorProvider !== cfg.provider && PROVIDERS[cfg.tailorProvider] ? cfg.tailorProvider : null;
+    // via: a provider the user just picked for this job ("Try with Groq"). Never chosen automatically: resume text only
+    // goes to a provider the user chose.
+    const chosen = via && PROVIDERS[via] && via !== 'none' ? via : null;
+    const own = chosen || (group === 'tailor' && cfg.tailorProvider && cfg.tailorProvider !== cfg.provider && PROVIDERS[cfg.tailorProvider] ? cfg.tailorProvider : null);
     const provider = own || cfg.provider;
     const p = PROVIDERS[provider];
     if (!p || provider === 'none') throw AJP.err('AI_OFF');
     if (p.needsKey && !cfg.keys[provider]) throw AJP.err('AI_NO_KEY', { provider });
     // The Model field belongs to the main provider, "Tailoring model" to the tailoring provider; the model manager
     // (above) picks the rest and moves on by itself when a model is gone, slow or busy.
-    const pinned = own ? cfg.tailorModel : cfg.model;
+    const pinned = chosen ? '' : own ? cfg.tailorModel : cfg.model;
+    // Cloud tailoring gives up on one model sooner, so a busy provider doesn't hold the panel for minutes.
+    if (patient && !timeoutMs && !p.local && provider !== 'ollama') cfg.timeoutMs = Math.min(cfg.timeoutMs, CONFIG.tailorTimeoutMs);
     const health = await AJP.store.get('modelHealth');
     let list = candidates(provider, pinned, cfg, health);
     let model = list[0];
@@ -567,6 +572,10 @@
           if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
           tried.add(model);
           await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x) : undefined);
+          if (why !== 'gone' && performance.now() - t0 > CONFIG.chainMs) {
+            path.push({ model, why });
+            throw e; // the provider is having a bad moment: tell the user now instead of trying more models
+          }
           let next = list.find((m) => !tried.has(m));
           if (!refreshed && (why === 'gone' || stale || !next)) {
             refreshed = true;
@@ -612,6 +621,17 @@
     }
   }
 
+  // The user's other cloud AI keys, offered as a one-click choice when the tailoring AI is busy. Free ones first.
+  async function alternatives(exclude = '') {
+    const cfg = (await AJP.store.get('settings')).ai;
+    const current = exclude || cfg.tailorProvider || cfg.provider;
+    const name = (k) => (PROVIDERS[k] ? PROVIDERS[k].label.replace(/\s*\(.*$/, '') : k);
+    const options = ['groq', 'nvidia', 'mistral', 'gemini', 'openrouter', 'anthropic']
+      .filter((k) => k !== current && cfg.keys && cfg.keys[k])
+      .map((k) => ({ id: k, label: name(k), paid: !!PROVIDERS[k].paid }));
+    return { current: name(current), options };
+  }
+
   const clip = (s, n) => (String(s || '').length > n ? String(s).slice(0, n) + '\n…[truncated]' : String(s || ''));
 
   function skillList(profile) {
@@ -637,15 +657,15 @@
 
     // Resume enhancement v2, stage 1: requirements + evidence (prompt lives in resume-engine.js).
     // A job that lists several skills has several requirements: a reply with fewer than 3 is asked again, once.
-    async analyzeForResume({ jd, resumeText, tid }) {
+    async analyzeForResume({ jd, resumeText, tid, via }) {
       const p = AJP.resumeEngine.analyzePrompt({ jd, resumeText });
-      const first = await complete({ task: 'resume.analyze', tid, json: true, group: 'tailor', patient: true, ...p });
+      const first = await complete({ task: 'resume.analyze', tid, via, json: true, group: 'tailor', patient: true, ...p });
       const n = Array.isArray(first && first.requirements) ? first.requirements.length : 0;
       const listed = AJP.matcher ? AJP.matcher.findSkills(jd).size : 0;
       if (n >= 3 || listed < 5) return first;
       AJP.logger('ai').info('Too few requirements from the AI; asking again once', { got: n, jobSkills: listed });
       const again = await complete({
-        task: 'resume.analyze.retry', tid, json: true, group: 'tailor', patient: true, system: p.system,
+        task: 'resume.analyze.retry', tid, via, json: true, group: 'tailor', patient: true, system: p.system,
         prompt: p.prompt + `\n\nIMPORTANT: Your previous answer listed only ${n} requirement${n === 1 ? '' : 's'}, but this job names at least ${listed} distinct skills or tools. ` +
           'List 6 to 15 SEPARATE requirements, one per skill, tool, responsibility or qualification. Split combined ones ("AWS, Glue and Snowflake" = three requirements).',
       });
@@ -654,13 +674,13 @@
     },
 
     // Stage 3: targeted, evidence-backed edits (at most maxEdits: a light touch, not a rewrite).
-    proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, maxEdits, tid }) {
-      return complete({ task: 'resume.edits', tid, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits }) });
+    proposeResumeEdits({ doc, requirements, atsKeywords, skills, job, maxEdits, tid, via }) {
+      return complete({ task: 'resume.edits', tid, via, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.editsPrompt({ doc, requirements, atsKeywords, skills, job, maxEdits }) });
     },
 
     // Skills the user CONFIRMED, each written into one line of the job they chose.
-    weaveSkills({ picks, job, tid }) {
-      return complete({ task: 'resume.weaveSkills', tid, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.weavePrompt({ picks, job }) });
+    weaveSkills({ picks, job, tid, via }) {
+      return complete({ task: 'resume.weaveSkills', tid, via, json: true, group: 'tailor', patient: true, ...AJP.resumeEngine.weavePrompt({ picks, job }) });
     },
 
     draftAnswer({ question, jd, resumeText, profile, job, maxWords, tid }) {
@@ -686,5 +706,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels }, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels }, alternatives, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
 })();

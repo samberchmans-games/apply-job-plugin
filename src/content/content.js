@@ -205,7 +205,7 @@
       await analyze({ text: state.job && state.job.source === 'selection' ? jdText : null, keepAi: true });
     },
 
-    async tailor() {
+    async tailor(via) {
       // Tailoring is for close matches: an honest edit lifts a good fit by ~10–15 points; it can't (and shouldn't)
       // turn a 40% match into a fit. Below the minimum, explain and show the biggest gaps instead.
       const t = (await AJP.store.get('settings')).tailoring || {};
@@ -226,10 +226,23 @@
       state.busy = 'tailor';
       say('Reading the job’s requirements and matching them to your resume — this takes ~20–40s (a free AI limit can add a short wait; it retries by itself)…');
       const tr = AJP.startTrace('panel.enhanceResume', { mod: 'content', slowMs: 90000 });
-      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef(), score }, tr);
+      const r = await AJP.send('resume.enhance', { jd: jdText, job: jobMeta(), ...trackRef(), score, ...(via ? { via } : {}) }, tr);
       state.busy = '';
       if (!r.ok) {
         tr.fail(r);
+        // The AI is busy: offer the user's other keys. One click each, because the resume would go to that provider.
+        if (['AJP-AI-5XX', 'AJP-AI-TIME', 'AJP-AI-429', 'AJP-AI-NET'].includes(r.code)) {
+          const alt = await AJP.send('ai.alternatives', via ? { exclude: via } : {});
+          if (alt && alt.ok !== false && alt.options.length) {
+            const esc = AJP.panel.esc;
+            return say(
+              `<b>${esc(alt.current)} is busy or not answering right now.</b> Try again shortly, or use another AI you set up (your resume and this job go to the one you pick):` +
+                `<div class="btns">${alt.options.map((o) => `<button class="b small" data-act="tailor" data-arg="${esc(o.id)}">Try with ${esc(o.label)}${o.paid ? ' (paid)' : ''}</button>`).join('')}</div>` +
+                `<span class="muted code">(${esc(r.code)})</span>`,
+              true
+            );
+          }
+        }
         return fail(r);
       }
       const d = r.draft;

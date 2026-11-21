@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1310). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1315). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1310** tests in headless Chrome. This is the full suite: the 642 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1315** tests in headless Chrome. This is the full suite: the 642 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -151,6 +151,7 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | D17 | Claude: type `claude-haiku-5-5` as Tailoring model and tailor again; then try a key with no credit (or a wrong key) | Recent AI calls shows `claude-haiku-5-5`; no credit → "no API credit left (AJP-AI-CREDIT)"; wrong key → AJP-AI-401; everyday tasks stay on your main provider throughout |
 | D18 | OpenRouter with a free key → Test connection (try a few times across the day) | "✅ Works (OpenRouter · …)" with a capable free model (e.g. Llama 3.3 70B, gpt-oss-120b); when a free model is busy upstream it switches to another by itself; only your own daily limit shows AJP-AI-429 |
 | D19 | Gemini: Test connection and Test tailoring AI (the default is now gemini-3.6-flash; Google deprecated 2.5-flash) | Either "✅ Works (Google Gemini · model)" or, within ~30 s, an error that names the model; AI settings says models are chosen automatically and shows "Now using …" (and anything set aside); no manual step is needed |
+| D20 | Tailor while your AI is overloaded (AJP-AI-5XX), with another key saved | Within about 2 minutes the panel says it is busy and shows **Try with Groq** (etc.); nothing goes to another AI until you click; the click tailors this job only, and your saved AI stays the same |
 | D11 | Tailor on a job below 70% | The panel explains ("tailoring starts at 70%") and lists the biggest gaps; nothing is sent to the AI |
 | D12 | Tailor a 70%+ job, tick 3 skills you have, keep the default jobs, then move one | 2 go to your current job and 1 to the previous by default; the moved one appears in the job you chose; the meter stops at your match + 15 |
 | D1 | On a job page → panel → **📝 Tailor resume** | Within ~40 s: "N job requirements: x strong, y partial, z not in your resume · M suggested edits · keywords a% → b% · Review →" |

@@ -361,6 +361,59 @@
     });
   }, { env: 'browser' });
 
+  describe('providers › the tailoring AI is busy (your AJP-AI-5XX report)', () => {
+    const busy = () => json({ error: { code: 503, message: 'This model is currently experiencing high demand.', status: 'UNAVAILABLE' } }, 503);
+    const REPLY = { ...REQ, edits: [] };
+    beforeEach(async () => {
+      await before();
+      await settings({ provider: 'gemini', model: '', tailorProvider: 'gemini', tailorModel: '', resolvedModels: {}, keys: { ...KEYS, gemini: 'g', groq: 'gsk' } });
+      await AJP.store.update('resumes', (r) => void Object.assign(r, { activeId: 'r', items: [{ id: 'r', name: 'R', text: '# Ana\n## Experience\n### Engineer, Acme\n- Built Python pipelines\n- Improved SQL reports' }] }));
+    });
+    afterEach(() => {
+      after();
+      AJP.panel.remove();
+      Object.assign(AJP.contentHooks.state, { job: null, analysis: null, message: '', messageErr: false, busy: '' });
+    });
+    it('a busy provider never sends the resume to another provider by itself', async () => {
+      fake(busy);
+      const r = await AJP.send('resume.enhance', { jd: JD, job: { title: 'Data Engineer' }, score: 80 });
+      eq(r.code, 'AJP-AI-5XX');
+      ok(calls.every((c) => /generativelanguage/.test(c.url)), calls.map((c) => c.url).join(' '));
+    });
+    it('alternatives: your other keys, free first, Claude marked paid; never the busy one', async () => {
+      const a = await AJP.send('ai.alternatives');
+      eq([a.current, a.options.map((o) => o.id), a.options.find((o) => o.id === 'anthropic').paid], ['Google Gemini', ['groq', 'nvidia', 'mistral', 'anthropic'], true]);
+    });
+    it('"Try with Groq": this job goes to Groq, the saved tailoring AI stays Gemini', async () => {
+      fake(() => openai(JSON.stringify(REPLY)));
+      const r = await AJP.send('resume.enhance', { jd: JD, job: { title: 'Data Engineer' }, score: 80, via: 'groq' });
+      ok(r.ok !== false && r.draft, JSON.stringify(r).slice(0, 200));
+      ok(calls.length && calls.every((c) => /api\.groq\.com/.test(c.url)));
+      eq([r.draft.via, r.draft.ai.provider], ['groq', 'groq']);
+      eq((await AJP.store.get('settings')).ai.tailorProvider, 'gemini');
+    });
+    it('after the time budget it stops trying more models', async () => {
+      AJP.ai.CONFIG.chainMs = -1;
+      fake(busy);
+      await AJP.send('resume.enhance', { jd: JD, job: { title: 'Data Engineer' }, score: 80 });
+      eq(calls.length, 1);
+    });
+    it('the panel offers one button per other key; clicking it tailors with that AI', async () => {
+      const st = AJP.contentHooks.state;
+      Object.assign(st, { job: { title: 'Data Engineer', company: 'Acme' }, analysis: { score: 80, matched: [{ skill: 'Python', weight: 3, source: 'profile' }], missing: [], jdSkillCount: 1, ms: 1, fit: { workType: { job: ['remote'], wanted: ['remote'], ok: true }, salary: { job: { min: 150000, max: 190000, hourly: false }, ok: true }, location: { matched: null, ok: null } } } });
+      fake(busy);
+      AJP.contentHooks.render();
+      const root = () => document.querySelector('ajp-panel').shadowRoot;
+      root().querySelector('[data-act="tailor"]').click();
+      await globalThis.AJPTest.waitFor(() => root().querySelector('[data-act="tailor"][data-arg="groq"]'), { msg: 'offer' });
+      ok(/your resume and this job go to the one you pick/.test(root().textContent));
+      fake(() => openai(JSON.stringify(REPLY)));
+      root().querySelector('[data-act="tailor"][data-arg="groq"]').click();
+      await globalThis.AJPTest.waitFor(() => /job requirements/.test(root().textContent), { msg: 'tailored' });
+      ok(calls.every((c) => /api\.groq\.com/.test(c.url)));
+    });
+  }, { env: 'browser' });
+
   describe('providers › keys stay private', () => {
     beforeEach(before);
     afterEach(after);
