@@ -480,7 +480,7 @@
       await waitFor(async () => (await stored('settings')).ai.tailorModel === 'claude-haiku-5-5', { msg: 'tailor model saved' });
       change($('#aiTailor'), 'nvidia');
       await waitFor(() => $('#aiPaidNote').hidden, { msg: 'note hidden' });
-      eq($('#aiTailorModel').placeholder, 'meta/llama-3.3-70b-instruct');
+      eq($('#aiTailorModel').placeholder, 'z-ai/glm-5.3-flash');
     });
     it('the model in use is shown (chosen automatically); "Re-check models now" starts over', async () => {
       await load('admin.html', { modelHealth: { gemini: { last: 'gemini-3.1-flash-preview', ok: { 'gemini-3.1-flash-preview': Date.now() } } } }, { hash: 'ai' });

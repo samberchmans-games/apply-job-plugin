@@ -144,7 +144,7 @@
       eq((await AJP.ai.tasks.analyzeForResume({ jd: JD, resumeText: '- x' })).requirements.length, 6);
       eq(calls[0].url, 'https://integrate.api.nvidia.com/v1/chat/completions');
       eq(calls[0].headers.Authorization, 'Bearer nvapi-test');
-      eq(calls[0].body.model, 'meta/llama-3.3-70b-instruct');
+      eq(calls[0].body.model, 'z-ai/glm-5.3-flash');
       notOk('response_format' in calls[0].body);
       includes(calls[0].body.messages[0].content, 'ONE valid JSON object');
     });
@@ -161,6 +161,28 @@
         json({ data: [{ id: 'nvidia/nv-embedqa-e5-v5' }, { id: 'nvidia/llama-3.1-nemoguard-8b-content-safety' }, { id: 'openai/gpt-oss-120b' }] }), openai('OK'));
       eq(await AJP.ai.tasks.test(), 'OK');
       eq(calls[2].body.model, 'openai/gpt-oss-120b');
+    });
+    const NV_IDS = ["bigcode/starcoder2-15b", "fastino/gliner2-pii", "google/gemma-3-12b-it", "google/gemma-3-4b-it", "google/gemma-4-31b-it", "meta/muse-glimmer-30b", "minimaxai/minimax-m3.1-flash", "mistralai/mistral-large-4-1t-a52b", "moonshotai/kimi-k3.1-pro", "nvidia/ai-synthetic-video-detector", "nvidia/cosmos-reason2-8b", "nvidia/embed-qa-4", "nvidia/ising-calibration-1.5-31b", "nvidia/llama-3.1-nemoguard-8b-topic-control", "nvidia/llama-3.1-nemotron-safety-guard-8b-v3", "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1", "nvidia/llama-3.2-nv-embedqa-1b-v1", "nvidia/nemotron-3-embed-1b", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-bolt-e4b", "nvidia/nemotron-3.5-content-safety", "nvidia/nemotron-3.5-embed-1b", "nvidia/nemotron-3.5-embed-8b", "nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3.5-super-vl-120b-a12b", "nvidia/nv-embedqa-mistral-7b-v2", "nvidia/nvclip", "nvidia/riva-translate-4b-instruct-v2", "poolside/laguna-xs-2.1", "snowflake/arctic-embed-l", "stepfun-ai/step-5-preview", "z-ai/glm-5.3-flash"]; // NVIDIA's real list, 2026-11-21
+    const gone = (m) => json({ type: 'about:blank', title: 'Gone', status: 410, detail: `The model '${m}' has reached its end of life on 2026-08-26T09:00:00Z and is no longer available.` }, 410);
+    it('NVIDIA ranking on its real list: fast chat models first, the huge one late, no embed / guard / video models', async () => {
+      fake(json({ data: NV_IDS.map((id) => ({ id })) }));
+      const r = await AJP.ai.models.rank({ keys: { nvidia: 'k' } }, 'nvidia');
+      eq(r.slice(0, 3), ['z-ai/glm-5.3-flash', 'minimaxai/minimax-m3.1-flash', 'nvidia/nemotron-3.5-lightning-30b-a3b']);
+      ok(r.length >= 5);
+      notOk(r.some((id) => /embed|guard|safety|video|clip|translate|gliner/.test(id)), r.join(' '));
+    });
+    it('410 Gone (your log): the retired model is replaced in the same call', async () => {
+      await settings({ provider: 'nvidia', model: 'meta/llama-3.3-70b-instruct' });
+      fake(gone('meta/llama-3.3-70b-instruct'), json({ data: NV_IDS.map((id) => ({ id })) }), openai('OK'));
+      eq(await AJP.ai.tasks.test(), 'OK');
+      eq(calls[2].body.model, 'z-ai/glm-5.3-flash');
+      eq((await AJP.store.get('modelHealth')).nvidia.why['meta/llama-3.3-70b-instruct'], 'gone');
+    });
+    it('a shortlist saved by an older version is marked for a rebuild', async () => {
+      fake(json({ data: NV_IDS.map((id) => ({ id })) }));
+      await settings({ provider: 'nvidia' });
+      await AJP.ai.models.refreshAll();
+      eq((await AJP.store.get('modelHealth')).nvidia.rankV, AJP.ai.models.RANK_VERSION);
     });
     it('Mistral: a free-plan rate limit is an ordinary AJP-AI-429', async () => {
       await settings({ provider: 'mistral' });

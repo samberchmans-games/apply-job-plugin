@@ -240,7 +240,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   async function refreshModelsIfStale() {
     const h = await AJP.store.get('modelHealth');
     const s = (await AJP.store.get('settings')).ai;
-    const stale = [s.provider, s.tailorProvider].filter(Boolean).some((k) => !(h[k] && h[k].at > Date.now() - 24 * 3600 * 1000));
+    const stale = [s.provider, s.tailorProvider].filter(Boolean).some((k) => !(h[k] && h[k].at > Date.now() - 24 * 3600 * 1000 && h[k].rankV === AJP.ai.models.RANK_VERSION));
     if (stale) await AJP.ai.models.refreshAll();
   }
   refreshModelsIfStale().catch((e) => log.warn('Model check failed', { error: e.message }));

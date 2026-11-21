@@ -25,7 +25,7 @@
     groq: { label: 'Groq (free tier API key)', defaultModel: 'llama-3.3-70b-versatile', needsKey: true },
     openrouter: { label: 'OpenRouter (free models)', defaultModel: 'meta-llama/llama-3.3-70b-instruct:free', needsKey: true },
     ollama: { label: 'Ollama (local, private)', defaultModel: 'llama3.1' },
-    nvidia: { label: 'NVIDIA NIM (free API key)', defaultModel: 'meta/llama-3.3-70b-instruct', needsKey: true },
+    nvidia: { label: 'NVIDIA NIM (free API key)', defaultModel: 'z-ai/glm-5.3-flash', needsKey: true },
     mistral: { label: 'Mistral (free plan API key)', defaultModel: 'mistral-medium-latest', needsKey: true },
     // Not free: billed per use from the user's prepaid Anthropic API credit (a Claude.ai / Claude Code plan doesn't cover it).
     anthropic: { label: 'Anthropic Claude (paid API key, pay per use)', defaultModel: 'claude-opus-5-5', needsKey: true, paid: true },
@@ -349,12 +349,13 @@
     // Capable free models first; small "flash/mini/nano" ones only as a last resort (they tailor poorly).
     openrouter: [/llama-3\.3-70b.*:free$/, /gpt-oss-120b:free$/, /deepseek-(chat|v3|r1)[^/]*:free$/, /qwen3-(235b|32b|30b|coder)[^/]*:free$/, /llama-4-maverick[^/]*:free$/,
       /gemma-3-27b[^/]*:free$/, /mistral-small[^/]*:free$/, /kimi-k2[^/]*:free$/, /gpt-oss-20b:free$/, /glm-4[^/]*:free$/, /^(?!.*(flash|mini|nano|lite|\b[1-8]b\b)).*:free$/i, /:free$/],
-    nvidia: [/^meta\/llama-3\.3-70b-instruct$/, /^openai\/gpt-oss-120b$/, /^qwen\/qwen3/, /^deepseek-ai\/deepseek/, /^meta\/llama-4/, /^mistralai\/mistral-(medium|large)/, /instruct$/],
+    // Fast general chat models first; very large ones (1T, 550B) last: they often can't answer in time on the free tier.
+    nvidia: [/\/glm-[\d.]+-flash/, /\/minimax-m[\d.]+-flash/, /\/nemotron-[\d.]+-lightning/, /^google\/gemma-\d+-\d+b-it$/, /^openai\/gpt-oss-120b$/, /^qwen\/qwen3/, /^deepseek-ai\/deepseek/, /^meta\/llama-[34]/, /\/kimi-k/, /\/step-\d/, /^mistralai\/mistral-(medium|large)/],
     mistral: [/^mistral-medium-latest$/, /^mistral-small-latest$/, /^mistral-large-latest$/, /^mistral-(medium|small|large)/],
     anthropic: [/^claude-opus-5-5$/, /^claude-sonnet-5-5$/, /^claude-opus-\d/, /^claude-sonnet-\d/, /^claude-haiku-\d/],
   };
   const UPSTREAM_BUSY = /rate-limited upstream|temporarily rate.?limited|provider returned error/i;
-  const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n|ocr|moderation|rerank|retriever|safety|parakeet|clip|pixtral|voxtral/i;
+  const NOT_CHAT = /whisper|tts|guard|embed|vision-preview|playai|distil|compound|image|audio|aqa|learnlm|gemma-3n|ocr|moderation|rerank|retriever|safety|parakeet|clip|pixtral|voxtral|gliner|starcoder|cosmos|ising|detector|translate/i;
   // Model lists are small: a short timeout, so a slow list never holds up the call that needs it.
   const listRequest = (url, opts = {}) => request(url, { ...opts, timeoutMs: CONFIG.listTimeoutMs });
   async function availableModels(cfg, provider) {
@@ -398,6 +399,8 @@
     const out = [];
     for (const re of PREFER[provider] || []) for (const id of ids) if (re.test(id) && !out.includes(id)) out.push(id);
     if (!out.length) out.push(...(provider === 'gemini' ? ids.filter((id) => /^gemini-.*(flash|pro)/.test(id)) : ids));
+    // Providers rename models often: keep a few more chat models behind the preferred ones, so one failure isn't the end.
+    if (['nvidia', 'groq', 'mistral'].includes(provider)) for (const id of ids) if (out.length < 6 && !out.includes(id)) out.push(id);
     return out.slice(0, 6);
   }
 
@@ -415,6 +418,7 @@
    *   cooldown:     gone 24 h · slow 6 h · busy 1 h · quota until it resets (daily → 24 h), then another chance
    *   on success:   that model is remembered and its cooldown cleared
    */
+  const RANK_VERSION = 2; // bumped when the preferences change: saved shortlists are rebuilt once
   const DAY = 24 * 3600 * 1000;
   const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000, quota: 3600 * 1000 };
   // Out of quota: until the provider says (Retry-After / "retry in 40s"), a daily quota until tomorrow, else an hour.
@@ -433,7 +437,7 @@
     if (x.code === 'AJP-AI-429' && !UPSTREAM_BUSY.test(body) && PER_MODEL_QUOTA.has(provider)) return 'quota';
     // Gemini "limit: 0" for one model = that model isn't in the free tier (new models often aren't); others may be.
     if (x.code === 'AJP-AI-BILLING' && provider === 'gemini' && /limit:\s*0\b/.test(body)) return 'quota';
-    if (x.code === 'AJP-AI-404') return 'gone';
+    if (x.code === 'AJP-AI-404' || (x.details && x.details.status === 410)) return 'gone'; // 410 = retired for good
     if (x.code === 'AJP-AI-HTTP' && /deprecat|no longer (available|supported)|decommission|not (found|supported|available) for|unknown model|invalid model|model .*(not exist|unavailable)/i.test(body)) return 'gone';
     if (x.code === 'AJP-AI-TIME') return 'slow';
     if (x.code === 'AJP-AI-429' && UPSTREAM_BUSY.test(body)) return 'busy';
@@ -452,7 +456,7 @@
   async function refreshModels(cfg, provider) {
     const ranked = await rankModels(cfg, provider);
     // An empty or odd list (provider hiccup) never wipes a good shortlist.
-    await AJP.store.update('modelHealth', (all) => void (all[provider] = { ...(all[provider] || {}), ...(ranked.length ? { ranked } : {}), at: Date.now() }));
+    await AJP.store.update('modelHealth', (all) => void (all[provider] = { ...(all[provider] || {}), ...(ranked.length ? { ranked } : {}), at: Date.now(), rankV: RANK_VERSION }));
     return ranked;
   }
   async function setAside(provider, model, why, ms = COOLDOWN[why]) {
@@ -706,5 +710,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels }, alternatives, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels, RANK_VERSION }, alternatives, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
 })();

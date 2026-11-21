@@ -378,7 +378,7 @@ For sites other than Workday. A section = a heading ("Employment", "Experience",
 | Groq | `api.groq.com/openai/v1/chat/completions` | Bearer | `llama-3.3-70b-versatile` |
 | OpenRouter | `openrouter.ai/api/v1/chat/completions` | Bearer | `meta-llama/llama-3.3-70b-instruct:free` |
 | Ollama | `{ollamaUrl}/api/chat` | none (local) | `llama3.1` |
-| NVIDIA NIM | `integrate.api.nvidia.com/v1/chat/completions` | Bearer | `meta/llama-3.3-70b-instruct` (JSON asked in the prompt; no `response_format`) |
+| NVIDIA NIM | `integrate.api.nvidia.com/v1/chat/completions` | Bearer | `z-ai/glm-5.3-flash` (JSON asked in the prompt; no `response_format`) |
 | Mistral | `api.mistral.ai/v1/chat/completions` | Bearer | `mistral-medium-latest` |
 | Anthropic Claude (paid, optional) | `api.anthropic.com/v1/messages` (raw HTTP via `AJP.http`: no build step, so no SDK bundle) | `x-api-key`, `anthropic-version: 2023-06-01`, `anthropic-dangerous-direct-browser-access: true` | `claude-opus-5-5`; `max_tokens` 16000; only `text` blocks are the answer (adaptive thinking blocks ignored); `stop_reason: "refusal"` → `AJP-AI-REFUSED`; Opus 5.5 / Sonnet 5.5 / Fable send `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`); "credit balance is too low" → `AJP-AI-CREDIT` |
 | Chrome built-in AI | Prompt API in the browser (`LanguageModel`, or older `ai.languageModel`); no network | none | on-device (Gemini Nano in Chrome) |
@@ -550,7 +550,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1315 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1318 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

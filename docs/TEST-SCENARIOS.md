@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1315). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1318). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1315** tests in headless Chrome. This is the full suite: the 642 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1318** tests in headless Chrome. This is the full suite: the 642 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -145,7 +145,7 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | ID | Steps | Expected |
 |---|---|---|
 | D13 | Admin → AI settings: main provider Chrome built-in AI, **AI for resume tailoring** Gemini (or Groq) with its free key → **Test tailoring AI**, then tailor a job | "✅ Works (Google Gemini…)"; the review lists several separate requirements (not one broad one); with Groq a short pause and automatic retry is fine |
-| D14 | AI settings: add a free **NVIDIA NIM** key (build.nvidia.com) → AI for resume tailoring = NVIDIA NIM → **Test tailoring AI**, then tailor a 70%+ job | "✅ Works (NVIDIA NIM · meta/llama-3.3-70b-instruct)"; the review lists several requirements; Recent AI calls shows NVIDIA NIM |
+| D14 | AI settings: add a free **NVIDIA NIM** key (build.nvidia.com) → AI for resume tailoring = NVIDIA NIM → **Test tailoring AI**, then tailor a 70%+ job | "✅ Works (NVIDIA NIM · z-ai/glm-5.3-flash)"; the review lists several requirements; Recent AI calls shows NVIDIA NIM |
 | D15 | Same with a free **Mistral** key (console.mistral.ai) | "✅ Works (Mistral · mistral-medium-latest)"; tailoring works; the Admin note about turning off training on your prompts is shown |
 | D16 | (Optional, paid) Add an **Anthropic Claude** key with a few dollars of credit → AI for resume tailoring = Anthropic Claude | The 💳 "paid per use" note appears; Tailoring model placeholder `claude-opus-5-5`; Test tailoring AI → "✅ Works (Anthropic Claude · claude-opus-5-5)"; tailor a job; the review header says "tailored with Anthropic Claude · …"; the console.anthropic.com usage page shows the cost (cents) |
 | D17 | Claude: type `claude-haiku-5-5` as Tailoring model and tailor again; then try a key with no credit (or a wrong key) | Recent AI calls shows `claude-haiku-5-5`; no credit → "no API credit left (AJP-AI-CREDIT)"; wrong key → AJP-AI-401; everyday tasks stay on your main provider throughout |
