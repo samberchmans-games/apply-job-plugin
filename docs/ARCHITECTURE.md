@@ -112,6 +112,8 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | Admin | `src/admin/admin.html` (options page) | core, logger, errors, storage, skills-dictionary, matcher, ai, docx, pdf, tracker, resume-engine, tracks, issue-report, diagnostics, tracker-view, enhance-view, tracks-view, admin |
 | Popup | `src/popup/popup.html` | core, logger, errors, storage, tracker, diagnostics, popup |
 
+**Company career sites:** opening a Job Radar job on a company's own domain requests that one origin inside the click; the content scripts are then registered for that site's first path section only (`radarSites`, internal). Removing the access in the browser removes the site.
+
 **Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama) and `api.github.com` (read-only public issue search for problem-report status; no token). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
 
 ## 5. Data model (`storage.local`)
@@ -558,7 +560,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1395 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1403 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

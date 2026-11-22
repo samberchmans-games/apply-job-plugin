@@ -92,7 +92,7 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 New codes are added in `src/lib/errors.js`. Every code needs a message and a hint, and a test checks this.
 
 ## 4. Common patterns
-- **The match badge doesn't appear on a site.** Look for `AJP-JD-NONE` with `data.host`, and check `settings.autoAnalyze`. On Firefox, the user may not have granted site permissions.
+- **The match badge doesn't appear on a site.** Look for `AJP-JD-NONE` with `data.host`, and check `settings.autoAnalyze`. On Firefox, the user may not have granted site permissions. On a company's own careers site, the panel appears only for jobs opened from Job Radar with the site allowed; otherwise use the toolbar icon → **Analyze this job page**.
 - **Autofill missed fields.** Find the `frame.autofill done` entry (`filled`, `learned`, `unknown`, `questions`, `host`). A high `unknown` count on a common ATS means a new label rule is needed in `form-filler.js`.
 - **Workday fields missed.** Find `Workday fill done` (`step`, `filled`, `unknown`) and `Workday field failed` / `Workday entry field failed` warnings (with `key`). Missing widgets usually mean a different `data-automation-id` on that company's Workday: adjust `SEL` in `src/content/workday.js` and add the case to `tests/fixtures/workday-mock.js`.
 - **An application wasn't marked applied.** Look for `Submit seen` and `Application confirmation detected` / `Application auto-detected as applied`, or `Confirmation ignored (no job context, unknown site)`.

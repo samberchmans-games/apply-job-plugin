@@ -78,6 +78,7 @@
     radarWatchlist: [], // [{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]
     radarJobs: [], // [job] (radar-core.normalize + score, bestTrackId, foundAt, status new|saved|dismissed)
     radarSeen: {}, // { [jobKey]: firstSeenDate }
+    radarSites: [], // internal: company career sections you allowed from Job Radar (URL patterns)
     radarFiltered: [], // internal: jobs left out, with { reason, detail, filteredAt } (radar-core.mergeFiltered)
     radarScanState: {}, // internal: { lockedAt, queue[], position, lastSummary, stats }
     modelHealth: {}, // internal: per provider {ranked:[ids], at, last, ok:{model: lastSuccess}, bad:{model: until}, why:{model: gone|slow|busy|quota}} (ai.js model manager)
@@ -87,7 +88,7 @@
     logs: [],
     tabJobs: {}, // internal: { [tabId]: job being looked at / applied to in that tab }
   };
-  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'aiChecks', 'modelHealth', 'radarScanState', 'radarFiltered']); // never exported or imported
+  const INTERNAL = new Set(['logs', 'tabJobs', 'promptState', 'aiCalls', 'aiChecks', 'modelHealth', 'radarScanState', 'radarFiltered', 'radarSites']); // never exported or imported
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();

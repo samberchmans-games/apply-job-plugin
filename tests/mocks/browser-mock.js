@@ -155,6 +155,16 @@
         mock.__injected.push(files || 'func');
         return [{ result: func ? func() : undefined }];
       },
+      __registered: [],
+      async getRegisteredContentScripts({ ids = [] } = {}) {
+        return mock.scripting.__registered.filter((x) => ids.includes(x.id));
+      },
+      async registerContentScripts(list) {
+        mock.scripting.__registered.push(...list);
+      },
+      async unregisterContentScripts({ ids = [] } = {}) {
+        mock.scripting.__registered = mock.scripting.__registered.filter((x) => !ids.includes(x.id));
+      },
     },
     contextMenus: { removeAll: async () => {}, create() {}, onClicked: { addListener() {} } },
     // Optional host permissions: tests grant / refuse with __granted / __refuse.

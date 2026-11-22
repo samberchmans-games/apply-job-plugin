@@ -537,7 +537,9 @@
 
   async function auto() {
     const settings = await AJP.store.get('settings');
-    if (!settings.autoAnalyze || !AJP.jd.isKnownJobSite()) return;
+    if (!settings.autoAnalyze) return;
+    // Known job sites, plus company career sections you allowed when opening a job from Job Radar.
+    if (!AJP.jd.isKnownJobSite() && !AJP.radar.detect.inScope(location.href, await AJP.store.get('radarSites'))) return;
     if (/linkedin\.com$/.test(location.hostname) && !location.pathname.startsWith('/jobs')) return;
     state.minimized = true;
     const a = await analyze();

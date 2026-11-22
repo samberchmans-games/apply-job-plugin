@@ -126,5 +126,32 @@
   // Stable watchlist key for an entry.
   const keyOf = (e) => [e.board, e.company, e.site].filter(Boolean).join(':');
 
-  AJP.radar.detect = { fromUrl, fromHtml, keyOf, parseUrl };
+  // ---- A company's own careers site: access is asked for one site, and the assistant runs in one section of it ----
+  function siteScope(url) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'https:' || !u.hostname) return null;
+      const first = u.pathname.split('/').filter(Boolean)[0] || '';
+      const section = /^[\w.~%-]+$/.test(first) && u.pathname.split('/').filter(Boolean).length > 1 ? `${first}/` : '';
+      return { origin: `https://${u.hostname}/*`, pattern: `https://${u.hostname}/${section}*` };
+    } catch (e) {
+      return null;
+    }
+  }
+  const inScope = (url, patterns) => (patterns || []).some((p) => String(url || '').startsWith(p.slice(0, -1)));
+  // Already covered by the job sites in the manifest ("*://*.greenhouse.io/*")?
+  function declaredSite(url, matches) {
+    let host;
+    try {
+      host = new URL(url).hostname;
+    } catch (e) {
+      return false;
+    }
+    return (matches || []).some((m) => {
+      const d = (String(m).match(/^\*:\/\/\*\.([^/]+)\//) || [])[1];
+      return !!d && (host === d || host.endsWith(`.${d}`));
+    });
+  }
+
+  AJP.radar.detect = { fromUrl, fromHtml, keyOf, parseUrl, siteScope, inScope, declaredSite };
 })();

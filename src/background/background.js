@@ -22,7 +22,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   const CONTENT_FILES = [
     'src/lib/core.js', 'src/lib/logger.js', 'src/lib/errors.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
     'src/lib/matcher.js', 'src/lib/experience.js', 'src/lib/tracker.js', 'src/lib/tracks.js', 'src/lib/pdf-writer.js', 'src/content/jd-extractor.js', 'src/lib/field-rules.js', 'src/content/form-filler.js', 'src/content/workday.js', 'src/content/ats.js', 'src/content/entries.js',
-    'src/content/apply-detector.js', 'src/content/panel.js', 'src/content/content.js',
+    'src/content/apply-detector.js', 'src/lib/radar-detect.js', 'src/content/panel.js', 'src/content/content.js',
   ];
 
   // ---- Logging: background is the single writer of the `logs` key ---------
@@ -429,6 +429,37 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       })
       .catch((e) => log.warn('Radar preference check failed', { error: e.message }));
   });
+  // A company's own careers site, allowed by you from Job Radar: the assistant runs in that section only.
+  const siteScriptId = (pattern) => `ajp-site-${hashText(pattern).replace(':', '-')}`;
+  async function registerJobSite(pattern) {
+    const id = siteScriptId(pattern);
+    const have = await api.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (!have.length) await api.scripting.registerContentScripts([{ id, matches: [pattern], js: CONTENT_FILES, runAt: 'document_idle', allFrames: true, persistAcrossSessions: true }]);
+  }
+  async function allowJobSite(scope) {
+    if (!api.scripting.registerContentScripts || !(await api.permissions.contains({ origins: [scope.origin] }))) return false;
+    await registerJobSite(scope.pattern);
+    await AJP.store.update('radarSites', (l) => (l.includes(scope.pattern) ? l : [...l, scope.pattern]));
+    log.info('Company careers site allowed');
+    return true;
+  }
+  // Keep the list true to the browser: access you removed in browser settings removes the site here too.
+  async function syncJobSites() {
+    if (!api.scripting.registerContentScripts) return;
+    const keep = [];
+    const sites = await AJP.store.get('radarSites');
+    for (const p of sites) {
+      const scope = AJP.radar.detect.siteScope(p.slice(0, -1));
+      if (scope && (await api.permissions.contains({ origins: [scope.origin] }))) {
+        await registerJobSite(p);
+        keep.push(p);
+      } else {
+        await api.scripting.unregisterContentScripts({ ids: [siteScriptId(p)] }).catch(() => {});
+      }
+    }
+    if (keep.length !== sites.length) await AJP.store.set('radarSites', keep);
+  }
+  syncJobSites().catch((e) => log.warn('Allowed career sites could not be restored', { error: e.message }));
   AJP.radarRefilter = radarRefilter; // tests
   // Filter rules changed in an update: re-check the listed jobs once with the new rules.
   AJP.store
@@ -965,6 +996,19 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       refreshBadgeSoon();
       log.info('Radar job moved back to Matched', { moved });
       return { moved };
+    },
+    // Open a job on a company's own site; `panel` says whether the assistant will appear there.
+    async 'radar.job.open'({ url } = {}) {
+      const scope = AJP.radar.detect.siteScope(url);
+      if (!scope) throw AJP.err('INTERNAL', { original: 'job link is not https' });
+      let panel = false;
+      try {
+        panel = await allowJobSite(scope);
+      } catch (e) {
+        log.warn('Could not enable the assistant on this careers site', { error: e.message });
+      }
+      await api.tabs.create({ url });
+      return { panel };
     },
     async 'radar.job.update'({ key, status } = {}) {
       if (!['new', 'saved', 'dismissed'].includes(status)) throw AJP.err('INTERNAL', { original: 'bad status ' + status });

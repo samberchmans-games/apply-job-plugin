@@ -40,6 +40,28 @@
     }
   }
 
+  // A job on a company's own site: ask for that one site inside the click (Firefox requires it), then open it.
+  function openJob(e) {
+    const a = e.target.closest('.radar-main a[href]');
+    if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const D = AJP.radar.detect;
+    const scope = D.siteScope(a.href);
+    const m = api.runtime.getManifest ? api.runtime.getManifest() : {};
+    const declared = ((m.content_scripts || [])[0] || {}).matches || [];
+    if (!scope || !api.permissions || !api.permissions.request || D.declaredSite(a.href, declared)) return;
+    e.preventDefault();
+    const asked = api.permissions.request({ origins: [scope.origin] }).catch((err) => {
+      log.warn('Site access request failed', { error: err.message });
+      return false;
+    });
+    AJP.guard('radar.openJob', async () => {
+      const ok = await asked;
+      const r = await AJP.send('radar.job.open', { url: a.href });
+      if (r && r.ok === false) return ui.toast(fail(r));
+      if (!ok || !r.panel) ui.toast('Job opened. To use the assistant there, click the Apply Job icon in the toolbar, then Analyze.');
+    }, { mod: 'admin', onError: (d) => ui.toast(`${d.message} (${d.code})`) })();
+  }
+
   // ---- Status + settings --------------------------------------------------------------------------------
   async function renderStatus() {
     const st = await AJP.send('radar.status');
@@ -373,6 +395,8 @@
       page += Number(b.dataset.page);
       renderJobs().then(() => $('#radarJobs').scrollIntoView({ block: 'start' }));
     });
+    $('#radarJobs').addEventListener('click', openJob);
+    $('#radarFilteredJobs').addEventListener('click', openJob);
     $('#radarTabs').addEventListener('click', g('tab', (e) => {
       const b = e.target.closest('[data-tab]');
       if (b) return showTab(b.dataset.tab);
