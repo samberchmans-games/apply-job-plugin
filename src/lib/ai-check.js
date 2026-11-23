@@ -107,6 +107,8 @@ Nice to have
 
   // A key or account problem: every model would fail the same way.
   const ACCOUNT = new Set(['AJP-AI-401', 'AJP-AI-KEY', 'AJP-AI-CREDIT']);
+  // The provider is having a moment: says nothing about whether the model works.
+  const TEMPORARY = new Set(['AJP-AI-429', 'AJP-AI-5XX', 'AJP-AI-TIME', 'AJP-AI-NET']);
 
   async function modelsToTry(provider, cfg) {
     const P = AJP.ai.PROVIDERS[provider];
@@ -143,19 +145,26 @@ Nice to have
         result.models.push(m);
         if (m.ok) {
           result.verified.push(model);
-          if (result.verified.length >= CONFIG.wantVerified) break;
+          // OpenRouter: every free model shares one daily cap, so one verified model is enough.
+          if (result.verified.length >= (provider === 'openrouter' ? 1 : CONFIG.wantVerified)) break;
         } else {
           const bad = m.steps.find((s) => !s.ok);
           if (!result.code) Object.assign(result, { code: bad.code, reason: bad.reason });
           if (ACCOUNT.has(bad.code)) break;
+          if (provider === 'openrouter' && bad.code === 'AJP-AI-429' && /per-day|per day|daily/i.test(bad.reason || '')) break; // failed calls count too
         }
       }
     }
     if (result.verified.length) Object.assign(result, { status: 'ready', model: result.verified[0], code: null, reason: '' });
+    const failure = (m) => m.steps.find((s) => !s.ok);
+    if (!result.verified.length && result.models.length && result.models.every((m) => TEMPORARY.has(failure(m).code))) result.temporary = true;
     const now = Date.now();
+    const provenBad = new Set(result.models.filter((m) => !m.ok && !TEMPORARY.has(failure(m).code)).map((m) => m.model));
     await AJP.store.update('modelHealth', (all) => {
       const h = (all[provider] = all[provider] || {});
-      h.verified = Object.fromEntries(result.verified.map((m, i) => [m, now - i]));
+      // A busy moment doesn't un-verify a good model; a rejected key or a model that really failed does.
+      const kept = ACCOUNT.has(result.code) ? {} : Object.fromEntries(Object.entries(h.verified || {}).filter(([m]) => !provenBad.has(m)));
+      h.verified = { ...kept, ...Object.fromEntries(result.verified.map((m, i) => [m, now - i])) };
       if (result.verified.length) {
         h.last = result.verified[0];
         h.bad = Object.fromEntries(Object.entries(h.bad || {}).filter(([m]) => !result.verified.includes(m)));

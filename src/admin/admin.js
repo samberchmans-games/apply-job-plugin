@@ -637,7 +637,7 @@
     updateModelPlaceholder();
     const name = (p) => esc((AJP.ai.PROVIDERS[p] || {}).label ? AJP.ai.PROVIDERS[p].label.replace(/\s*\(.*$/, '') : p);
     const using = Object.entries(health).filter(([, h]) => h && h.last).map(([p, h]) => `<b>${name(p)} · ${esc(h.last)}</b>`);
-    const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
+    const WHY = { gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota', weak: 'gave an incomplete answer' };
     const aside = Object.entries(health).flatMap(([p, h]) => Object.entries((h && h.bad) || {}).filter(([, until]) => until > Date.now())
       .map(([m, until]) => `${name(p)} · ${esc(m)} (${WHY[(h.why || {})[m]] || 'failing'}, retried after ${esc(new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))})`));
     box.hidden = false;
@@ -671,7 +671,7 @@
   // Recent AI calls: who did what (provider · model), how long, ok or the error code.
   const TASK_NAMES = { 'resume.analyze': 'Tailoring: read the job', 'resume.analyze.retry': 'Tailoring: read the job (again)', 'resume.edits': 'Tailoring: suggest changes',
     'resume.weaveSkills': 'Tailoring: add your skills', extractSkills: 'AI deep analysis', draftAnswer: 'Draft an answer', test: 'Test connection', 'check.short': 'Setup check: reply', 'check.json': 'Setup check: JSON', 'check.full': 'Setup check: full size' };
-  const PATH_WHY = { gone: 'not offered', slow: 'too slow', busy: 'busy', quota: 'out of free quota' };
+  const PATH_WHY = { gone: 'not offered', slow: 'too slow', busy: 'busy', quota: 'out of free quota', weak: 'incomplete answer' };
   async function renderAiCalls() {
     const box = $('#aiCalls');
     if (!box) return;

@@ -76,6 +76,8 @@
     else if (d.status === 402) out = AJP.err('AI_BILLING', { status: d.status, host: d.host, body }, e);
     else if (x.code !== 'AJP-AI-BIG' && W().isTooLarge(x)) out = AJP.err('AI_TOO_LARGE', { status: d.status, host: d.host, body }, e);
     const reason = W().reasonFrom(body);
+    // OpenRouter counts every :free model (and failed calls) against one daily cap: waiting a minute won't help.
+    if (out.code === 'AJP-AI-429' && /free-models-per-day/i.test(body)) out.hint = 'OpenRouter\'s free daily limit is used up. Use another AI provider now, or try again after it resets.';
     if (reason && !out.reason) {
       out.reason = AJP.scrub ? AJP.scrub(reason) : reason;
       out.hint = `The provider said: “${out.reason}”. ${out.hint || ''}`.trim();
@@ -132,8 +134,9 @@
       const started = Date.now();
       const input = Math.ceil((system.length + prompt.length) / 4);
       if (round === 0) paced = await pace(provider, model, input, input + (quirks.maxOutput || prof.maxOutput || 0), cfg.patient);
+      let delivery;
       try {
-        await AJP.httpStream(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body) }, sink, {
+        delivery = await AJP.httpStream(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body) }, sink, {
           format: req.format,
           // Local models can take a while to load; cloud answers must start before Chrome's 30 s limit.
           firstByteMs: prof.local ? total : Math.min(total, CONFIG.firstByteMs),
@@ -183,6 +186,19 @@
           continue;
         }
         throw AJP.err('AI_CUT', { provider, model, thinking: r.thinking, chars: r.text.length });
+      }
+      // A stream that ended with no finish marker may be half an answer. Complete JSON is still fine; anything else isn't.
+      if (delivery && delivery.streamed && !r.finish && r.text.trim()) {
+        let whole = false;
+        if (json) {
+          try {
+            parseJsonLoose(r.text);
+            whole = true;
+          } catch (_) {
+            whole = false;
+          }
+        }
+        if (!whole) throw AJP.err('AI_CUT', { provider, model, incomplete: true, chars: r.text.length });
       }
       return r.text;
     }
@@ -411,17 +427,27 @@
    *   switch when:  gone (404, "deprecated / no longer available") · slow (timeout, once per call: each costs time) ·
    *                 busy (server error / overloaded after one retry, OpenRouter "busy upstream"); up to CONFIG.maxSwitches per call
    *                 · out of quota on one model (Gemini / Groq / NVIDIA count free limits per model)
-   *   cooldown:     gone 24 h · slow 6 h · busy 1 h · quota until it resets (daily → 24 h), then another chance
+   *                 · weak (cut off, empty or unreadable answer after its retry)
+   *   cooldown:     a first failure rests briefly (busy 5 min, slow / weak 15 min), longer if it keeps failing (up to busy /
+   *                 weak 1 h, slow 6 h) · gone 24 h · quota until it resets (Gemini daily: midnight Pacific)
    *   on success:   that model is remembered and its cooldown cleared
    */
   const RANK_VERSION = 2; // bumped when the preferences change: saved shortlists are rebuilt once
   const DAY = 24 * 3600 * 1000;
-  const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000, quota: 3600 * 1000 };
+  const COOLDOWN = { gone: DAY, slow: 6 * 3600 * 1000, busy: 3600 * 1000, quota: 3600 * 1000, weak: 3600 * 1000 };
+  // A first failure is often a passing moment: a short rest, longer only if the same model keeps failing.
+  const FIRST_REST = { slow: 15 * 60000, busy: 5 * 60000, weak: 15 * 60000 };
+  const STRIKES_FORGOTTEN_MS = DAY;
+  // Gemini's daily quota resets at midnight Pacific time (ai.google.dev/gemini-api/docs/rate-limits).
+  function nextPacificMidnight(now = Date.now()) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hourCycle: 'h23', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(now)).map((p) => [p.type, Number(p.value)]));
+    return now + DAY - (parts.hour * 3600 + parts.minute * 60 + parts.second) * 1000 - (now % 1000);
+  }
   // Out of quota: until the provider says (Retry-After / "retry in 40s"), a daily quota until tomorrow, else an hour.
-  function quotaCooldown(x) {
+  function quotaCooldown(x, provider) {
     const body = String((x.details && x.details.body) || '');
     if (/limit:\s*0\b/.test(body)) return DAY; // not in the free tier at all: don't try it again today
-    if (/per ?day|daily|RequestsPerDay/i.test(body)) return DAY;
+    if (/per ?day|daily|RequestsPerDay/i.test(body)) return provider === 'gemini' ? Math.max(60000, nextPacificMidnight() - Date.now()) : DAY;
     const w = waitAsked(x) || (/retry(?:Delay)?["\s:]*"?(\d+(?:\.\d+)?)s/i.exec(body) || [])[1] * 1000;
     return w > 0 ? Math.min(Math.max(w, 60000), DAY) : COOLDOWN.quota;
   }
@@ -438,6 +464,7 @@
     if (x.code === 'AJP-AI-TIME') return 'slow';
     if (x.code === 'AJP-AI-429' && UPSTREAM_BUSY.test(body)) return 'busy';
     if (x.code === 'AJP-AI-5XX') return 'busy'; // "model is overloaded" / server error on this model: another model, not the same one again
+    if (x.code === 'AJP-AI-CUT' || x.code === 'AJP-AI-FMT') return 'weak'; // this model couldn't give a complete, readable answer
     return null;
   }
   function candidates(provider, pinned, cfg, health) {
@@ -461,6 +488,12 @@
       const h = (all[provider] = all[provider] || {});
       const now = Date.now();
       h.bad = Object.fromEntries(Object.entries(h.bad || {}).filter(([, until]) => until > now));
+      if (FIRST_REST[why]) {
+        const before = (h.strikes || {})[model];
+        const n = before && now - before.at < STRIKES_FORGOTTEN_MS ? before.n + 1 : 1;
+        h.strikes = { ...(h.strikes || {}), [model]: { n, at: now } };
+        ms = Math.min(FIRST_REST[why] * 4 ** (n - 1), COOLDOWN[why]);
+      }
       h.bad[model] = now + ms;
       h.why = { ...(h.why || {}), [model]: why };
       if (h.last === model) h.last = '';
@@ -474,6 +507,7 @@
       h.last = model;
       h.ok = { ...(h.ok || {}), [model]: Date.now() };
       if (h.bad) delete h.bad[model];
+      if (h.strikes) delete h.strikes[model];
     });
   }
   // Daily (background alarm) and from Admin "Re-check models now": refresh the shortlist of every provider in use.
@@ -560,7 +594,7 @@
     let refreshed = false;
     const stale = !(health[provider] && health[provider].at > Date.now() - DAY);
     // One model, waiting out a short free-tier rate limit once when patient.
-    const once = async (text) => {
+    const raw = async (text) => {
       try {
         return await CALLERS[provider](cfg, model, system, text, json);
       } catch (e) {
@@ -574,6 +608,22 @@
         return CALLERS[provider](cfg, model, system, text, json);
       }
     };
+    // One model, one usable answer. Free models sometimes add prose or break JSON: asked once more with a firm reminder.
+    const once = async (text) => {
+      const need = (reply) => {
+        if (!reply || !String(reply).trim()) throw AJP.err('AI_BAD_RESPONSE', { reason: 'empty answer' });
+        return reply;
+      };
+      let out = need(await raw(text));
+      if (!json) return { out, result: out.trim() };
+      try {
+        return { out, result: parseJsonLoose(out) };
+      } catch (e) {
+        tr.log.warn(`ai.${task} invalid JSON, retrying once`, { reason: e.details && e.details.reason });
+        out = need(await raw(text + '\n\nIMPORTANT: Your previous reply was not valid JSON. Reply with ONE valid JSON object only, no other text.'));
+        return { out, result: parseJsonLoose(out) };
+      }
+    };
     const call = async (text) => {
       for (;;) {
         try {
@@ -583,7 +633,7 @@
           const why = PREFER[provider] && !exactModel ? switchReason(x, provider) : null;
           if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
           tried.add(model);
-          await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x) : undefined);
+          await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x, provider) : undefined);
           if (why !== 'gone' && performance.now() - t0 > CONFIG.chainMs) {
             path.push({ model, why });
             throw e; // the provider is having a bad moment: tell the user now instead of trying more models
@@ -603,25 +653,13 @@
           if (!next) throw e;
           switches++;
           if (why === 'slow') slowSwitched = true;
-          tr.log.info(`ai.${task} model "${model}" ${({ gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota' })[why]}; trying "${next}"`, { provider, from: model, to: next, why });
+          tr.log.info(`ai.${task} model "${model}" ${({ gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota', weak: 'gave an incomplete answer' })[why]}; trying "${next}"`, { provider, from: model, to: next, why });
           model = next;
         }
       }
     };
     try {
-      let out = await call(prompt);
-      if (!out || !String(out).trim()) throw AJP.err('AI_BAD_RESPONSE', { reason: 'empty answer' });
-      let result;
-      if (json) {
-        try {
-          result = parseJsonLoose(out);
-        } catch (e) {
-          // Free models sometimes add prose or break JSON: retry once with a firm reminder.
-          tr.log.warn(`ai.${task} invalid JSON, retrying once`, { reason: e.details && e.details.reason });
-          out = await call(prompt + '\n\nIMPORTANT: Your previous reply was not valid JSON. Reply with ONE valid JSON object only, no other text.');
-          result = parseJsonLoose(out);
-        }
-      } else result = out.trim();
+      const { out, result } = await call(prompt);
       tr.end({ provider, model, outChars: out.length });
       if (PREFER[provider] && !exactModel) await worked(provider, model);
       await recordCall({ at: new Date().toISOString(), task, provider, model, label: LABEL(provider, model), ms: Math.round(performance.now() - t0), ok: true, ...(path.length ? { path } : {}) });
@@ -641,7 +679,7 @@
     const checks = await AJP.store.get('aiChecks');
     const ready = (k) => !!(checks[k] && checks[k].status === 'ready');
     const options = ['groq', 'nvidia', 'mistral', 'gemini', 'openrouter', 'anthropic']
-      .filter((k) => k !== current && cfg.keys && cfg.keys[k] && !(checks[k] && checks[k].status === 'failed'))
+      .filter((k) => k !== current && cfg.keys && cfg.keys[k] && !(checks[k] && checks[k].status === 'failed' && !checks[k].temporary))
       .map((k) => ({ id: k, label: name(k), paid: !!PROVIDERS[k].paid, ready: ready(k) }))
       .sort((a, b) => Number(b.ready) - Number(a.ready));
     return { current: name(current), options };
@@ -721,5 +759,5 @@
     },
   };
 
-  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels, RANK_VERSION }, alternatives, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
+  AJP.ai = { PROVIDERS, CONFIG, complete, tasks, parseJsonLoose, label: LABEL, last: null, models: { refreshAll, rank: rankModels, RANK_VERSION, nextPacificMidnight }, alternatives, local: { api: localApi, status: localStatus, download: localDownload, fitPrompt } };
 })();

@@ -17,7 +17,7 @@
     if (r.status === 'running') return `<tr><td><b>${esc(r.label)}</b></td><td colspan="3" class="hint">⏳ Checking… (real calls, up to a few minutes)</td></tr>`;
     const best = r.models.find((m) => m.ok) || r.models[r.models.length - 1];
     const steps = best ? best.steps.map((s) => `${s.ok ? '✅' : '❌'} ${STEP[s.name]} ${(s.ms / 1000).toFixed(1)}s`).join(' · ') : '';
-    const result = r.status === 'ready' ? '<b>✅ Ready</b>' : r.status === 'nokey' ? 'No key' : '<b>❌ Failed</b>';
+    const result = r.status === 'ready' ? '<b>✅ Ready</b>' : r.status === 'nokey' ? 'No key' : r.temporary ? '<b>⏳ Busy now</b><br><span class="hint">Try again later</span>' : '<b>❌ Failed</b>';
     const detail = r.status === 'ready' ? `${esc(r.verified.join(', '))}<br><span class="hint">${esc(steps)}</span>` : `${esc(r.reason || 'No model passed')}${r.code ? ` <span class="hint">(${esc(r.code)})</span>` : ''}${steps ? `<br><span class="hint">${esc(best.model)}: ${esc(steps)}</span>` : ''}`;
     const use = r.status === 'ready' ? `<button data-use="${esc(r.provider)}">Use for tailoring</button>` : '';
     return `<tr><td><b>${esc(r.label)}</b></td><td>${result}</td><td>${detail}</td><td>${use}</td></tr>`;

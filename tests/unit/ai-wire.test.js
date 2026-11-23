@@ -131,9 +131,10 @@
       net((c, n) => (n === 1 ? oai('{"a":', 'length') : oai('{"a":1}')));
       eq(await ask({ json: true }), { a: 1 });
       ok(calls[1].body.max_tokens > calls[0].body.max_tokens);
+      const model = calls[0].body.model;
       net(() => oai('{"a":', 'length'));
-      eq((await rejects(() => ask({ json: true }))).code, 'AJP-AI-CUT');
-      eq(calls.length, 2);
+      eq((await rejects(() => ask({ json: true, exactModel: model }))).code, 'AJP-AI-CUT');
+      eq(calls.length, 2, 'on one exact model; otherwise the next model is tried');
     });
     it('a thinking model that used its whole allowance is not an "empty answer"', async () => {
       net(() => sse([{ choices: [{ delta: { reasoning: 'thinking…' }, finish_reason: 'length' }] }]));
