@@ -49,6 +49,40 @@
     });
   });
 
+  describe('screening › EEO race list', () => {
+    const sandbox = () => document.getElementById('sandbox');
+    afterEach(() => (sandbox().innerHTML = ''));
+    const RACES = ['Hispanic or Latino', 'White (Not Hispanic or Latino)', 'Black or African American (Not Hispanic or Latino)', 'Asian (Not Hispanic or Latino)', 'Two or More Races (Not Hispanic or Latino)', 'I don\'t wish to answer'];
+    // As on the reported site: a "Race" heading, definitions that mention Hispanic, then radio buttons (no fieldset).
+    const mount = () => {
+      sandbox().innerHTML = `<form><div class="q"><h3>Race</h3><ul><li><b>Hispanic or Latino</b> - A person of Cuban, Mexican, Puerto Rican, South or Central American, or other Spanish culture or origin regardless of race.</li><li><b>Asian</b> (Not Hispanic or Latino) - A person having origins in any of the original peoples of the Far East.</li></ul>
+        ${RACES.map((r, i) => `<label><input type="radio" name="race" value="${i}"> ${r}</label>`).join('')}</div></form>`;
+    };
+    const picked = () => {
+      const r = sandbox().querySelector('input[name="race"]:checked');
+      return r ? r.parentElement.textContent.trim() : '';
+    };
+    const fillWith = async (eeo) => {
+      const p = AJP.clone(AJP.store.DEFAULTS.profile);
+      Object.assign(p.autoApply.eeo, eeo);
+      return AJP.filler.fill({ profile: p, answers: {}, resume: null, root: sandbox() });
+    };
+    it('a race list is the race question even when its description mentions Hispanic', async () => {
+      mount();
+      await fillWith({ race: 'Asian', hispanic: 'No' });
+      eq(picked(), 'Asian (Not Hispanic or Latino)');
+    });
+    it('Hispanic = Yes picks "Hispanic or Latino" in a race list', async () => {
+      mount();
+      await fillWith({ race: 'White', hispanic: 'Yes' });
+      eq(picked(), 'Hispanic or Latino');
+    });
+    it('Yes / No choices stay the Hispanic question', () => {
+      const rule = AJP.fieldRules.ruleFor('Are you Hispanic or Latino?');
+      eq(AJP.filler.eeoFor(rule, ['Yes', 'No', 'I don\'t wish to answer'], { autoApply: { eeo: { hispanic: 'No', race: 'Asian' } } }), 'No');
+    });
+  }, { env: 'browser' });
+
   describe('screening › a Greenhouse form', () => {
     const sandbox = () => document.getElementById('sandbox');
     const rs = (id) => {

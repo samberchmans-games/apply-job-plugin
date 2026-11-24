@@ -471,6 +471,38 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     })
     .catch((e) => log.warn('Radar rules re-check failed', { error: e.message }));
 
+  /*
+   * Job Radar ↔ Applications. A listed job you applied to (Mark applied in Job Radar or on the job page, a detected
+   * submission, or set in Applications) moves to Applied; a job like one you applied to (same company, similar
+   * title) is marked so you don't apply twice. Runs when Applications change and after every scan.
+   */
+  const SENT = new Set(['applied', 'interviewing', 'offer', 'rejected']);
+  async function radarSyncApplied() {
+    const apps = (await AJP.store.get('applications')).filter((a) => SENT.has(a.status));
+    let changed = 0;
+    await serialRadar(() =>
+      AJP.store.update('radarJobs', (list) =>
+        list.map((j) => {
+          const d = apps.length ? AJP.tracker.findDuplicate(apps, { url: j.url, company: j.companyName, title: j.title }) : null;
+          const when = d ? d.app.appliedAt || d.app.date || null : null;
+          let next = j;
+          if (d && d.how === 'same job' && (j.status === 'new' || j.status === 'saved') && !j.keepOpen) next = { ...j, status: 'applied', appliedAt: when, appliedAuto: true };
+          const sim = d && d.how === 'similar job' ? { title: d.app.title, at: when, status: d.app.status } : null;
+          if (JSON.stringify(sim) !== JSON.stringify(j.appliedSimilar || null)) next = { ...next, appliedSimilar: sim };
+          if (next !== j) changed++;
+          return next;
+        })
+      )
+    );
+    if (changed) (refreshBadgeSoon(), log.info('Job Radar matched with Applications', { changed }));
+    return { changed };
+  }
+  AJP.radarSyncApplied = radarSyncApplied; // tests
+  const radarSyncSoon = AJP.debounce(() => radarSyncApplied().catch((e) => log.warn('Job Radar / Applications match failed', { error: e.message })), 600);
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.applications) radarSyncSoon();
+  });
+
   async function radarScan(opts = {}) {
     const rs = await AJP.store.get('radarSettings');
     if (!rs.enabled && !opts.force && !opts.onlyKey) return { skipped: 'disabled' };
@@ -478,6 +510,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     const allowedBoards = new Set();
     for (const a of AJP.radar.boards.all()) if (await radarAllowed({ board: a.id })) allowedBoards.add(a.id);
     const summary = await AJP.radar.scan.run({ allowedBoards, ...opts });
+    await radarSyncApplied().catch((e) => log.warn('Job Radar / Applications match failed', { error: e.message }));
     summary.alert = await radarAlert();
     return summary;
   }
@@ -1013,12 +1046,20 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       await api.tabs.create({ url });
       return { panel };
     },
-    async 'radar.job.update'({ key, status } = {}) {
-      if (!['new', 'saved', 'dismissed'].includes(status)) throw AJP.err('INTERNAL', { original: 'bad status ' + status });
+    async 'radar.job.update'({ key, status, noApp = false } = {}) {
+      if (!['new', 'saved', 'dismissed', 'applied'].includes(status)) throw AJP.err('INTERNAL', { original: 'bad status ' + status });
       let job = null;
-      await serialRadar(() => AJP.store.update('radarJobs', (l) => l.map((j) => (j.key === key ? (job = { ...j, status, ...(status === 'dismissed' ? { dismissedAt: new Date().toISOString() } : {}) }) : j))));
+      const now = new Date().toISOString();
+      // "Not applied" on an applied job: it stays open even though Applications has a matching application.
+      const extra = (j) => (status === 'dismissed' ? { dismissedAt: now } : status === 'applied' ? { appliedAt: j.appliedAt || now, keepOpen: false } : status === 'new' && j.status === 'applied' ? { keepOpen: true, appliedAt: null } : {});
+      await serialRadar(() => AJP.store.update('radarJobs', (l) => l.map((j) => (j.key === key ? (job = { ...j, status, ...extra(j) }) : j))));
       if (!job) return { job: null };
       let app = null;
+      if (status === 'applied' && !noApp) {
+        // Applied from Job Radar: recorded in Applications too (the same job there is updated, not duplicated).
+        app = await saveApplication({ url: job.url, company: job.companyName, title: job.title, location: job.locations.join('; '), score: job.score, trackId: job.bestTrackId, status: 'applied', source: 'Job Radar', snapshot: { jd: job.description, salary: job.salary, location: job.locations.join('; '), source: 'Job Radar', savedAt: now } }, null);
+        log.info('Radar job marked applied', { board: job.board });
+      }
       if (status === 'saved') {
         app = await saveApplication({ url: job.url, company: job.companyName, title: job.title, location: job.locations.join('; '), score: job.score, trackId: job.bestTrackId, status: 'in progress', source: 'Job Radar', snapshot: { jd: job.description, salary: job.salary, location: job.locations.join('; '), source: 'Job Radar', savedAt: new Date().toISOString() } }, null);
         log.info('Radar job saved to Applications', { board: job.board });

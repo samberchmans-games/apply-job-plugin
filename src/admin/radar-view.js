@@ -138,12 +138,15 @@
       j.titleMatch === 'related' ? '<span class="pill" title="Its title is another name for a title you look for">Related title</span>' : '',
       j.titleMatch === 'near' ? '<span class="pill warn" title="A different title, kept because the description strongly matches your skills">Other title, your skills</span>' : '',
       j.override ? '<span class="pill" title="You moved this job back from Filtered">Moved by you</span>' : '',
+      j.appliedSimilar && j.status !== 'applied' ? `<span class="pill warn" title="Same company, similar title in Applications: check it is not the same job">You applied to a similar job here: ${esc(j.appliedSimilar.title || '')}${j.appliedSimilar.at ? ' (' + esc(new Date(j.appliedSimilar.at).toLocaleDateString()) + ')' : ''}</span>` : '',
     ].filter(Boolean).join(' ');
     return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}" data-keys="${esc((j.keys || [j.key]).join(' '))}">
       <span class="pill ${j.score != null && j.score >= thr ? 'good' : ''}" title="${j.score == null ? 'No job description to score: open it to judge' : `Best fit: ${esc(track ? track.name : 'your profile')}`}">${j.score == null ? '–' : j.score + '%'}</span>
       <div class="radar-main"><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
         <div class="hint">${meta}</div>${el.status === 'blocked' ? `<div class="hint warn">⚠ ${esc(el.reasons.join('; '))}</div>` : ''}</div>
-      <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
+      <div class="radar-act">${j.status === 'applied'
+        ? `<span class="pill good" title="${j.appliedAuto ? 'Matched with Applications' : 'You marked it applied'}">Applied${j.appliedAt ? ' ' + esc(new Date(j.appliedAt).toLocaleDateString()) : ''}</span><button data-act="new" title="Move it back to New (it stays there even if Applications has it)">Not applied</button>`
+        : `${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="applied" class="primary" title="Moves it to Applied and records it in Applications">Applied</button><button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}`}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
     </div>`;
   }
   // A job left out: what it is, why, and a way to bring it back.
@@ -258,11 +261,12 @@
     }
     let r = null;
     for (const k of status === 'saved' ? [key] : keys) {
-      r = await AJP.send('radar.job.update', { key: k, status });
+      // Applied: one application for the job, every listed location of it moves to Applied.
+      r = await AJP.send('radar.job.update', { key: k, status, noApp: status === 'applied' && k !== key });
       if (r && r.ok === false) return ui.toast(fail(r));
     }
     if (status === 'saved') for (const k of keys.slice(1)) await AJP.send('radar.job.update', { key: k, status: 'dismissed' }); // the other locations of the same job
-    ui.toast(status === 'saved' ? 'Saved to Applications' : status === 'dismissed' ? 'Dismissed: it won’t come back' : 'Restored');
+    ui.toast(status === 'saved' ? 'Saved to Applications' : status === 'applied' ? 'Marked applied: it is in Applied and in Applications' : status === 'dismissed' ? 'Dismissed: it won’t come back' : 'Restored');
     renderJobs();
     renderStatus();
   }

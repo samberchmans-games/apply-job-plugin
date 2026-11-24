@@ -143,6 +143,23 @@
     return tries.some((v) => fillSelect(el, v));
   }
 
+  /*
+   * EEO race vs Hispanic, decided by the choices: a "Race" list whose description mentions Hispanic is still the race
+   * question ("Asian (Not Hispanic or Latino)", …); Yes / No choices are the "Are you Hispanic or Latino?" question.
+   * In a race list, "Hispanic or Latino" is picked when you said Yes to Hispanic.
+   */
+  const YES_NO = /^(yes|no|decline|i don.?t wish|i do not wish|prefer not)/i;
+  function eeoFor(rule, choices, profile) {
+    if (!rule || !['hispanic', 'race'].includes(rule.key) || !choices.length) return rule ? rule.v(profile) : '';
+    const e = (profile.autoApply && profile.autoApply.eeo) || {};
+    if (choices.every((c) => YES_NO.test(c))) return e.hispanic || '';
+    if (/^y/i.test(e.hispanic || '')) {
+      const h = choices.find((c) => /^hispanic|latin[oax]/i.test(c));
+      if (h) return h;
+    }
+    return e.race || '';
+  }
+
   function fillRadioGroup(radios, value) {
     let best = null;
     let bestScore = 0;
@@ -279,7 +296,7 @@
           if (group.some((r) => r.checked)) continue;
           const q = groupQuestion(el);
           const rule = rulefor(el, q);
-          let value = rule ? rule.v(profile, { label: q }) : '';
+          let value = rule && ['hispanic', 'race'].includes(rule.key) ? eeoFor(rule, group.map(optionLabel), profile) : rule ? rule.v(profile, { label: q }) : '';
           let how = 'profile';
           // Checkboxes are learned one by one ("Question — Option": Yes / No): tick the ones you ticked before.
           // (Before the whole-question lookup, which would fuzzily match one of these option answers.)
@@ -335,7 +352,9 @@
           continue;
         }
         const rule = rulefor(el, label);
-        let value = rule && (!isLongText || rule.textarea) ? rule.v(profile, { label }) : '';
+        let value = rule && el.tagName === 'SELECT' && ['hispanic', 'race'].includes(rule.key)
+          ? eeoFor(rule, [...el.options].map((o) => o.text.trim()).filter(Boolean).filter((t) => !/^(select|choose|--)/i.test(t)), profile)
+          : rule && (!isLongText || rule.textarea) ? rule.v(profile, { label }) : '';
         let how = 'profile';
         if (!value) {
           const l = findLearned(answers, label);
@@ -460,5 +479,5 @@
     log.debug('Learning listener on', { host: location.hostname });
   }
 
-  AJP.filler = { fill, fillQuestion, startLearning, labelFor, groupQuestion, ruleFor, ruleByKey, optionScore, fillSelect, fillSelectAny, findLearned, setNativeValue, mark, NEVER_LEARN, RULES };
+  AJP.filler = { eeoFor, fill, fillQuestion, startLearning, labelFor, groupQuestion, ruleFor, ruleByKey, optionScore, fillSelect, fillSelectAny, findLearned, setNativeValue, mark, NEVER_LEARN, RULES };
 })();
