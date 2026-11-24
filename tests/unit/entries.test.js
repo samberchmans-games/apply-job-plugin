@@ -158,4 +158,36 @@
       WorkdayMock.closePopups(document);
     });
   }, { env: 'browser' });
+  describe('entries › live Greenhouse layout (job-boards, Nov 2026 report)', () => {
+    afterEach(cleanup);
+    const blocks = (cls) => $$(`.${cls}`);
+    it('both sections are found although their titles are plain text, not headings', () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      eq(AJP.entries.sections(sandbox()).map((s) => s.kind).sort(), ['edu', 'work']);
+    });
+    it('every job and school from Auto-apply details: added with "Add another", then filled', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      await fill();
+      eq(blocks('employment-form').map((b) => b.querySelector('input[id^="company-name-"]').value), ['Acme Corp', 'Globex']);
+      eq(blocks('employment-form').map((b) => b.querySelector('input[id^="title-"]').value), ['Senior Engineer', 'Engineer']);
+      eq(rs(blocks('employment-form')[1], 'start-date-month-'), 'January');
+      eq(blocks('employment-form')[1].querySelector('input[id^="start-date-year-"]').value, '2015');
+      ok(blocks('employment-form')[0].querySelector('input[type=checkbox]').checked, 'current role');
+      eq(blocks('education--form').map((b) => rs(b, 'school--')), ['University of Texas at Austin', 'University of Washington']);
+    });
+    it('Country next to Phone is picked from your profile', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      const p = profile();
+      p.personal.country = 'United States';
+      await fill(p);
+      eq(rs(sandbox(), 'country'), 'United States +1');
+    });
+    it('no jobs saved in Auto-apply details: says so instead of leaving the section silently', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      const p = profile();
+      p.autoApply.experience = [];
+      const r = await fill(p);
+      ok(r.skipped.some((x) => /Work experience: no jobs saved/.test(x)), JSON.stringify(r.skipped));
+    });
+  }, { env: 'browser' });
 })();

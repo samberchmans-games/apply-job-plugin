@@ -114,6 +114,15 @@
       ${monthSel(`job-start-month--${i}`, 'Start date month')}${text(`job-start-year--${i}`, 'Start date year')}
       ${monthSel(`job-end-month--${i}`, 'End date month')}${text(`job-end-year--${i}`, 'End date year')}
       <div class="field"><label><input type="checkbox" id="current-role--${i}"> Current role</label></div></div>`;
+  // The live job-boards.greenhouse.io layout (Nov 2026): section titles are <p> in a header row inside the first
+  // block, months are React-Selects, "Add another" sits outside the blocks.
+  const ghJobRemix = (i, head) => `<div class="employment-form">${head ? '<hr><div class="header-row"><p class="body body--medium">Employment</p></div>' : '<hr>'}
+      ${text(`company-name-${i}`, 'Company name')}${text(`title-${i}`, 'Title')}
+      <div class="date-row">${reactSelect(`start-date-month-${i}`, 'Start date month', MONTHS)}${text(`start-date-year-${i}`, 'Start date year')}</div>
+      <div class="date-row">${reactSelect(`end-date-month-${i}`, 'End date month', MONTHS)}${text(`end-date-year-${i}`, 'End date year')}
+      <div class="checkbox"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}" value="1"><label for="current-role-${i}_1">Current role</label></div></div></div>`;
+  const ghEduRemix = (i, head) => `<div class="education--form">${head ? '<hr><div class="education--header"><p class="body body--medium">Education</p></div>' : '<hr>'}
+      ${reactSelect(`school--${i}`, 'School', SCHOOLS)}${reactSelect(`degree--${i}`, 'Degree', DEGREES)}${reactSelect(`discipline--${i}`, 'Discipline', FIELDS)}</div>`;
   const srExp = (i) => `<div class="entry" style="border:1px solid #ddd;padding:6px;margin:6px 0">
       ${text(`sr-title-${i}`, 'Title')}${text(`sr-company-${i}`, 'Company')}${text(`sr-location-${i}`, 'Office location')}
       <div class="field"><label for="sr-desc-${i}">Description</label><textarea id="sr-desc-${i}" rows="2"></textarea></div>
@@ -211,6 +220,13 @@
       ${text('first_name', 'First Name')}${text('last_name', 'Last Name')}${text('email', 'Email', 'email')}
       <div class="education--container"><h3>Education</h3><div class="forms">${ghEdu(0)}</div><button type="button" class="add-another-button">+ Add another</button></div>
       <div class="employment--container"><h3>Employment</h3><div class="forms">${ghJob(0)}</div><button type="button" class="add-another-button">+ Add another</button></div>
+      <button type="submit">Submit application</button></form></div>`,
+
+    'greenhouse-remix': () => `<div id="grnhse_app" data-ats="greenhouse"><h1>Apply for this job</h1><form id="application-form">
+      ${text('first_name', 'First Name')}${text('last_name', 'Last Name')}${text('email', 'Email', 'email')}
+      <fieldset class="phone-input"><legend class="visually-hidden">Phone</legend><div class="phone-input__country">${reactSelect('country', 'Country', ['Canada +1', 'India +91', 'United Kingdom +44', 'United States +1'])}</div>${text('phone', 'Phone', 'tel')}</fieldset>
+      <div class="employment--container" data-make="job">${ghJobRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
+      <div class="education--container" data-make="edu">${ghEduRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
       <button type="submit">Submit application</button></form></div>`,
 
     smartrecruiters: () => `<div class="sr-application" data-ats="smartrecruiters"><form>
@@ -312,6 +328,15 @@
         el.querySelectorAll('[data-rs]').forEach(wireReactSelect);
       });
     });
+    // Live layout: a new block goes right before the "Add another" button.
+    root.querySelectorAll('[data-make]').forEach((c) => {
+      const btn = c.querySelector(':scope > .add-another-button');
+      btn.addEventListener('click', () => {
+        const el = h(c.dataset.make === 'job' ? ghJobRemix(++n) : ghEduRemix(++n));
+        c.insertBefore(el, btn);
+        el.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+      });
+    });
     root.querySelectorAll('.sr-section').forEach((sec) => {
       const make = sec.dataset.kind === 'exp' ? srExp : srEdu;
       sec.querySelector(':scope > button').addEventListener('click', () => {
@@ -324,8 +349,8 @@
   function mount(container, site) {
     uid++;
     container.innerHTML = PAGES[site]();
-    if (site === 'greenhouse' || site === 'greenhouse-entries') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
-    if (site === 'greenhouse-entries' || site === 'smartrecruiters') wireEntries(container);
+    if (site === 'greenhouse' || site === 'greenhouse-entries' || site === 'greenhouse-remix') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+    if (site === 'greenhouse-entries' || site === 'greenhouse-remix' || site === 'smartrecruiters') wireEntries(container);
     if (site === 'greenhouse-classic') wireSelect2(container);
     if (site === 'lever') wireLever(container);
     if (site === 'ashby') wireAshby(container);

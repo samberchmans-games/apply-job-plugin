@@ -58,9 +58,11 @@
   function sections(root = document) {
     const out = [];
     const seen = new Set();
-    for (const h of root.querySelectorAll('h1, h2, h3, h4, h5, legend, [role="heading"], .section-title, [class*="section-header"]')) {
+    // Titles are headings on most sites; the live Greenhouse job boards use a short <p> ("Employment") instead.
+    for (const h of root.querySelectorAll('h1, h2, h3, h4, h5, legend, [role="heading"], .section-title, [class*="section-header"], p, [class*="header"] > span, [class*="header"] > div')) {
       const t = clean(h.textContent);
       if (!t || t.length > 50) continue;
+      if (!/^H\d$|^LEGEND$/.test(h.tagName) && !h.matches('[role="heading"], .section-title, [class*="section-header"]') && (t.length > 30 || t.split(' ').length > 3 || h.querySelector(FIELD_SEL))) continue;
       const kind = Object.keys(KINDS).find((k) => KINDS[k].head.test(t));
       if (!kind) continue;
       // The section: the nearest ancestor that holds an anchor field or an Add button for this kind.
@@ -68,7 +70,14 @@
       for (let i = 0; i < 3 && el && el !== root.parentElement; i++, el = el.parentElement) {
         if (anchors(el, kind).length || addButton(el, kind)) break;
       }
-      if (!el || seen.has(el) || (!anchors(el, kind).length && !addButton(el, kind))) continue;
+      if (!el || (!anchors(el, kind).length && !addButton(el, kind))) continue;
+      // The title can sit inside the first entry, with "Add another" outside it: widen to the block that has the button.
+      for (let up = el.parentElement, i = 0; !addButton(el, kind) && up && up !== root.parentElement && i < 2; up = up.parentElement, i++) {
+        const other = kind === 'work' ? 'edu' : 'work';
+        if (anchors(up, other).length || [...up.querySelectorAll(FIELD_SEL)].some((f) => PERSONAL.test(labelOf(f)))) break;
+        if (addButton(up, kind)) el = up;
+      }
+      if (seen.has(el)) continue;
       // Never a whole form: a real entries section has no name / email / phone fields.
       if ([...el.querySelectorAll(FIELD_SEL)].some((f) => PERSONAL.test(labelOf(f)))) continue;
       if (el.closest('[data-automation-id="applyFlowPage"]') || el.querySelector('[data-automation-id="applyFlowPage"]')) continue; // Workday has its own adapter
@@ -157,7 +166,8 @@
       const dv = dateValue(el, label, value);
       if (!dv) return 'nomatch';
       if (dv.skip) return 'skip';
-      v = el.tagName === 'SELECT' ? dv.select || dv.text : dv.text;
+      const combo = el.matches('input[role="combobox"], input[aria-autocomplete="list"]');
+      v = el.tagName === 'SELECT' || combo ? dv.select || dv.text : dv.text; // a month picker wants "January", not "01"
     }
     if (el.matches('input[role="combobox"], input[aria-autocomplete="list"]') && AJP.ats) {
       const r = await AJP.ats.pickCombo(el, String(v), /school/i.test(label) ? 'school' : /degree/i.test(label) ? 'degree' : '');
@@ -197,8 +207,11 @@
 
   async function fillKind(sec, kind, items, report) {
     const list = (items || []).filter((x) => x && Object.values(x).some(Boolean)).slice(0, CONFIG.maxEntries);
-    if (!list.length) return;
     const label = kind === 'work' ? 'Work experience' : 'Education';
+    if (!list.length) {
+      report.skipped.push(`${label}: no ${kind === 'work' ? 'jobs' : 'schools'} saved in Admin → Auto-apply details, so this section was left for you`);
+      return;
+    }
     const valueOf = (a) => clean(a.tagName === 'SELECT' ? (a.selectedIndex > 0 ? a.selectedOptions[0].text : '') : a.value);
     const comboValue = (a) => {
       const r = a.closest('.select__control, [class*="select__control"]');
