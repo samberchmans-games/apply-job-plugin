@@ -207,6 +207,12 @@
       const edu = $$('.education--form')[0];
       eq([rs(edu, 'school--'), rs(edu, 'degree--'), rs(edu, 'discipline--')], ['Example Institute of Technology and Sciences', "Bachelor's Degree", 'Electronics']);
     });
+    it('Greenhouse redraws Degree and Discipline after a school is picked: they are still filled', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      await AJP.filler.fill({ profile: eduOnly({ school: 'University of Washington', degree: 'M.S.', field: 'Computer Science' }), answers: {}, resume: null, root: sandbox() });
+      const edu = $$('.education--form')[0];
+      eq([rs(edu, 'school--'), rs(edu, 'degree--'), rs(edu, 'discipline--')], ['University of Washington', "Master's Degree", 'Computer Science']);
+    });
     it('a school that is not in the list: Greenhouse\'s "0 - Other", and the panel says so', async () => {
       AtsMock.mount(sandbox(), 'greenhouse-remix');
       const r = await AJP.filler.fill({ profile: eduOnly({ school: 'Nowhere Academy', degree: 'M.S.', field: 'Data Science' }), answers: {}, resume: null, root: sandbox() });

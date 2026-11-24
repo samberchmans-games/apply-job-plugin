@@ -64,6 +64,15 @@
         input.value = '';
         close();
         c.dispatchEvent(new Event('change', { bubbles: true }));
+        // Greenhouse redraws the education block when a school is picked: the other fields become new elements.
+        const block = c.closest('.education--form');
+        if (block && /^school--/.test(id)) {
+          block.querySelectorAll('[data-rs]:not([data-rs^="school--"])').forEach((x) => {
+            const fresh = x.cloneNode(true);
+            x.replaceWith(fresh);
+            wireReactSelect(fresh);
+          });
+        }
       });
       c.appendChild(menu);
       input.setAttribute('aria-expanded', 'true');

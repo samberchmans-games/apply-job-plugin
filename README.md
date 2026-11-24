@@ -124,7 +124,7 @@ docs/                    TRACKER.md (status), PLAN.md (roadmap), ARCHITECTURE.md
 ```
 
 - **Checks:** `sh tests/check.sh` (manifest, files, syntax). **CI** runs checks + all tests on every push (badge above).
-- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1457) in headless Chrome. `./tests/run-tests.sh` runs the 704 that need no browser.
+- **Tests:** `./tests/run-browser-tests.sh` runs the full suite (1459) in headless Chrome. `./tests/run-tests.sh` runs the 705 that need no browser.
 - **Workday emulation:** `python3 tests/serve.py`, then open `http://127.0.0.1:8765/tests/fixtures/workday-sample.html` to try Workday autofill locally.
 - **Greenhouse / Lever / Ashby / iCIMS emulations:** same server, open `http://127.0.0.1:8765/tests/fixtures/ats-sample.html` and switch sites at the top.
 - **Tester videos:** `python3 video/build.py [part]` renders the walkthrough parts to `video/out/` (needs Chrome, ffmpeg, macOS `say`). You can also open `tests/test-runner.html` in any browser. See [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md) for what's covered and the manual checklist.

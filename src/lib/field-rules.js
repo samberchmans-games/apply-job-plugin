@@ -47,7 +47,7 @@
     { key: 'address', re: /address( line)? ?1?$|street/i, v: (p) => p.personal.address },
     { key: 'currentCompany', re: /current (company|employer)|^company$|employer name/i, v: (p) => p.personal.currentCompany || first(p.autoApply.experience).company },
     { key: 'currentTitle', re: /current (job )?title|^job title$|current (role|position)/i, v: (p) => p.personal.currentTitle || first(p.autoApply.experience).title },
-    { key: 'school', re: /school|university|college|institution/i, v: (p) => first(p.autoApply.education).school },
+    { key: 'school', re: /\b(school|university|college|institution)\b/i, v: (p) => first(p.autoApply.education).school },
     { key: 'degree', re: /degree|level of education|highest education/i, v: (p) => first(p.autoApply.education).degree },
     { key: 'major', re: /major|field of study|discipline|area of study/i, v: (p) => first(p.autoApply.education).field },
     { key: 'gradYear', re: /graduat/i, v: (p) => first(p.autoApply.education).endYear },

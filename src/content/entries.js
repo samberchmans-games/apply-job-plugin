@@ -192,7 +192,11 @@
     const fields = [...box.querySelectorAll(FIELD_SEL)].filter((f) => shown(f) && !f.disabled && !f.readOnly);
     // Checkboxes last: "I currently work here" often hides the end date.
     fields.sort((a, b) => (a.type === 'checkbox') - (b.type === 'checkbox'));
-    for (const el of fields) {
+    for (let el of fields) {
+      // Sites redraw a block when one field changes (Greenhouse: picking a school redraws Degree and Discipline):
+      // find the field again by its id instead of filling a box that is no longer on the page.
+      if (!el.isConnected && el.id) el = el.ownerDocument.getElementById(el.id) || el;
+      if (!el.isConnected) continue;
       const label = labelOf(el);
       const rule = rules.find((r) => r.re.test(label) && (!r.check || el.type === 'checkbox'));
       if (!rule) continue;

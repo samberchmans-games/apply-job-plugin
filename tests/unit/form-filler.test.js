@@ -7,6 +7,11 @@
   // ---- Pure mapping rules (also run in the CLI) ---------------------------------
   describe('autofill › label → profile field rules', () => {
     const key = (label) => (F.ruleFor(label) || {}).key || null;
+    it('a question about an "institutional client" is not the school field (Coinbase report)', () => {
+      eq(key('To your knowledge, were you referred to this position by a senior leader or decision-maker at a current or prospective institutional client, business partner, or vendor of Coinbase?'), null);
+      eq(key('School'), 'school');
+      eq(key('Name of the institution you attended'), 'school');
+    });
     const cases = [
       ['First Name *', 'firstName'], ['Given name', 'firstName'], ['Preferred name', 'firstName'],
       ['Last Name', 'lastName'], ['Surname', 'lastName'], ['Family name', 'lastName'],
