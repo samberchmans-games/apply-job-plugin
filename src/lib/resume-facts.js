@@ -21,7 +21,7 @@
   const NOW = 'present|current|now|today|till date|to date|ongoing';
   const RANGE = new RegExp(`(${DATE})\\s*(?:-|–|—|to|until|till)\\s*(${DATE}|${NOW})`, 'i');
   const HEAD = /^(?:#{1,3}\s*)?([A-Za-z][A-Za-z &/]{2,45}?):?\s*$/;
-  const EXP = /^(professional |work |relevant |career )?(experience|employment( history)?|work history|career history)$/i;
+  const EXP = /^(professional |work |relevant |career )?(experience|employment( history| details)?|work history|career history|career profile|professional history|work profile)$/i;
   const EDU = /^(education|academic background|academics|education( and| &) (training|certifications?)|qualifications)$/i;
   const OTHER = /^(summary|professional summary|profile|objective|skills|technical skills|core skills|key skills|core competencies|competencies|projects|certifications?|licenses|awards|honors|publications|languages|interests|volunteer( experience)?|references|tools|technologies|achievements|training|courses|contact)$/i;
   const BULLET = /^\s*[-*•●▪■➢✓◦]\s*/;
@@ -63,71 +63,72 @@
     return out;
   }
 
-  // "Lead Data Engineer, Northwind Retail" / "Northwind Retail | Jersey City, NJ" / "Engineer at Acme" → parts.
-  function splitHeader(lines) {
-    const parts = [];
-    for (const l of lines) {
-      const s = clean(l.replace(/^#{1,4}\s*/, '').replace(/[()]/g, ' '));
-      for (const p of s.split(/\s+[|–—•·@]\s+|\s{3,}|\t|,\s*|\s+at\s+/i)) if (clean(p)) parts.push(clean(p));
-    }
-    // "Jersey City" + "NJ" → one location
-    const out = [];
-    for (const p of parts) {
-      if (PLACE.test(p) && out.length && !TITLE.test(out[out.length - 1].text) && out[out.length - 1].kind !== 'loc' && out.length > 1) {
-        const prev = out.pop();
-        out.push({ text: `${prev.text}, ${p}`, kind: 'loc' });
-      } else out.push({ text: p, kind: PLACE.test(p) ? 'loc' : '' });
-    }
-    return out;
-  }
+  const isPlace = (t) => PLACE.test(clean(t).split(/,\s*/).pop()) || /^(remote|hybrid)$/i.test(clean(t));
+  const looksTitle = (t) => TITLE.test(t) && !COMPANY.test(t);
 
-  function job(headerLines) {
-    const all = headerLines.join(' ');
-    const r = all.match(RANGE);
+  /*
+   * One role from its dated line (and the line after it when the title sits there):
+   *   "Lead Data Engineer, Northwind Retail (2019 - Present)"           title, company
+   *   "Title | Company (NJ, US) Jun 2015 – Nov 2019"                    title | company (place)
+   *   "Company | Jersey City, NJ | Jan 2019 – Present" + "Title"        company | place, title on the next line
+   *   "Title at Company (Mar 2011 – May 2014)"
+   */
+  function job(line, next) {
+    const r = line.match(RANGE);
     if (!r) return null;
     const start = dateOf(r[1]);
     const end = dateOf(r[2]);
-    const parts = splitHeader(headerLines.map((l) => l.replace(RANGE, ' ')));
-    const loc = parts.filter((p) => p.kind === 'loc').map((p) => p.text);
-    const rest = parts.filter((p) => p.kind !== 'loc').map((p) => p.text);
-    let title = rest.find((p) => TITLE.test(p) && !COMPANY.test(p)) || '';
-    let company = rest.find((p) => p !== title && COMPANY.test(p)) || '';
-    if (!title) title = rest.find((p) => p !== company && TITLE.test(p)) || '';
-    if (!company) company = rest.find((p) => p !== title) || '';
-    if (!title) title = rest.find((p) => p !== company) || '';
+    let location = '';
+    let text = line.replace(/^#{1,4}\s*/, '').replace(r[0], ' ');
+    text = text.replace(/\(([^()]*)\)/g, (m, inner) => {
+      if (!location && clean(inner).length >= 2 && !TITLE.test(inner)) location = clean(inner);
+      return ' ';
+    });
+    const segs = text.split(/\s+[|–—•·@]\s+(?=[^|]*$)|\s+\|\s+|\s{3,}|\t|\s+at\s+(?=[A-Z])/).map(clean).filter(Boolean);
+    let title = '';
+    let company = '';
+    if (segs.length === 1 && segs[0].includes(',')) {
+      // "Title, Company[, Place]" or "Company, City, ST"
+      const parts = segs[0].split(/,\s*/).map(clean).filter(Boolean);
+      if (looksTitle(parts[0]) && parts.length > 1) [title, company] = [parts[0], parts[1]];
+      else company = parts[0];
+      const rest = parts.slice(title ? 2 : 1).join(', ');
+      if (!location && rest) location = rest;
+    } else {
+      for (const seg of segs) {
+        if (!title && looksTitle(seg)) title = seg;
+        else if (!company && !isPlace(seg)) {
+          const [c, ...rest] = seg.split(/,\s*/);
+          company = clean(c);
+          if (!location && rest.length) location = rest.join(', ');
+        } else if (!location && isPlace(seg)) location = seg;
+        else if (!title) title = seg;
+      }
+    }
+    // "Associate VP – Data Integration | Bank": the dash belongs to the title when a pipe separates the company.
+    if (/\s\|\s/.test(text)) {
+      const [left, right] = text.split(/\s+\|\s+/).map(clean);
+      if (left && right && TITLE.test(left) && !isPlace(right)) {
+        title = left;
+        const [c, ...rest] = right.split(/,\s*/);
+        company = clean(c);
+        if (!location && rest.length) location = rest.join(', ');
+      }
+    }
+    if (!title && next && !BULLET.test(next) && looksTitle(next) && next.length < 80 && !RANGE.test(next)) title = clean(next);
     if (!title && !company) return null;
-    return { title, company, location: loc.join(', '), start: start ? start.text || '' : '', end: end && end.now ? 'Present' : (end && end.text) || '', current: !!(end && end.now) };
+    return { title, company, location, start: start ? start.text || '' : '', end: end && end.now ? 'Present' : (end && end.text) || '', current: !!(end && end.now) };
   }
 
+  // Roles are found by their dated lines; bullets, summaries, sub-headings and "Tools:" lines around them are not roles.
   function experienceIn(lines) {
     const out = [];
-    let header = [];
-    let found = null;
-    const flush = () => {
-      if (header.length) {
-        const j = job(header);
-        if (j) out.push(j);
-      }
-      header = [];
-      found = null;
-    };
-    for (const line of lines) {
-      if (!line) continue;
-      if (BULLET.test(line)) {
-        flush();
-        continue;
-      }
-      // A new role starts at a line with a date range, or at a short line before one.
-      if (RANGE.test(line)) {
-        if (found) flush();
-        header.push(line);
-        found = true;
-      } else if (header.length < 3 && line.length < 120) {
-        if (found && header.length >= 2) flush();
-        header.push(line);
-      } else flush();
-    }
-    flush();
+    const list = lines.filter(Boolean);
+    list.forEach((line, i) => {
+      if (BULLET.test(line) || !RANGE.test(line) || line.length > 160) return;
+      const j = job(line, list[i + 1]);
+      if (j) out.push(j);
+    });
     return out;
   }
 

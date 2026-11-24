@@ -100,9 +100,9 @@
   const text = (id, label, type = 'text', name = id) => `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" name="${name}" type="${type}"></div>`;
 
   // ---- Repeatable entries: Greenhouse education/employment blocks, SmartRecruiters "+ Add" forms -------------
-  const SCHOOLS = ['Texas A&M University', 'University of Texas at Austin', 'University of Washington'];
+  const SCHOOLS = ['Texas A&M University', 'University of Texas at Austin', 'University of Washington', 'Other'];
   const DEGREES = ["Associate's Degree", "Bachelor's Degree", "Master's Degree", 'Doctor of Philosophy (Ph.D.)'];
-  const FIELDS = ['Computer Engineering', 'Computer Science', 'Data Science'];
+  const FIELDS = ['Computer Engineering', 'Computer Science', 'Data Science', 'Other'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthSel = (id, label) => `<div class="field"><label for="${id}">${label}</label><select id="${id}"><option value="">Month</option>${MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></div>`;
   const ghEdu = (i) => `<div class="education--form" style="border:1px solid #ddd;padding:6px;margin:6px 0">

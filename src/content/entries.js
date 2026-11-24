@@ -170,7 +170,12 @@
       v = el.tagName === 'SELECT' || combo ? dv.select || dv.text : dv.text; // a month picker wants "January", not "01"
     }
     if (el.matches('input[role="combobox"], input[aria-autocomplete="list"]') && AJP.ats) {
-      const r = await AJP.ats.pickCombo(el, String(v), /school/i.test(label) ? 'school' : /degree/i.test(label) ? 'degree' : '');
+      const key = /school|university|college|institution/i.test(label) ? 'school' : /degree/i.test(label) ? 'degree' : /discipline|field of study|major/i.test(label) ? 'major' : '';
+      const r = await AJP.ats.pickCombo(el, String(v), key);
+      if (r === 'other') {
+        setField.others.push(`${label} "${v}"`);
+        return 'set';
+      }
       return r === 'kept' ? 'skip' : r;
     }
     if (el.tagName === 'SELECT') {
@@ -235,6 +240,7 @@
   async function fill({ profile, root = document, report }) {
     const t0 = performance.now();
     const before = report.filled.length;
+    setField.others = [];
     const aa = (profile && profile.autoApply) || {};
     for (const sec of sections(root)) {
       try {
@@ -245,6 +251,7 @@
         report.skipped.push(`${sec.kind === 'work' ? 'Work experience' : 'Education'} entries (${x.code})`);
       }
     }
+    if (setField.others.length) report.notes.push(`Not in this site's list, so "Other" was picked: ${setField.others.join(', ')}. Check them before you submit.`);
     if (report.filled.length > before) log.info('Entries filled', { filled: report.filled.length - before, ms: Math.round(performance.now() - t0) });
   }
 

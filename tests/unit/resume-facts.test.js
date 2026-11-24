@@ -41,6 +41,50 @@ Education
 Bachelor of Engineering, Electronics
 Example College of Engineering, 2010`;
 
+  // The layout of a real report (anonymised): "CAREER PROFILE", one line per role "Title | Company (Place) Mon Year – Mon Year",
+  // a summary paragraph, sub-headings and "Environment:" lines between the bullets.
+  const CAREER = `PROFESSIONAL SUMMARY
+Data architect with 15+ years of experience.
+TECHNICAL SKILLS
+Cloud (AWS): S3, EC2
+CAREER PROFILE
+Architect / Lead Data Engineer | Example Infotech Dec 2022 – Present
+Lead a cross-functional team of 6 engineers building enterprise data pipelines.
+Architecture
+• Used keyed merge loads so reruns never create duplicates.
+Data Engineering, Integration & Cloud Migration
+• Led the migration from one database to another in 2020 – 2021.
+Tools: Java Spring Boot, Python
+Associate VP – Data Integration | Sample Bank Nov 2021 – Dec 2022
+Built a low-latency, event-driven platform for traders.
+• Onboarded data tenants.
+Environment: Kafka, Spring Boot
+Team Lead | Example Consulting (NJ, US) Jun 2015 – Nov 2019
+Projects: B2C and TADA.
+• Processed flat-file data.
+Senior Developer | Example Consulting (Bangalore, India) Jan 2012 – May 2015
+C++ Developer | Example Consulting Internal, Bangalore Jun 2011 – Dec 2011
+• Developed reusable components.
+EDUCATION
+B.Tech, Electronics and Communication Engineering, Example University, Coimbatore, India (2011)
+OTHER INTERESTS (SELF-STUDY)
+• Built a mobile card game.`;
+
+  describe('resume facts › "Career profile" and one-line roles (real layout)', () => {
+    it('every role, with title, company, place and month dates', () => {
+      eq(F().fromText(CAREER).experience.map((j) => [j.title, j.company, j.location, j.start, j.end]), [
+        ['Architect / Lead Data Engineer', 'Example Infotech', '', '12/2022', 'Present'],
+        ['Associate VP – Data Integration', 'Sample Bank', '', '11/2021', '12/2022'],
+        ['Team Lead', 'Example Consulting', 'NJ, US', '06/2015', '11/2019'],
+        ['Senior Developer', 'Example Consulting', 'Bangalore, India', '01/2012', '05/2015'],
+        ['C++ Developer', 'Example Consulting Internal', 'Bangalore', '06/2011', '12/2011'],
+      ]);
+    });
+    it('the degree with its field and school', () => {
+      eq(F().fromText(CAREER).education, [{ school: 'Example University', degree: 'B.Tech', field: 'Electronics and Communication Engineering', startYear: '', endYear: '2011' }]);
+    });
+  });
+
   describe('resume facts › work history', () => {
     it('"Title, Company (years)"', () => {
       eq(F().fromText(MARKDOWN).experience, [

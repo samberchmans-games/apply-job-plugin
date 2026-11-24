@@ -83,7 +83,7 @@
     placeholder: '.select__placeholder, [class*="placeholder"]',
     proxy: '.select2-container, .select2, .chosen-container, .iCIMS_Dropdown, [class*="dropdown-toggle"], [data-proxy-for]',
   };
-  const CONFIG = { optionWaitMs: 1500, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
+  const CONFIG = { optionWaitMs: 1500, searchWaitMs: 4000, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function waitFor(fn, ms) {
@@ -202,7 +202,14 @@
     }
     if (!opt) {
       type(input, isLocation ? String(value).split(',')[0].trim() : String(value).split(/[,(]/)[0].trim());
-      opt = await waitFor(() => best(optionsFor(input), value, key), CONFIG.optionWaitMs);
+      opt = await waitFor(() => best(optionsFor(input), value, key), key === 'school' ? CONFIG.searchWaitMs : CONFIG.optionWaitMs);
+    }
+    // School, degree and field lists rarely have every name: "Other" is the honest answer there.
+    let other = false;
+    if (!opt && OTHER_OK.has(key)) {
+      type(input, 'Other');
+      opt = await waitFor(() => optionsFor(input).find((o) => /^other\b/i.test(clean(o.textContent))), CONFIG.optionWaitMs);
+      other = !!opt;
     }
     if (!opt) {
       type(input, '');
@@ -213,8 +220,9 @@
     realClick(opt);
     input.dataset.ajpPicked = '1';
     const ok = await waitFor(() => comboHasValue(input), 800);
-    return ok ? 'set' : 'nomatch';
+    return ok ? (other ? 'other' : 'set') : 'nomatch';
   }
+  const OTHER_OK = new Set(['school', 'degree', 'major']);
 
   // Lever's location box is a plain input with its own results list (not ARIA).
   async function pickLocation(input, value, site) {
