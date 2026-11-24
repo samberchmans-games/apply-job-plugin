@@ -138,6 +138,8 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | `promptState` | `{ recent{code:[ts]}, last{code:ts}, never{code:true}, pending?{code,msg,at,tid} }` | Background only | **Internal**: crash-prompt bookkeeping |
 | `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
 
+**Work history and education for autofill** come from the resume being sent (`src/lib/resume-facts.js`: the Experience and Education sections, dated roles, degree / field / school / years; no AI). `form-filler.js` applies them to the profile copy used for that fill, so entries, single fields and Workday all use them. `autoApply.experience` / `education` are kept only as a fallback when the resume shows none.
+
 **Two places, one API.** `AJP.store` keeps what job-site pages also read in `storage.local` (profile, settings, resumes, answers, applications, radarSites, …). Data that changes often (`logs`, `radarJobs`, `radarSeen`, `radarFiltered`, `radarScanState`, `radarWatchlist`, `modelHealth`, `aiCalls`, `aiChecks`) and the API keys (`aiKeys`, split out of `settings.ai.keys`) live in an IndexedDB database (`ajp-store`) that only the extension's own pages and background can open. Every `storage.local` write is copied to every open Admin page and job-site tab; database writes are not, and other extension pages hear about them through `AJP.store.onChange` (BroadcastChannel). Data saved by older versions moves over once, on first read. Job-site pages see settings with empty keys.
 
 **Background access list.** Job-site page scripts may ask the background only for the actions in `PAGE_MESSAGES` (analysis, tailoring, autofill, application tracking, logging); everything else answers `AJP-MSG-DENIED`. A test checks that every message the page code sends is on the list.
@@ -566,7 +568,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1441 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1453 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

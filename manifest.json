@@ -96,6 +96,7 @@
         "src/lib/skills-dictionary.js",
         "src/lib/matcher.js",
         "src/lib/experience.js",
+        "src/lib/resume-facts.js",
         "src/lib/tracker.js",
         "src/lib/tracks.js",
         "src/lib/pdf-writer.js",

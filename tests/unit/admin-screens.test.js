@@ -615,6 +615,13 @@
       await waitFor(() => /All 11 job boards allowed/.test($('#radarAllOut').textContent), { msg: 'allowed' });
       ['https://boards-api.greenhouse.io/*', 'https://api.lever.co/*', 'https://*.myworkdayjobs.com/*', 'https://api.rippling.com/*'].forEach((h) => ok(w.browser.__granted.has(h), h));
     });
+    it('Auto-apply details shows the jobs and schools read from your resume; typing them is only a fallback', async () => {
+      const text = 'EXPERIENCE\nGlobex | Dallas, TX | Feb 2016 – Present\nStaff Engineer\n• Built pipelines\nEDUCATION\nB.S. Computer Science, Example University (2008 - 2012)';
+      await load('admin.html', { resumes: { activeId: 'r1', items: [{ id: 'r1', name: 'Base resume', text }] } }, { hash: 'autoapply' });
+      await waitFor(() => /Staff Engineer/.test($('#resumeFacts').textContent), { msg: 'facts' });
+      ['From “Base resume”', 'Staff Engineer · Globex · Dallas, TX', '02/2016 – Present', 'B.S. in Computer Science · Example University'].forEach((t) => includes($('#resumeFacts').textContent, t));
+      eq($('#manualEntries').open, false);
+    });
     it('Auto-apply details has a "U.S. citizen?" answer', async () => {
       await load('admin.html', {}, { hash: 'autoapply' });
       ok($('[data-path="autoApply.citizen"]'));

@@ -143,11 +143,16 @@
         <label>Earliest start date<input data-path="autoApply.earliestStart" placeholder="Immediately / 2026-12-01"></label>
       </div>
 
+      <h3>Work history and education</h3>
+      <p class="hint">Autofill reads these from the resume it sends: the one tailored for that job, else your base resume. Nothing to type here.</p>
+      <div id="resumeFacts" class="card"></div>
+      <details id="manualEntries"><summary>Only if your resume has no dated jobs or schools: enter them here instead</summary>
       <h3>Education <button class="small" data-add="education">+ Add</button></h3>
       <div id="educationList" class="cards"></div>
 
       <h3>Experience <button class="small" data-add="experience">+ Add</button></h3>
       <div id="experienceList" class="cards"></div>
+      </details>
 
       <h3>Voluntary self-identification (EEO)</h3>
       <p class="hint">Optional. Used only to fill these specific questions; never sent to AI and redacted from logs. Leave blank or choose “Decline to self-identify”.</p>
@@ -375,6 +380,7 @@
 <script src="../lib/skills-dictionary.js"></script>
 <script src="../lib/matcher.js"></script>
 <script src="../lib/experience.js"></script>
+<script src="../lib/resume-facts.js"></script>
 <script src="../lib/ai-wire.js"></script>
 <script src="../lib/ai.js"></script>
 <script src="../lib/docx.js"></script>

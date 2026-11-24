@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1441 automated + 168 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1453 automated + 169 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 4,600 lines of JavaScript in 22 files (plus HTML/CSS), plus 16 test files. No dependencies, no build step.
 
@@ -148,11 +148,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1441 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1441) · `./tests/run-tests.sh` (the 692 that need no browser) |
+| Automated tests: 1453 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1453) · `./tests/run-tests.sh` (the 702 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
-| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 168 scenarios, to be run by you later |
+| Manual test checklist (real browsers & sites) | ✅ | `docs/TEST-SCENARIOS.md`, 169 scenarios, to be run by you later |
 | CI on GitHub (run tests on every push / PR) | ✅ | Step 15; `.github/workflows/ci.yml`: checks, CLI tests (Node), full browser suite (headless Chrome) |
 
 ## 10. Multiple career tracks — ✅ done 2026-11-18 (step 6)
@@ -281,6 +281,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-24 | `0145f87` | Optimizations from the code review: busy data and API keys moved to an extension-only database (no copy to every tab; pages can't read keys); job-site pages limited to the background actions they need; the full suite also runs on the database in CI; 1435 tests |
 | 2026-11-24 | `5ec2595` | Fixed B52: Autofill from the panel no longer fails when the browser refuses extra script injection; 1437 tests |
 | 2026-11-24 | `87eb732` | Fixed B53: Employment and Education on the live Greenhouse job boards are found, added with "Add another" and filled; 1441 tests |
+| 2026-11-24 | (pending) | Fixed B54: autofill reads work history and education from the resume it sends (tailored, else base); Admin shows what it read; typing them is only a fallback; 1453 tests |
 | 2026-11-21 | `6fadcbd` | Fixed B46 from the first real tailored resume: two false skill gaps, edits may not remove a tool from a line, wrapped-line tails joined in the PDF, the panel compares with your original resume scored now and explains an unchanged score; 1359 tests |
 | 2026-11-21 | `0851375` | Fixed B45 from the first real AI check: quality gate on the full-size step, small models last, no long retry for slow thinking models, Groq JSON failures retried, account ids masked, providers checked side by side; 1349 tests |
 | 2026-11-21 | `e4f673d` (`feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |

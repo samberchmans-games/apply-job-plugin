@@ -182,12 +182,25 @@
       await fill(p);
       eq(rs(sandbox(), 'country'), 'United States +1');
     });
+    it('jobs and schools come from the resume being sent, with nothing typed in Admin', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      const p = profile();
+      p.autoApply.experience = [];
+      p.autoApply.education = [];
+      const text = 'EXPERIENCE\nGlobex | Dallas, TX | Feb 2016 – Present\nStaff Engineer\n• Built pipelines\nInitech, Austin, TX   03/2012 - 01/2016\nSoftware Engineer\n• Wrote services\nEDUCATION\nB.S. Computer Science, University of Texas at Austin (2008 - 2012)';
+      const r = await AJP.filler.fill({ profile: p, answers: {}, resume: { name: 'Tailored for Globex', text }, root: sandbox() });
+      eq($$('.employment-form').map((b) => b.querySelector('input[id^="company-name-"]').value), ['Globex', 'Initech']);
+      eq($$('.employment-form').map((b) => b.querySelector('input[id^="title-"]').value), ['Staff Engineer', 'Software Engineer']);
+      eq(rs($$('.employment-form')[0], 'start-date-month-'), 'February');
+      eq(rs($$('.education--form')[0], 'school--'), 'University of Texas at Austin');
+      ok(r.notes.some((n) => /taken from your resume "Tailored for Globex": 2 jobs, 1 school/.test(n)), JSON.stringify(r.notes));
+    });
     it('no jobs saved in Auto-apply details: says so instead of leaving the section silently', async () => {
       AtsMock.mount(sandbox(), 'greenhouse-remix');
       const p = profile();
       p.autoApply.experience = [];
       const r = await fill(p);
-      ok(r.skipped.some((x) => /Work experience: no jobs saved/.test(x)), JSON.stringify(r.skipped));
+      ok(r.skipped.some((x) => /Work experience: no jobs with dates found in your resume/.test(x)), JSON.stringify(r.skipped));
     });
   }, { env: 'browser' });
 })();

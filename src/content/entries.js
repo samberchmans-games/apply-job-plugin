@@ -209,7 +209,7 @@
     const list = (items || []).filter((x) => x && Object.values(x).some(Boolean)).slice(0, CONFIG.maxEntries);
     const label = kind === 'work' ? 'Work experience' : 'Education';
     if (!list.length) {
-      report.skipped.push(`${label}: no ${kind === 'work' ? 'jobs' : 'schools'} saved in Admin → Auto-apply details, so this section was left for you`);
+      report.skipped.push(`${label}: no ${kind === 'work' ? 'jobs with dates' : 'schools'} found in your resume, so this section was left for you`);
       return;
     }
     const valueOf = (a) => clean(a.tagName === 'SELECT' ? (a.selectedIndex > 0 ? a.selectedOptions[0].text : '') : a.value);

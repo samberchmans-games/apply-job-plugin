@@ -279,7 +279,23 @@
         .join('') || '<div class="hint">None added.</div>';
   }
 
+  // What autofill will read from your base resume (a tailored resume is read the same way when it is sent).
+  async function renderResumeFacts() {
+    const box = $('#resumeFacts');
+    if (!box) return;
+    const r = await AJP.store.activeResume();
+    if (!r || !(r.text || '').trim()) return void (box.innerHTML = '<span class="hint">Add a resume under Resumes: work history and education are read from it.</span>');
+    const f = AJP.resumeFacts.fromText(r.text);
+    const when = (a, b) => [a, b].filter(Boolean).join(' – ');
+    box.innerHTML =
+      `<b>From “${esc(r.name || 'your resume')}”</b>` +
+      (f.experience.length ? `<ul>${f.experience.map((j) => `<li>${esc(j.title)}${j.company ? ` · ${esc(j.company)}` : ''}${j.location ? ` · ${esc(j.location)}` : ''} <span class="hint">${esc(when(j.start, j.end))}</span></li>`).join('')}</ul>` : '<div class="hint warn">No jobs with dates found in this resume.</div>') +
+      (f.education.length ? `<ul>${f.education.map((e) => `<li>${esc([e.degree, e.field].filter(Boolean).join(' in '))}${e.school ? ` · ${esc(e.school)}` : ''} <span class="hint">${esc(when(e.startYear, e.endYear))}</span></li>`).join('')}</ul>` : '<div class="hint warn">No schools found in this resume.</div>');
+    $('#manualEntries').open = !f.experience.length || !f.education.length;
+  }
+
   function initCards() {
+    renderResumeFacts();
     for (const kind of Object.keys(CARD_FIELDS)) renderCards(kind);
     $('#autoapply').addEventListener('click', (e) => {
       const add = e.target.dataset.add;
@@ -976,6 +992,7 @@
     if (changes.radarJobs || changes.radarFiltered || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
     if (changes.profile && on === 'prefs') renderPrefsTracksNote();
     if ((changes.resumes || changes.enhancements) && on === 'resumes') renderResumes();
+    if (changes.resumes) renderResumeFacts();
   });
 
   // ---- Boot ---------------------------------------------------------------------------------------

@@ -234,6 +234,12 @@
   async function fillInner({ profile, answers, resume, root = document }) {
     const t0 = performance.now();
     const report = { filled: [], learned: [], skipped: [], questions: [], unknown: [], notes: [], host: location.hostname };
+    // Jobs and schools come from the resume being sent (tailored for this job, else your base resume).
+    if (AJP.resumeFacts) {
+      profile = AJP.resumeFacts.apply(profile, resume);
+      const f = profile.fromResume;
+      if (f && (f.jobs || f.schools)) report.notes.push(`Work history and education taken from your resume${f.name ? ` "${f.name}"` : ''}: ${f.jobs} job${f.jobs === 1 ? '' : 's'}, ${f.schools} school${f.schools === 1 ? '' : 's'}.`);
+    }
     const doneGroups = new Set();
     const workday = AJP.workday && AJP.workday.applies(root);
     const site = !workday && AJP.ats ? AJP.ats.detect(root) : null;
