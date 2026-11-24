@@ -33,7 +33,7 @@ Everything is stored locally in the browser. There is no server, database or acc
 | Free AI | Gemini, Groq and OpenRouter free tiers, or local Ollama. AI is **optional**: matching, autofill and tracking all work offline. |
 | Learns about the user | Answers the user types are remembered per question and reused. Applications are tracked automatically. |
 | Supportable | Every failure has an error code. Every user action has a trace id. A one-click issue report carries no personal data (§10). |
-| Safe by default | Never submits a form. API keys stay in the background. EEO answers never go to the AI. Logs are redacted. Job-site passwords are not stored. |
+| Safe by default | Never submits a form. API keys live in the extension database, which job-site pages can't open. EEO answers never go to the AI. Logs are redacted. Job-site passwords are not stored. |
 
 ## 3. Repository layout
 
@@ -137,6 +137,10 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 | `reports` | `[{ reportId, createdAt, codes, title, status, number?, url?, version?, checkedAt?, checkFailed?, seen? }]` | Background | Problem reports opened on GitHub (max 50) |
 | `promptState` | `{ recent{code:[ts]}, last{code:ts}, never{code:true}, pending?{code,msg,at,tid} }` | Background only | **Internal**: crash-prompt bookkeeping |
 | `logs` | `[{ t, lvl, ctx, sid, mod, msg, data?, tid?, code?, pre? }]` | Background only | Ring buffer of 3,000 entries |
+
+**Two places, one API.** `AJP.store` keeps what job-site pages also read in `storage.local` (profile, settings, resumes, answers, applications, radarSites, …). Data that changes often (`logs`, `radarJobs`, `radarSeen`, `radarFiltered`, `radarScanState`, `radarWatchlist`, `modelHealth`, `aiCalls`, `aiChecks`) and the API keys (`aiKeys`, split out of `settings.ai.keys`) live in an IndexedDB database (`ajp-store`) that only the extension's own pages and background can open. Every `storage.local` write is copied to every open Admin page and job-site tab; database writes are not, and other extension pages hear about them through `AJP.store.onChange` (BroadcastChannel). Data saved by older versions moves over once, on first read. Job-site pages see settings with empty keys.
+
+**Background access list.** Job-site page scripts may ask the background only for the actions in `PAGE_MESSAGES` (analysis, tailoring, autofill, application tracking, logging); everything else answers `AJP-MSG-DENIED`. A test checks that every message the page code sends is on the list.
 | `tabJobs` | `{ [tabId]: { url, title, company, location, score, jobKey, snapshot, submittedAt?, appliedAt?, at } }` | Background only | **Internal**, never exported; at most 30 tabs |
 
 **Write ownership.** Each key has one writer per change type, and the background serializes its writes with `AJP.serial()`. This avoids lost updates when many tabs act at once (a test sends 20 simultaneous saves).
@@ -562,7 +566,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1423 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1435 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

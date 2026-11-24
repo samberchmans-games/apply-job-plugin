@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1423). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1435). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,8 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1423** tests in headless Chrome. This is the full suite: the 692 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1435** tests in headless Chrome. This is the full suite: the 692 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `DB=1 ./tests/run-browser-tests.sh` | The full suite again, with every test page acting as an extension page, so storage goes through the extension database as in the real extension (CI runs both) | |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
 
@@ -155,6 +156,7 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | D21 | Admin → AI settings → **Check my AI setup** (real calls with each saved key, sample resume) | Each provider shows ✅ Ready with its model, or ❌ with the provider's exact reason; **Copy results** has no keys; **Use for tailoring** sets that provider |
 | D22 | Tailor a job with a provider that shows Ready | The review opens; Recent AI calls shows that provider and a verified model; any failure shows the provider's own words and **Try with …** buttons |
 | D23 | Run **Check my AI setup**, then tailor three different jobs with the provider that shows Ready. If a provider is busy, run the check again later | Tailoring completes, or moves to another verified model (see Recent AI calls). A busy provider shows **⏳ Busy now**, keeps its verified models and is still offered in **Try with** |
+| D24 | After updating to this version: open Admin → AI settings, Logs, and Job Radar; tailor one job. Then open a job page | Your saved API keys, logs, Job Radar jobs, Filtered list and companies are all still there (moved once, automatically); tailoring works. The job page works as before |
 | D11 | Tailor on a job below 70% | The panel explains ("tailoring starts at 70%") and lists the biggest gaps; nothing is sent to the AI |
 | D12 | Tailor a 70%+ job, tick 3 skills you have, keep the default jobs, then move one | 2 go to your current job and 1 to the previous by default; the moved one appears in the job you chose; the meter stops at your match + 15 |
 | D1 | On a job page → panel → **📝 Tailor resume** | Within ~40 s: "N job requirements: x strong, y partial, z not in your resume · M suggested edits · keywords a% → b% · Review →" |

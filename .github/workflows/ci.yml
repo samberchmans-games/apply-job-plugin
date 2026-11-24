@@ -52,6 +52,13 @@ jobs:
           TIMEOUT: '420'
           BY_SUITE: --by-suite
         run: sh tests/run-browser-tests.sh
+      - name: Full suite on the extension database
+        env:
+          CHROME: /usr/bin/google-chrome
+          CHROME_FLAGS: --no-sandbox --disable-dev-shm-usage
+          TIMEOUT: '420'
+          BY_SUITE: --by-suite
+        run: DB=1 sh tests/run-browser-tests.sh
 
   package:
     runs-on: ubuntu-latest
