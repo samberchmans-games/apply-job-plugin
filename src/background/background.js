@@ -1248,9 +1248,25 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     }
   };
 
+  // What scripts on job-site pages may ask for (src/content/* and the libraries they load). Everything else —
+  // settings, keys, Job Radar control, AI checks, reports — only from the extension's own pages (Admin, popup).
+  const PAGE_MESSAGES = new Set([
+    'log', 'ai.alternatives', 'ai.draftAnswer', 'ai.extractSkills', 'applicationSignal', 'applyClicked', 'askApplied', 'autofillReport',
+    'autofillTab', 'crashPromptAction', 'fillQuestion', 'learnAnswer', 'openAdmin', 'radar.detect', 'radar.watch.add', 'recordApplication',
+    'recordEvaluation', 'resume.enhance', 'setTabJob', 'tabJob.forget', 'tabJob.get', 'undoStatus',
+  ]);
+  const fromPage = (sender) => !!(sender && sender.url) && !String(sender.url).startsWith(api.runtime.getURL(''));
+  AJP.PAGE_MESSAGES = PAGE_MESSAGES; // tests
+
   api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const h = msg && handlers[msg.type];
     if (!h) return false;
+    if (fromPage(sender) && !PAGE_MESSAGES.has(msg.type)) {
+      const x = AJP.err('MSG_DENIED', { type: msg.type });
+      log.warn('Message from a web page refused', { type: msg.type, host: hostOf(sender.url) }, { code: x.code });
+      sendResponse({ ok: false, error: x.message, hint: x.hint, code: x.code });
+      return false;
+    }
     const t0 = Date.now();
     // One trace id per user action: reuse the caller's, or start one here.
     const tid = msg._tid || 't' + AJP.newId(7);

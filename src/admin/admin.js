@@ -965,8 +965,7 @@
   }
 
   // ---- Live refresh when content pages write data ------------------------------------------------------------
-  AJP.api.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
+  AJP.store.onChange((changes) => {
     const on = (location.hash || '#profile').slice(1).split('?')[0];
     if (changes.promptState) renderCrashBanner();
     if (changes.reports && on === 'logs') renderReports();

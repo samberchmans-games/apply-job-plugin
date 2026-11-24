@@ -83,6 +83,7 @@ The report is safe to share. Passwords, API keys, emails, phone numbers, SSNs, E
 | `AJP-RES-CHANGED` | The resume was edited after the draft was made | Run Tailor resume again so line ids match |
 | `AJP-FILE-SIZE` | Resume file over 5 MB | Use a smaller file |
 | `AJP-BACKUP` | Import file isn't a backup | Use a file from Admin → Backup → Export |
+| `AJP-MSG-DENIED` | A script on a job-site page asked the background for an action only the extension's own pages may do (a warning, not a crash) | Nothing to do if it was a one-off. Repeated: report it, since our page code shouldn't ask for these |
 | `AJP-STORE` | Browser storage write failed (quota or blocked) | Export a backup; clear old logs; check browser site-data settings |
 | `AJP-TAB` | No tab available | Start from the extension icon on the job page |
 | `AJP-NET` | Couldn't reach a service (e.g. GitHub), even after retrying | Internet or firewall; it retries automatically, so a lasting `AJP-NET` means the connection is down |

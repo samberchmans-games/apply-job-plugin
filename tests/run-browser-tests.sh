@@ -15,7 +15,7 @@ SERVER=$!
 sleep 1
 # CHROME_FLAGS: extra flags for CI machines (e.g. --no-sandbox in containers).
 "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check $CHROME_FLAGS --user-data-dir="$TMP/profile" \
-  "http://127.0.0.1:$PORT/tests/test-runner.html?report=1&grep=$1" >/dev/null 2>&1 &
+  "http://127.0.0.1:$PORT/tests/test-runner.html?report=1&grep=$1${DB:+&db=1}" >/dev/null 2>&1 &
 BROWSER=$!
 
 i=0

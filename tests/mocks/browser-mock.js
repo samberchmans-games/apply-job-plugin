@@ -23,6 +23,13 @@
     }
   }
 
+  const DB_MODE = (() => {
+    try {
+      return new URLSearchParams(window.top.location.search).get('db') === '1';
+    } catch (_) {
+      return false;
+    }
+  })();
   const local = {
     async get(keys) {
       if (keys == null) return clone(data);
@@ -100,6 +107,7 @@
     async __reset() {
       mock.__tabId = 1;
       await local.clear();
+      if (DB_MODE && globalThis.AJP && globalThis.AJP.store && globalThis.AJP.store._clearDb) await globalThis.AJP.store._clearDb();
       mock.__sent.length = 0;
       mock.__tabMsgs.length = 0;
       mock.__created.length = 0;
@@ -107,13 +115,16 @@
       mock.__notes.length = 0;
       mock.__granted.clear();
       mock.__refuse = false;
+      mock.__senderUrl = '';
     },
     runtime: {
       id: 'test-extension',
-      getURL: (p) => 'moz-extension://test/' + p,
+      // ?db=1: every test page counts as an extension page, so the whole suite also runs on the extension database.
+      getURL: (p) => (DB_MODE ? location.origin + '/' : 'moz-extension://test/') + p,
       async sendMessage(msg) {
         mock.__sent.push(clone(msg));
-        return dispatch(true, msg, { tab: { id: mock.__tabId, url: location.href, title: document.title }, frameId: 0 });
+        // __senderUrl: a job-site page's address, to act as a content script (unset: an extension page)
+        return dispatch(true, msg, { tab: { id: mock.__tabId, url: location.href, title: document.title }, frameId: 0, ...(mock.__senderUrl ? { url: mock.__senderUrl } : {}) });
       },
       onMessage: {
         addListener(fn) {

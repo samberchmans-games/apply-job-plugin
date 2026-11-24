@@ -14,6 +14,13 @@
  *
  * Reads go through an in-memory cache that is invalidated by storage.onChanged,
  * so repeated reads are effectively free.
+ *
+ * Two places, one API (AJP.store):
+ *   storage.local      what job-site pages also read: profile, settings (without API keys), resumes, answers, ...
+ *   extension database IndexedDB that only the extension's own pages and background can open (DB_KEYS + API keys).
+ *                      Data that changes often lives here: every storage.local write is copied to every open
+ *                      Admin page and job-site tab, these writes aren't. Pages (content scripts) never see it.
+ * Changes in either place reach AJP.store.onChange(fn) in every extension context.
  */
 (function () {
   'use strict';
@@ -92,6 +99,98 @@
 
   const area = () => AJP.api.storage.local;
   const cache = new Map();
+
+  // ---- Extension database (IndexedDB) --------------------------------------------------------------------
+  const DB_KEYS = new Set(['logs', 'radarJobs', 'radarSeen', 'radarFiltered', 'radarScanState', 'radarWatchlist', 'modelHealth', 'aiCalls', 'aiChecks']);
+  const KEYS_SLOT = 'aiKeys'; // settings.ai.keys, kept out of storage.local so job-site pages can't read them
+  // Only the extension's own pages and background (a job-site page has a different origin and its own, empty database).
+  function extensionContext() {
+    try {
+      return typeof indexedDB !== 'undefined' && typeof location !== 'undefined' && String(location.href).startsWith(AJP.api.runtime.getURL(''));
+    } catch (_) {
+      return false;
+    }
+  }
+  let useDb = extensionContext();
+  let dbp = null;
+  function db() {
+    if (!dbp) {
+      dbp = new Promise((resolve, reject) => {
+        const r = indexedDB.open('ajp-store', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('kv');
+        r.onsuccess = () => {
+          r.result.onversionchange = () => (r.result.close(), (dbp = null));
+          resolve(r.result);
+        };
+        r.onerror = () => reject(r.error);
+        r.onblocked = () => reject(new Error('extension database is blocked by another window'));
+      }).catch((e) => {
+        dbp = null;
+        throw e;
+      });
+    }
+    return dbp;
+  }
+  async function dbDo(mode, op) {
+    const d = await db();
+    return new Promise((resolve, reject) => {
+      const tx = d.transaction('kv', mode);
+      const req = op(tx.objectStore('kv'));
+      tx.oncomplete = () => resolve(req ? req.result : undefined);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('extension database transaction failed'));
+    });
+  }
+  const dbGet = (k) => dbDo('readonly', (s) => s.get(k));
+  const dbPut = (k, v) => dbDo('readwrite', (s) => s.put(v, k));
+  const dbClear = () => dbDo('readwrite', (s) => s.clear());
+  const storeError = (key, e) => (AJP.err ? AJP.err('STORAGE', { key, original: e && e.message }, e) : e);
+  // Data saved before the move: copied from storage.local once, then removed there.
+  const moved = new Set();
+  async function moveFromLocal(key) {
+    if (moved.has(key)) return undefined;
+    moved.add(key);
+    const r = await area().get(key);
+    if (r[key] === undefined) return undefined;
+    await dbPut(key, r[key]);
+    await area().remove(key);
+    return r[key];
+  }
+  const blankKeys = (keys) => Object.fromEntries(Object.keys(keys || {}).map((k) => [k, '']));
+  async function readKeys() {
+    let keys = await dbGet(KEYS_SLOT);
+    if (keys === undefined && !moved.has(KEYS_SLOT)) {
+      moved.add(KEYS_SLOT);
+      const s = (await area().get('settings')).settings;
+      const old = s && s.ai && s.ai.keys;
+      if (old && Object.values(old).some(Boolean)) {
+        keys = old;
+        await dbPut(KEYS_SLOT, keys);
+        await area().set({ settings: { ...s, ai: { ...s.ai, keys: blankKeys(old) } } });
+      }
+    }
+    return keys || {};
+  }
+
+  // ---- Change notices (both places, every extension context) ----------------------------------------------
+  const watchers = [];
+  const tell = (changes) => watchers.forEach((fn) => {
+    try {
+      fn(changes);
+    } catch (_) {
+      /* one listener failing must not stop the others */
+    }
+  });
+  let chan = null;
+  try {
+    chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ajp-store') : null;
+    if (chan) chan.onmessage = (e) => e.data && Array.isArray(e.data.keys) && tell(Object.fromEntries(e.data.keys.map((k) => [k, {}])));
+  } catch (_) {
+    chan = null;
+  }
+  const announce = (keys) => {
+    tell(Object.fromEntries(keys.map((k) => [k, {}])));
+    if (chan) chan.postMessage({ keys });
+  };
   // Bumped on every change, so a read that started before a write never caches the stale value.
   const versions = new Map();
   const bump = (k) => versions.set(k, (versions.get(k) || 0) + 1);
@@ -110,6 +209,7 @@
         cache.delete(k);
         bump(k);
       }
+      tell(changes);
     });
   } catch (_) {
     /* no extension storage API (e.g. the command-line test runner): the cache simply isn't invalidated */
@@ -119,7 +219,45 @@
     DEFAULTS,
     KEYS: Object.keys(DEFAULTS),
 
+    // Called with { key: change } for changes in storage.local and in the extension database.
+    onChange(fn) {
+      watchers.push(fn);
+    },
+    // Tests: empty the extension database.
+    async _clearDb() {
+      if (useDb) await dbClear();
+      moved.clear();
+    },
+    // Tests: run as an extension page (database on) or as a job-site page (off).
+    _useDb(on) {
+      useDb = !!on && typeof indexedDB !== 'undefined';
+      moved.clear();
+      return useDb;
+    },
+
     async get(key) {
+      if (useDb && DB_KEYS.has(key)) {
+        try {
+          let v = await dbGet(key);
+          if (v === undefined) v = await moveFromLocal(key);
+          return withDefaults(key, v);
+        } catch (e) {
+          throw storeError(key, e);
+        }
+      }
+      if (useDb && key === 'settings') {
+        const s = await this.getLocal(key);
+        try {
+          s.ai.keys = { ...s.ai.keys, ...(await readKeys()) };
+        } catch (e) {
+          throw storeError(KEYS_SLOT, e);
+        }
+        return s;
+      }
+      return this.getLocal(key);
+    },
+
+    async getLocal(key) {
       if (cache.has(key)) return AJP.clone(cache.get(key));
       const ver = versions.get(key) || 0;
       const r = await area().get(key);
@@ -135,6 +273,27 @@
     },
 
     async set(key, value) {
+      if (useDb && DB_KEYS.has(key)) {
+        try {
+          await (AJP.retry ? AJP.retry(() => dbPut(key, value), { tries: 2, baseMs: 150, retryOn: () => true, label: 'database write' }) : dbPut(key, value));
+          if (!moved.has(key)) await moveFromLocal(key).catch(() => {}); // an old copy in storage.local goes away
+        } catch (e) {
+          if (key !== 'logs' && AJP.logger) AJP.logger('storage').error('Write failed', { key, error: e.message }, { code: 'AJP-STORE' });
+          throw storeError(key, e);
+        }
+        announce([key]);
+        return;
+      }
+      if (useDb && key === 'settings' && value && value.ai && value.ai.keys) {
+        try {
+          await readKeys(); // finish moving old keys first, so this write isn't undone
+          await dbPut(KEYS_SLOT, value.ai.keys);
+        } catch (e) {
+          throw storeError(KEYS_SLOT, e);
+        }
+        value = { ...value, ai: { ...value.ai, keys: blankKeys(value.ai.keys) } };
+        announce([KEYS_SLOT]);
+      }
       cache.delete(key);
       bump(key);
       try {
@@ -173,7 +332,9 @@
       for (const k of this.KEYS) if (k in backup.data && !INTERNAL.has(k)) toSet[k] = backup.data[k];
       cache.clear();
       for (const k of Object.keys(toSet)) bump(k);
-      await area().set(toSet);
+      for (const [k, v] of Object.entries(toSet)) if (useDb && (DB_KEYS.has(k) || k === 'settings')) await this.set(k, v);
+      const rest = Object.fromEntries(Object.entries(toSet).filter(([k]) => !(useDb && (DB_KEYS.has(k) || k === 'settings'))));
+      if (Object.keys(rest).length) await area().set(rest);
       return Object.keys(toSet);
     },
 
@@ -181,6 +342,10 @@
       cache.clear();
       for (const k of this.KEYS) bump(k);
       await area().clear();
+      if (useDb) {
+        await dbClear();
+        announce([...DB_KEYS, KEYS_SLOT]);
+      }
     },
   };
 })();

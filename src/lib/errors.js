@@ -57,6 +57,7 @@
         RESUME_PARSE: ['AJP-RES-PARSE', 'Could not read text from this resume file.', 'Paste the resume text in Admin → Resumes.'],
     FILE_TOO_LARGE: ['AJP-FILE-SIZE', 'The file is too large (max 5 MB).', 'Use a smaller PDF/DOCX.'],
     BACKUP_INVALID: ['AJP-BACKUP', 'Not an Apply Job backup file.', 'Choose a file exported from Admin → Backup.'],
+    MSG_DENIED: ['AJP-MSG-DENIED', 'This action is not available from a web page.', 'Open the Apply Job Admin page to do this.'],
     STORAGE: ['AJP-STORE', 'Could not save data in the browser.', 'The browser storage may be full or blocked. Export a backup and free space.'],
     NO_TAB: ['AJP-TAB', 'No browser tab to work with.', 'Click the extension icon on the job page.'],
     NETWORK: ['AJP-NET', 'Could not reach the service.', 'Check your internet connection and try again.'],

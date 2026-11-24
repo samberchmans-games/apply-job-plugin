@@ -59,7 +59,7 @@
     });
     it('openAdmin opens the Admin page at the right section', async () => {
       await send('openAdmin', { hash: 'resumes' });
-      eq(mock.__created[0].url, 'moz-extension://test/src/admin/admin.html#resumes');
+      eq(mock.__created[0].url, mock.runtime.getURL('src/admin/admin.html#resumes'));
     });
     it('analyzeTab tells the page to open the panel with the selected text', async () => {
       const r = await send('analyzeTab', { tabId: 1, jdText: 'Python job' });
