@@ -81,7 +81,7 @@
     reports: [], // problem reports opened on GitHub: [{reportId, createdAt, codes, title, status, number, url, version, checkedAt, seen}]
     suggestions: { dismissed: {} }, // profile suggestions from learned answers: { dismissed: { [id]: isoDate } }
     // Job Radar (docs/JOB-FINDER.md §10). radarScanState is internal (not exported).
-    radarSettings: { enabled: true, intervalHours: 3, threshold: 60, locations: [], remote: 'any', minSalary: '', notify: 'digest', lastDigestAt: null, directory: true, excluded: [] },
+    radarSettings: { enabled: true, intervalHours: 3, threshold: 60, locations: [], remote: 'any', minSalary: '', notify: 'digest', lastDigestAt: null, directory: true, excluded: [], relatedTitles: true, nearTitles: true, skipTitles: [] },
     radarWatchlist: [], // [{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]
     radarJobs: [], // [job] (radar-core.normalize + score, bestTrackId, foundAt, status new|saved|dismissed)
     radarSeen: {}, // { [jobKey]: firstSeenDate }

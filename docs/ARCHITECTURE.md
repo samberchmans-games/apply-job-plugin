@@ -122,7 +122,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 |---|---|---|---|
 | `profile` | `{ personal{…}, skills[{name,level,years}] (core skills), tracks[≤3]{id,name,targetTitles,skills,resumeId,salary?,workTypes?}, targetRoles[], salary{min,max,currency,period}, areas[], workTypes{remote,hybrid,onsite}, willingToRelocate, autoApply{ education[], experience[], workAuthorized, requireSponsorship, noticePeriod, earliestStart, coverLetterTemplate, eeo{gender,race,hispanic,veteran,disability,pronouns} } }` | Admin | Defaults are deep-merged on read, so older data gains new fields |
 | `settings` | `{ ai{provider,model,keys{gemini,groq,openrouter,nvidia,mistral,anthropic},ollamaUrl,tailorProvider,tailorModel,resolvedModels}, logLevel, autoAnalyze, learnAnswers, tracker{autoDetect,followUpDays} }` | Admin | Keys are never exported by default |
-| `radarSettings` | `{ enabled, intervalHours, threshold, locations[], remote, minSalary, notify: digest\|perScan, lastDigestAt, lastViewedAt }` | Admin → Job Radar | Exported |
+| `radarSettings` | `{ enabled, intervalHours, threshold, locations[], remote, minSalary, notify: digest\|perScan, lastDigestAt, lastViewedAt, directory, excluded[], relatedTitles, nearTitles, skipTitles[] }` | Admin → Job Radar | Exported |
 | `radarWatchlist` | `[{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError, failuresInRow, openJobs }]` | Admin / panel | Exported |
 | `radarJobs` | `[job]` (radar-core.normalize + score, bestTrackId, foundAt, status new\|saved\|dismissed, notifiedAt); 500 newest | Background scan | Exported |
 | `radarSeen` | `{ [jobKey]: firstSeenDate }`, pruned after 60 days | Background scan | Exported |
@@ -568,7 +568,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1469 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1481 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

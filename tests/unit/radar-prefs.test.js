@@ -14,7 +14,7 @@
   describe('radar prefs › career tracks: role first, then that track’s places and work type', () => {
     it('each of up to 3 tracks has its own titles; the matching track is reported', () => {
       const p = profile({ tracks: [T('cloud', ['Cloud Architect']), T('data', ['Data Engineer']), T('ml', ['ML Engineer'])] });
-      eq(C.quickFilter(job(), {}, p), { pass: true, trackId: 'data' });
+      eq(C.quickFilter(job(), {}, p), { pass: true, trackId: 'data', titleMatch: 'exact' });
       eq(C.quickFilter(job({ title: 'Principal Cloud Architect' }), {}, p).trackId, 'cloud');
       eq(C.quickFilter(job({ title: 'Office Manager' }), {}, p).reason, 'title');
     });
@@ -27,7 +27,7 @@
     });
     it('the same title on two tracks: passes when either track’s places fit', () => {
       const p = profile({ tracks: [T('a', ['Data Engineer'], { areas: ['Seattle, WA'] }), T('b', ['Senior Data Engineer'], { areas: ['Austin, TX'] })] });
-      eq(C.quickFilter(job(), {}, p), { pass: true, trackId: 'b' });
+      eq(C.quickFilter(job(), {}, p), { pass: true, trackId: 'b', titleMatch: 'exact' });
     });
     it('work type: the track’s (else profile’s) choices; remote jobs fit any place; unknown passes', () => {
       const p = profile({ workTypes: { remote: true, hybrid: false, onsite: false } });

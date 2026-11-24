@@ -18,6 +18,7 @@
     maxPages: 5,
     maxKeywords: 3,
     detailPerCompany: 25,
+    nearDetailPerCompany: 5, // of those, jobs whose title only shares a word with yours (read last)
     requestsPerScan: 400,
     minIntervalHours: 1,
     lockStaleMs: 2 * 60 * 1000, // a running scan refreshes its lock after every company (heartbeat)
@@ -140,7 +141,7 @@
     const adapter = AJP.radar.boards.get(entry.board);
     if (!adapter) throw AJP.err('RADAR_UNSUPPORTED', { board: entry.board });
     // Workday searches by keyword: one title per career track first (up to 3 tracks), then more titles.
-    const titleLists = AJP.tracks.list(profile).map((t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []));
+    const titleLists = AJP.tracks.list(profile).map((t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [])).map((l) => ((settings || {}).relatedTitles !== false ? [...l, ...C.relatedTitles(l)] : l));
     const keywords = [];
     for (let i = 0; keywords.length < CONFIG.maxKeywords && i < 10; i++) for (const l of titleLists) if (l[i] && !keywords.includes(l[i]) && keywords.length < CONFIG.maxKeywords) keywords.push(l[i]);
     const ctx = { keywords, now };
@@ -194,6 +195,7 @@
     const passing = fresh.filter((item) => {
       const f = C.quickFilter(item.j, settings, profile, { years });
       item.trackId = f.trackId;
+      item.titleMatch = f.titleMatch;
       if (!f.pass) filtered.push(C.toFiltered(item.j, f.reason, f.detail, now));
       return f.pass;
     });
@@ -203,9 +205,12 @@
     if (adapter.detailRequest) {
       const tracks = AJP.tracks.list(profile);
       const fit = (j) => Math.max(0, ...tracks.map((t) => AJP.tracks.titleFit(j.title, { targetTitles: (t.targetTitles || []).length ? t.targetTitles : profile.targetRoles || [] })));
-      passing.sort((a, b) => fit(b.j) - fit(a.j));
+      const rank = { exact: 2, related: 1, near: 0 };
+      passing.sort((a, b) => (rank[b.titleMatch] || 0) - (rank[a.titleMatch] || 0) || fit(b.j) - fit(a.j));
+      let near = 0;
       for (const item of passing) {
         if (item.j.descriptionLevel === 'full' || details >= CONFIG.detailPerCompany) continue;
+        if (item.titleMatch === 'near' && near++ >= CONFIG.nearDetailPerCompany) continue;
         const req = adapter.detailRequest(item.p, e);
         if (!req) continue;
         try {
@@ -221,7 +226,7 @@
     }
 
     // Score
-    const scored = passing.map(({ j }) => ({ ...j, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
+    const scored = passing.map(({ j, titleMatch }) => ({ ...j, titleMatch, ...bestScore(j, profile, resumes), eligibility: C.eligibility(j.description, profile) }));
     // The description decides: years asked, your technical skills, and any stated remote limit.
     const jobs = [];
     for (const j of scored) {

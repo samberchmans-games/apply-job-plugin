@@ -284,7 +284,11 @@
             <label>Work type (Any = each track's preference)<select name="remote"><option value="any">Any</option><option value="remote">Remote</option><option value="hybrid">Hybrid or remote</option><option value="onsite">On-site</option></select></label>
             <label>Locations (blank = each track's / your profile's areas)<input name="locations" placeholder="e.g. Austin; Texas; United States"></label>
             <label>Minimum yearly salary (jobs without a salary still show)<input name="minSalary" inputmode="numeric" placeholder="e.g. 120000"></label>
+            <label class="check"><input type="checkbox" name="relatedTitles"> Include related job titles (for example ETL Developer when you look for Data Engineer)</label>
+            <label class="check"><input type="checkbox" name="nearTitles"> Also keep other titles when the description strongly matches your skills</label>
+            <label>Skip job titles with these words<input name="skipTitles" placeholder="e.g. Sales; Recruiter; Support"></label>
           </div>
+          <p class="hint" id="radarRelated"></p>
           <div class="row"><button type="button" id="radarSettingsSave" class="primary">Save settings</button></div>
         </form>
       </details>

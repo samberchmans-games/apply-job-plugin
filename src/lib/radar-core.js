@@ -195,14 +195,84 @@
     return c.length ? c : ws;
   };
   const same = (a, b) => a === b || (a.length >= 5 && b.length >= 5 && (a.startsWith(b) || b.startsWith(a)));
-  function titleFits(jobTitle, titles) {
+  // `all`: every word must be there (related titles: "Data Warehouse Engineer" must not let "Warehouse Engineer" in).
+  function titleFits(jobTitle, titles, { all = false } = {}) {
     const J = words(jobTitle);
     return (titles || []).some((t) => {
       const T = [...new Set(core(words(t)))];
       if (!T.length) return false;
       const hit = T.filter((w) => J.some((j) => same(w, j))).length;
-      return hit >= Math.ceil(T.length * 0.6);
+      return hit >= (all ? T.length : Math.ceil(T.length * 0.6));
     });
+  }
+
+  /*
+   * Related titles: names companies use for the same work. A target title joins the group whose title it says most
+   * completely ("Senior Data Engineer" → data engineering); every title of that group then fits too (all its words).
+   * A management target ("Data Engineering Manager") joins only a group that has its exact title.
+   */
+  const TITLE_FAMILIES = [
+    ['Data Engineer', 'ETL Developer', 'ETL Engineer', 'Analytics Engineer', 'Big Data Engineer', 'Big Data Developer', 'Data Platform Engineer', 'Data Infrastructure Engineer', 'DataOps Engineer', 'Data Pipeline Engineer', 'Data Integration Engineer', 'Data Integration Developer', 'Data Warehouse Engineer', 'Data Warehouse Developer', 'Databricks Engineer', 'Snowflake Engineer', 'Spark Engineer', 'Spark Developer'],
+    ['Software Engineer', 'Software Developer', 'Software Development Engineer', 'SDE', 'SWE', 'Application Developer', 'Programmer'],
+    ['Backend Engineer', 'Back End Engineer', 'Backend Developer', 'Back End Developer', 'Server Engineer', 'API Engineer'],
+    ['Frontend Engineer', 'Front End Engineer', 'Frontend Developer', 'Front End Developer', 'UI Engineer', 'UI Developer', 'Web Developer'],
+    ['Full Stack Engineer', 'Full Stack Developer', 'Fullstack Engineer', 'Fullstack Developer'],
+    ['Machine Learning Engineer', 'ML Engineer', 'AI Engineer', 'AI ML Engineer', 'Deep Learning Engineer', 'MLOps Engineer'],
+    ['Data Scientist', 'Applied Scientist', 'Machine Learning Scientist', 'ML Scientist', 'Decision Scientist'],
+    ['Data Analyst', 'Business Intelligence Analyst', 'BI Analyst', 'Business Intelligence Developer', 'BI Developer', 'Reporting Analyst', 'Insights Analyst', 'Product Analyst'],
+    ['DevOps Engineer', 'Site Reliability Engineer', 'SRE', 'Platform Engineer', 'Infrastructure Engineer', 'Cloud Engineer', 'Cloud Infrastructure Engineer', 'Release Engineer'],
+    ['QA Engineer', 'Quality Assurance Engineer', 'Quality Engineer', 'Test Engineer', 'Test Automation Engineer', 'SDET', 'QA Analyst'],
+    ['Security Engineer', 'Application Security Engineer', 'Cybersecurity Engineer', 'Cyber Security Engineer', 'Information Security Engineer', 'Cloud Security Engineer'],
+    ['Mobile Engineer', 'Mobile Developer', 'iOS Engineer', 'iOS Developer', 'Android Engineer', 'Android Developer'],
+    ['Database Administrator', 'DBA', 'Database Engineer', 'Database Developer'],
+    ['Data Architect', 'Data Modeler', 'Cloud Data Architect'],
+    ['Product Manager', 'Product Owner', 'Technical Product Manager'],
+  ];
+  const LEADS = /\b(manager|director|head|vp|chief|president)\b/i;
+  const coreSet = (t) => [...new Set(core(words(t)))];
+  const covers = (M, T) => M.every((m) => T.some((t) => same(m, t)));
+  const relMemo = new Map(); // a scan asks for the same few title lists thousands of times
+  function relatedTitles(titles) {
+    const mine = (titles || []).map(String).filter(Boolean);
+    const memoKey = mine.join('|');
+    if (relMemo.has(memoKey)) return relMemo.get(memoKey).slice();
+    const res = findRelated(mine);
+    if (relMemo.size > 50) relMemo.clear();
+    relMemo.set(memoKey, res);
+    return res.slice();
+  }
+  function findRelated(mine) {
+    const out = new Set();
+    for (const t of mine) {
+      const T = coreSet(t);
+      if (!T.length) continue;
+      const lead = LEADS.test(t);
+      let best = 0;
+      let groups = [];
+      for (const fam of TITLE_FAMILIES) {
+        for (const m of fam) {
+          const M = coreSet(m);
+          if (!covers(M, T) || (lead && !covers(T, M))) continue;
+          if (M.length > best) (best = M.length), (groups = [fam]);
+          else if (M.length === best && !groups.includes(fam)) groups.push(fam);
+        }
+      }
+      if (best < Math.ceil(T.length * 0.6)) continue;
+      for (const fam of groups) for (const m of fam) out.add(m);
+    }
+    const own = new Set(mine.map((t) => coreSet(t).sort().join(' ')));
+    return [...out].filter((m) => !own.has(coreSet(m).sort().join(' ')));
+  }
+  // A title that shares a word with a target or related title ("Spark Engineer" ~ "Data Engineer"): kept only when its
+  // description shows a strong skill match (postFilter).
+  function nearTitle(jobTitle, titles) {
+    const J = core(words(jobTitle));
+    return (titles || []).some((t) => coreSet(t).some((w) => J.some((j) => same(w, j))));
+  }
+  // "Skip job titles with these words": whole words or phrases ("sales" skips "Sales Engineer", not "Salesforce").
+  function skipWord(jobTitle, skip) {
+    const t = ` ${AJP.normKey(jobTitle)} `;
+    return (skip || []).map((s) => String(s).trim()).find((s) => s && AJP.normKey(s) && t.includes(` ${AJP.normKey(s)} `)) || null;
   }
   // A remote job limited to other countries does not fit (shared with the job panel: matcher.js).
   const remoteCountryFits = (job, places, profile) => AJP.matcher.remoteRestriction(job, places, profile).status !== 'limited';
@@ -275,8 +345,17 @@
     const tracks = AJP.tracks ? AJP.tracks.list(profile) : [];
     const views = tracks.map((t) => ({ id: t.id, titles: t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || [], areas: t.areas && t.areas.length ? t.areas : profile.areas || [], workTypes: t.workTypes && Object.values(t.workTypes).some(Boolean) ? t.workTypes : profile.workTypes }));
     const titled = views.filter((v) => v.titles.length);
-    // 1. Role: fits the titles of at least one track (no titles anywhere → every job goes on to scoring)
-    const byTitle = titled.length ? titled.filter((v) => titleFits(job.title, v.titles)) : views;
+    // 0. Title words you skip
+    const skipped = skipWord(job.title, settings.skipTitles);
+    if (skipped) return { pass: false, reason: 'skipped', detail: `"${skipped}" in the title` };
+    // 1. Role: fits the titles of at least one track (no titles anywhere → every job goes on to scoring); then a related
+    //    title; then (when the description will decide) a title that shares a word with them.
+    const related = settings.relatedTitles !== false;
+    const rel = (v) => (related ? relatedTitles(v.titles) : []);
+    let titleMatch = 'exact';
+    let byTitle = titled.length ? titled.filter((v) => titleFits(job.title, v.titles)) : views;
+    if (!byTitle.length && related) (byTitle = titled.filter((v) => titleFits(job.title, rel(v), { all: true }))), (titleMatch = 'related');
+    if (!byTitle.length && settings.nearTitles !== false) (byTitle = titled.filter((v) => nearTitle(job.title, [...v.titles, ...rel(v)]))), (titleMatch = 'near');
     if (!byTitle.length) return { pass: false, reason: 'title' };
     // 1b. Level: near your experience; management titles only for management tracks
     const fitting = byTitle.filter((v) => levelFits(job.title, v.titles, ctx.years));
@@ -303,7 +382,7 @@
       const yearly = job.salary.max * (YEARLY[job.salary.period] || 1);
       if (yearly < min) return { pass: false, reason: 'salary' };
     }
-    return { pass: true, trackId: placed[0].id };
+    return { pass: true, trackId: placed[0].id, titleMatch };
   }
 
   /*
@@ -350,7 +429,7 @@
     return out;
   }
   // ---- Filtered: every job left out, with the reason, so you can check it ---------------------------------
-  const FILTER_REASONS = { title: 'Different role', level: 'Level or management', location: 'Location', remote: 'Work type', salary: 'Salary', skills: 'Too few of your skills', experience: 'Years of experience', restricted: 'Remote restriction', authorization: 'Work authorization' };
+  const FILTER_REASONS = { skipped: 'Title words you skip', title: 'Different role', level: 'Level or management', location: 'Location', remote: 'Work type', salary: 'Salary', skills: 'Too few of your skills', experience: 'Years of experience', restricted: 'Remote restriction', authorization: 'Work authorization' };
   function placesFor(settings, profile) {
     const custom = ((settings && settings.locations) || []).filter(Boolean);
     if (custom.length) return custom;
@@ -359,6 +438,10 @@
   }
   // The checks that need the description. `note` is a remote job to confirm (shown on its card).
   function postFilter(job, settings, profile) {
+    if (job.titleMatch === 'near') {
+      const s = nearStrong(job, settings, profile);
+      if (!s.pass) return { pass: false, reason: 'title', detail: s.detail };
+    }
     if (!experienceFits(job)) return { pass: false, reason: 'experience', detail: job.yearsAsked != null ? `Asks for ${job.yearsAsked}+ years` : '' };
     if (!relevant(job, profile)) return { pass: false, reason: 'skills', detail: `${job.techMatched || 0} of your technical skills in the description` };
     if (job.remote !== 'remote') return { pass: true };
@@ -369,7 +452,7 @@
   function evaluate(job, settings, profile, ctx) {
     const q = quickFilter(job, settings, profile, ctx);
     if (!q.pass) return q;
-    return { ...postFilter(job, settings, profile), trackId: q.trackId };
+    return { ...postFilter({ ...job, titleMatch: q.titleMatch }, settings, profile), trackId: q.trackId, titleMatch: q.titleMatch };
   }
   function toFiltered(job, reason, detail, now = Date.now(), keepText = false) {
     const { description, raw, ...rest } = job;
@@ -401,7 +484,7 @@
   }
 
   // Bumped when the filter rules change: the background re-checks the listed jobs once with the new rules.
-  const RULES_VERSION = 10;
+  const RULES_VERSION = 11;
 
   /*
    * Relevance: a job with a description must share at least MIN_TECH_SKILLS technical skills with you (soft skills like
@@ -412,6 +495,17 @@
   const SOFT = new Set(['leadership', 'people management', 'mentoring', 'communication', 'cross-functional collaboration', 'problem solving', 'presentation skills', 'negotiation', 'customer service', 'stakeholder management', 'requirements gathering', 'agile', 'jira', 'confluence', 'project management', 'program management', 'roadmapping', 'data modeling', 'data analysis'].map((s) => AJP.normKey(s)));
   const isSoft = (name) => SOFT.has(AJP.normKey(name));
   const techMatches = (analysis) => ((analysis && analysis.matched) || []).filter((m) => !isSoft(m.skill)).length;
+  // A job whose title only shares a word with yours stays only when its description is a strong match: at least
+  // NEAR_TECH_SKILLS of your technical skills (all of them if you list fewer) and a score at your alert threshold.
+  const NEAR_TECH_SKILLS = 4;
+  function nearStrong(job, settings, profile) {
+    if (job.descriptionLevel !== 'full' || job.score == null) return { pass: false, detail: 'Other title; no description to check your skills' };
+    const mineTech = ((profile && profile.skills) || []).filter((s) => !isSoft(s.name || s)).length;
+    const need = Math.min(NEAR_TECH_SKILLS, mineTech);
+    const thr = Number(settings && settings.threshold) || 60;
+    if (!need || (job.techMatched || 0) < need || job.score < thr) return { pass: false, detail: `Other title; ${job.techMatched || 0} of your technical skills, ${job.score}% match` };
+    return { pass: true };
+  }
   function relevant(job, profile) {
     if (!experienceFits(job)) return false;
     if (job.descriptionLevel !== 'full' || job.techMatched == null) return true; // not judged yet (title only): keep
@@ -420,5 +514,5 @@
     return job.techMatched >= Math.min(MIN_TECH_SKILLS, Math.max(1, mineTech));
   }
 
-  AJP.radar.core = { FILTER_REASONS, placesFor, postFilter, evaluate, toFiltered, mergeFiltered, RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, isLeadershipYears, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, remoteCountryFits, eligibility, freshness, markSeen, prune };
+  AJP.radar.core = { FILTER_REASONS, placesFor, postFilter, evaluate, toFiltered, mergeFiltered, RULES_VERSION, MIN_TECH_SKILLS, isSoft, techMatches, relevant, levelFits, experienceFits, isLeadershipYears, userYears, LIMITS, decodeEntities, htmlToText, xmlItems, xmlValue, xmlValues, parseDate, salaryFromText, remoteFrom, normalize, quickFilter, titleFits, TITLE_FAMILIES, relatedTitles, nearTitle, skipWord, NEAR_TECH_SKILLS, remoteCountryFits, eligibility, freshness, markSeen, prune };
 })();

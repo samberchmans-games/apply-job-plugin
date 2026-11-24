@@ -23,9 +23,9 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1469 automated + 169 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1481 automated + 171 manual scenarios · ✅ CI on every push |
 
-**Code size:** about 13,100 lines of JavaScript in 42 files (plus HTML/CSS), plus 54 test files. No dependencies, no build step.
+**Code size:** about 13,100 lines of JavaScript in 42 files (plus HTML/CSS), plus 55 test files. No dependencies, no build step.
 
 ## How we work
 
@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1469 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1469) · `./tests/run-tests.sh` (the 711 that need no browser) |
+| Automated tests: 1481 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1481) · `./tests/run-tests.sh` (the 722 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -287,6 +287,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-24 | `7a935e4` | Fixed B57: redrawn fields are found again by id; the School rule matches whole words only; 1459 tests |
 | 2026-11-24 | `95c3c8b` | Fixed B58 after a live run on the Coinbase form: Country, months, School (0 - Other), Degree (Bachelor's) and Discipline all fill, 6 of 6 runs; server lists are waited on until they answer; 1459 tests |
 | 2026-11-24 | `3366370` | Fixed B59 (outside code review, each finding checked): 17 logic, safety and data fixes, faster copies of stored data and resume scans, docs brought up to date; 1469 tests |
+| 2026-11-24 | (pending) | B60 Job Radar title search: related titles, other titles kept for a strong skill match, title words to skip; 1481 tests |
 | 2026-11-21 | `6fadcbd` | Fixed B46 from the first real tailored resume: two false skill gaps, edits may not remove a tool from a line, wrapped-line tails joined in the PDF, the panel compares with your original resume scored now and explains an unchanged score; 1359 tests |
 | 2026-11-21 | `0851375` | Fixed B45 from the first real AI check: quality gate on the full-size step, small models last, no long retry for slow thinking models, Groq JSON failures retried, account ids masked, providers checked side by side; 1349 tests |
 | 2026-11-21 | `e4f673d` (`feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |

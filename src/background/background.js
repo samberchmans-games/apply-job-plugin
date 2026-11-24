@@ -394,7 +394,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         const scored = { ...j, ...AJP.radar.scan.score(j, profile, resumes), eligibility: j.override ? j.eligibility : C.eligibility(j.description, profile) };
         if (j.override) { keep.push(scored); continue; } // you moved it back yourself
         const v = C.evaluate(scored, rs, profile, { years });
-        if (v.pass) keep.push({ ...scored, remoteNote: v.note || null });
+        if (v.pass) keep.push({ ...scored, titleMatch: v.titleMatch, remoteNote: v.note || null });
         else { removed++; out.push(C.toFiltered(scored, v.reason, v.detail, now, true)); }
       }
       // Filtered: anything that fits your preferences now comes back.
@@ -407,7 +407,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
         const v = C.evaluate(scored, rs, profile, { years });
         if (!v.pass) { still.push({ ...f, ...(job.description ? scored : {}), reason: v.reason, detail: v.detail || '' }); continue; }
         returned++;
-        if (job.description) keep.unshift({ ...scored, status: 'new', remoteNote: v.note || null, eligibility: C.eligibility(job.description, profile) });
+        if (job.description) keep.unshift({ ...scored, status: 'new', titleMatch: v.titleMatch, remoteNote: v.note || null, eligibility: C.eligibility(job.description, profile) });
         else relist.add(f.key);
       }
       await AJP.store.set('radarJobs', keep);
@@ -1055,7 +1055,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
       return { settings: await AJP.store.get('radarSettings') };
     },
     async 'radar.settings.save'({ settings = {} } = {}) {
-      const allowed = ['enabled', 'intervalHours', 'threshold', 'locations', 'remote', 'minSalary', 'notify', 'directory'];
+      const allowed = ['enabled', 'intervalHours', 'threshold', 'locations', 'remote', 'minSalary', 'notify', 'directory', 'relatedTitles', 'nearTitles', 'skipTitles'];
       let out = null;
       await serialRadar(() =>
         AJP.store.update('radarSettings', (s) => {
@@ -1064,6 +1064,9 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
           s.threshold = Math.max(0, Math.min(100, Number(s.threshold) || 60));
           s.locations = (Array.isArray(s.locations) ? s.locations : String(s.locations || '').split(/[;\n]+/)).map((x) => String(x).trim()).filter(Boolean).slice(0, 20);
           if (!['any', 'remote', 'hybrid', 'onsite'].includes(s.remote)) s.remote = 'any';
+          s.relatedTitles = s.relatedTitles !== false;
+          s.nearTitles = s.nearTitles !== false;
+          s.skipTitles = (Array.isArray(s.skipTitles) ? s.skipTitles : String(s.skipTitles || '').split(/[;,\n]+/)).map((x) => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 30);
           if (!['perScan', 'digest'].includes(s.notify)) s.notify = 'digest';
           out = { ...s };
         })

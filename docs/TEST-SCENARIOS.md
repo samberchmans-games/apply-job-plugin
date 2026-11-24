@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1469). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1481). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1469** tests in headless Chrome. This is the full suite: the 711 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1481** tests in headless Chrome. This is the full suite: the 722 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `DB=1 ./tests/run-browser-tests.sh` | The full suite again, with every test page acting as an extension page, so storage goes through the extension database as in the real extension (CI runs both) | |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
@@ -313,6 +313,8 @@ Use real companies whose careers pages run on these boards (for example a Greenh
 | M32 | With your location in NJ, find remote jobs saying "not available in NJ", "must live in CA, TX or WA", and "Remote Canada"; then one that excludes only another state | The first three are under Job Radar → **Filtered** → Remote restriction, each with its reason. The last one is in **Matched** |
 | M33 | Job Radar → Restart search, then open **Filtered**: change the reason, page through, click **Move to Matched** on one job, change a preference | Every left-out job is listed with its reason; both tabs page 25 at a time; the moved job stays in Matched marked "Moved by you"; jobs that now fit return by themselves |
 | M34 | In Job Radar, click a job hosted on a company's own site (not a job board). Allow the site. Open a second job there. Then repeat on another company and click Deny | Allowed: the assistant appears with the match, and the second job does not ask again. Other pages of that company site show nothing. Denied: the job still opens and a message explains the toolbar icon |
+| M35 | Target title "Data Engineer"; open Job Radar settings; Scan now; look at New jobs and Filtered | Settings say "Related titles also used: ETL Developer, Analytics Engineer, …". Jobs such as "Analytics Engineer" or "ETL Developer" appear with a **Related title** label; a job with another title (e.g. "Streaming Engineer") appears only with an **Other title, your skills** label and a high match, otherwise it is under Filtered → Different role with "Other title; N of your technical skills, P% match" |
+| M36 | Settings: "Skip job titles with these words" = Sales; Recruiter → Save; then untick "Include related job titles" → Save | Sales and recruiter jobs move to Filtered → **Title words you skip** ("Sales" in the title), but a "Salesforce Data Engineer" stays; with related titles off, ETL Developer / Analytics Engineer jobs leave the list and the settings say related titles are off |
 | M28 | Career tracks: give one track its own locations (e.g. "Seattle, WA; Remote - US") | Saved; that track's jobs follow those places (on-site in Seattle, or remote in the US); "Remote Canada" jobs don't show for a US search |
 
 ### H. Performance

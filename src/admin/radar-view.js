@@ -92,10 +92,18 @@
     f.remote.value = s.remote;
     f.minSalary.value = s.minSalary || '';
     f.notify.value = s.notify;
+    f.relatedTitles.checked = s.relatedTitles !== false;
+    f.nearTitles.checked = s.nearTitles !== false;
+    f.skipTitles.value = (s.skipTitles || []).join('; ');
+    // Which related titles your target titles bring in (Career tracks → titles).
+    const profile = await AJP.store.get('profile');
+    const mine = AJP.tracks.list(profile).flatMap((t) => (t.targetTitles && t.targetTitles.length ? t.targetTitles : profile.targetRoles || []));
+    const rel = AJP.radar.core.relatedTitles(mine);
+    $('#radarRelated').textContent = !mine.length ? 'Add target titles to your career tracks to choose which jobs Job Radar keeps.' : s.relatedTitles === false ? 'Related titles are off: only your own target titles are used.' : rel.length ? `Related titles also used: ${rel.join(', ')}.` : 'No built-in related titles for your target titles: add other names for the role to your career tracks.';
   }
   async function saveSettings() {
     const f = $('#radarSettings');
-    const r = await AJP.send('radar.settings.save', { settings: { enabled: f.enabled.checked, directory: f.directory.checked, intervalHours: Number(f.intervalHours.value), threshold: Number(f.threshold.value), locations: f.locations.value, remote: f.remote.value, minSalary: f.minSalary.value.replace(/[^\d]/g, ''), notify: f.notify.value } });
+    const r = await AJP.send('radar.settings.save', { settings: { enabled: f.enabled.checked, directory: f.directory.checked, intervalHours: Number(f.intervalHours.value), threshold: Number(f.threshold.value), locations: f.locations.value, remote: f.remote.value, minSalary: f.minSalary.value.replace(/[^\d]/g, ''), notify: f.notify.value, relatedTitles: f.relatedTitles.checked, nearTitles: f.nearTitles.checked, skipTitles: f.skipTitles.value } });
     if (r && r.ok === false) return ui.toast(fail(r));
     await renderSettings();
     renderStatus();
@@ -127,6 +135,8 @@
       el.flags && el.flags.sponsors ? '<span class="pill good">Sponsors visas</span>' : '',
       el.status === 'check' ? `<span class="pill warn" title="${esc(el.reasons.join('; '))}">Check: ${esc(el.reasons[0])}</span>` : '',
       j.remoteNote ? `<span class="pill warn" title="Remote: confirm you can work from where you live">${esc(j.remoteNote)}</span>` : '',
+      j.titleMatch === 'related' ? '<span class="pill" title="Its title is another name for a title you look for">Related title</span>' : '',
+      j.titleMatch === 'near' ? '<span class="pill warn" title="A different title, kept because the description strongly matches your skills">Other title, your skills</span>' : '',
       j.override ? '<span class="pill" title="You moved this job back from Filtered">Moved by you</span>' : '',
     ].filter(Boolean).join(' ');
     return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}" data-keys="${esc((j.keys || [j.key]).join(' '))}">
