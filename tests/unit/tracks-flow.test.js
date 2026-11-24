@@ -42,7 +42,7 @@
       const s = await open();
       const tabs = [...s.querySelectorAll('.tk')];
       eq(tabs.length, 2);
-      includes(tabs[0].textContent, '★ AWS Cloud Architect');
+      includes(tabs[0].textContent, 'Best fitAWS Cloud Architect');
       ok(tabs[0].classList.contains('on'));
       ok(/Java Architect \d+%/.test(tabs[1].textContent));
     });

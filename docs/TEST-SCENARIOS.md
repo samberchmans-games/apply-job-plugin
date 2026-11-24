@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1481). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1489). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1481** tests in headless Chrome. This is the full suite: the 722 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1489** tests in headless Chrome. This is the full suite: the 722 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `DB=1 ./tests/run-browser-tests.sh` | The full suite again, with every test page acting as an extension page, so storage goes through the extension database as in the real extension (CI runs both) | |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
@@ -94,7 +94,7 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 ### B. Admin page
 | ID | Steps | Expected |
 |---|---|---|
-| B1 | Fill in the profile, then reload the page | All values kept, and a "Saved" message appeared after each edit |
+| B1 | Fill in the profile, then reload the page | All values kept; the top bar said "Saved locally · just now" after each edit |
 | B2 | Add the skills "k8s", "Kubernetes" and "reactjs" | Shows Kubernetes (the duplicate is rejected with "Already in your list") and React |
 | B3 | Set a skill's level and years, remove a skill | Changes are kept after a reload |
 | B4 | Add positions and areas (type, then press Enter), remove one | The chips update and are kept |
@@ -117,6 +117,8 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | B16 | Import a random .json file | "Import failed: Not an Apply Job backup file" |
 | B17 | Narrow the window to phone width | The layout stacks and nothing scrolls sideways |
 | B18 | Use the browser in dark mode | The Admin page, popup and panel are all readable |
+| B19 | Open Admin; look at the sidebar, then edit any Profile field | Sidebar in three groups (Candidate data, Automation, Activity & system) with line icons, no emoji; Profile in three cards; the top bar says "Saved locally · just now" after the edit |
+| B20 | Profile → GitHub URL: type `github.com/yourname`, click elsewhere; then click the open and copy buttons | It becomes `https://github.com/yourname`; Open opens it in a new tab; Copy says "Link copied"; with the field empty both buttons are greyed out; a long LinkedIn link ends in "…" and shows in full on hover |
 
 ### C. Job page reading & match %
 | ID | Steps | Expected |
@@ -139,6 +141,7 @@ Run these in Chrome first, then Edge, Firefox and Safari. Mark each one ✅ / �
 | C12 | Turn off "Show the match badge automatically" in Admin | No badge on job sites, but the popup's Analyze still works |
 | C13 | Panel: drag it, minimize it, close it | Works. Closing removes it until the next Analyze. |
 | C14 | Browser pages (`chrome://`, the Web Store, a PDF viewer) → popup → Analyze | A readable error: "This page cannot be accessed by extensions" |
+| C15 | Open a job page with the panel; click a red Gaps chip; minimize the panel | Summary on top (title, company · place, ring); the best track's tab says **Best fit**; Fit is a list with Matched / Check / Not stated labels; the gap explains why and what to do, a second click hides it; Autofill is the one blue button; Mark applied and Watch this company are small links; minimized: a pill with "96% match", expand and close, readable on a dark site too |
 
 ### D. Resume tailoring (with a real free AI: Groq or Gemini)
 Use your real resume, with one achievement per line starting with `-` or `•`, and 2–3 real job posts. One of the jobs should ask for specific numbers (e.g. "migrated 10TB", "20+ APIs", "under 5% defects").

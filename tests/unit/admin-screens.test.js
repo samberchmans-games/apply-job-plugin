@@ -412,6 +412,36 @@
   }, { env: 'browser' });
 
   // ---- Toolbar popup ------------------------------------------------------------------------------------------------
+  describe('admin screens › new look', () => {
+    afterEach(closeFrame);
+    it('the sidebar is grouped, with line icons', async () => {
+      await load('admin.html', {});
+      eq($$('nav .nav-group').map((g) => g.textContent), ['Candidate data', 'Automation', 'Activity & system']);
+      eq($$('nav a').length, 12);
+      ok($$('nav a').every((a) => a.querySelector('svg.ic')), 'every link has an icon');
+      ok(!/[\u{1F300}-\u{1FAFF}]/u.test($('nav').textContent), 'no emoji');
+    });
+    it('Profile is in cards; changes show "Saved locally" in the top bar', async () => {
+      await load('admin.html', {}, { hash: 'profile' });
+      eq($$('#profile .form-card h2').map((h) => h.textContent), ['Contact & location', 'Links & portfolio', 'Current role & experience']);
+      type($('[data-path="personal.city"]'), 'Austin');
+      await waitFor(() => /Saved locally · just now/.test($('#savedState').textContent), { msg: 'saved' });
+      eq((await stored('profile')).personal.city, 'Austin');
+    });
+    it('link fields: open and copy only with a link; "github.com/x" becomes https', async () => {
+      await load('admin.html', {}, { hash: 'profile' });
+      const input = $('[data-path="personal.github"]');
+      const box = input.closest('.url-field');
+      ok(box.classList.contains('empty'));
+      type(input, 'github.com/ana');
+      input.dispatchEvent(new w.Event('blur'));
+      eq(input.value, 'https://github.com/ana');
+      notOk(box.classList.contains('empty'));
+      eq(input.title, 'https://github.com/ana', 'the full link on hover');
+      await waitFor(async () => (await stored('profile')).personal.github === 'https://github.com/ana', { msg: 'saved' });
+    });
+  }, { env: 'browser' });
+
   describe('admin screens › toolbar popup', () => {
     afterEach(closeFrame);
     const complete = () => ({ profile: profile({ personal: { firstName: 'Ana', email: 'ana@example.com' }, skills: [{ name: 'Java' }, { name: 'SQL' }] }), resumes: { activeId: 'r1', items: [{ id: 'r1', name: 'Main', text: '- x' }] } });
@@ -424,7 +454,7 @@
     });
     it('warns about what is missing', async () => {
       await load('popup.html', {});
-      await waitFor(() => /⚠/.test($('#status').textContent), { msg: 'warning' });
+      await waitFor(() => $('#status .warn'), { msg: 'warning' });
       for (const t of ['Profile incomplete', 'No skills added', 'No resume saved']) includes($('#status').textContent, t);
     });
     it('names the AI provider (Chrome built-in, Groq)', async () => {

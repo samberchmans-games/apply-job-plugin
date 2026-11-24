@@ -11,45 +11,64 @@
 <div class="layout">
   <nav>
     <div class="brand"><img src="../../icons/icon-48.png" alt=""><div><b>Apply Job</b><small>Admin · local only</small></div></div>
-    <a href="#profile">👤 Profile</a>
-    <a href="#skills">🧠 Skills</a>
-    <a href="#prefs">🎯 Job preferences</a>
-    <a href="#tracks">🧭 Career tracks</a>
-    <a href="#resumes">📄 Resumes</a>
-    <a href="#autoapply">⚡ Auto-apply details</a>
-    <a href="#ai">✨ AI settings</a>
-    <a href="#answers">🧩 Learned answers <span id="sugCount" class="count" hidden></span></a>
-    <a href="#radar">🛰 Job Radar <span id="radarCount" class="count" hidden></span></a>
-    <a href="#applications">📋 Applications</a>
-    <a href="#logs">🪵 Logs</a>
-    <a href="#backup">💾 Backup &amp; privacy</a>
+    <div class="nav-group">Candidate data</div>
+    <a href="#profile"><i data-icon="user"></i>Profile</a>
+    <a href="#skills"><i data-icon="star"></i>Skills</a>
+    <a href="#resumes"><i data-icon="file"></i>Resumes</a>
+    <a href="#tracks"><i data-icon="compass"></i>Career tracks</a>
+    <a href="#answers"><i data-icon="message"></i>Learned answers <span id="sugCount" class="count" hidden></span></a>
+    <div class="nav-group">Automation</div>
+    <a href="#prefs"><i data-icon="target"></i>Job preferences</a>
+    <a href="#autoapply"><i data-icon="zap"></i>Auto-apply details</a>
+    <a href="#ai"><i data-icon="sparkles"></i>AI settings</a>
+    <div class="nav-group">Activity &amp; system</div>
+    <a href="#radar"><i data-icon="radar"></i>Job Radar <span id="radarCount" class="count" hidden></span></a>
+    <a href="#applications"><i data-icon="briefcase"></i>Applications</a>
+    <a href="#logs"><i data-icon="terminal"></i>Logs</a>
+    <a href="#backup"><i data-icon="shield"></i>Backup &amp; privacy</a>
     <div class="ver" id="ver"></div>
   </nav>
 
   <main>
     <div id="crashBanner" class="crash-banner" hidden></div>
-    <div class="privacy">🔒 Everything on this page is saved only in this browser on this computer (extension local storage). Nothing is uploaded, except text you choose to send to the AI provider you configure. Changes save automatically.</div>
+    <div class="topbar">
+      <div class="privacy"><i data-icon="lock"></i><span>Everything on this page is saved only in this browser on this computer. Nothing is uploaded, except text you choose to send to the AI provider you configure.</span></div>
+      <div class="saved" id="savedState" role="status" aria-live="polite"><i data-icon="check-circle"></i><span>Saves automatically</span></div>
+    </div>
 
     <!-- PROFILE -->
     <section id="profile">
       <h1>Profile</h1>
       <p class="hint">Used to autofill application forms.</p>
-      <div class="grid">
-        <label>First name<input data-path="personal.firstName" autocomplete="given-name"></label>
-        <label>Last name<input data-path="personal.lastName" autocomplete="family-name"></label>
-        <label>Email<input type="email" data-path="personal.email" autocomplete="email"></label>
-        <label>Phone<input type="tel" data-path="personal.phone" autocomplete="tel"></label>
-        <label class="wide">Street address<input data-path="personal.address"></label>
-        <label>City<input data-path="personal.city"></label>
-        <label>State / province<input data-path="personal.state"></label>
-        <label>ZIP / postal code<input data-path="personal.zip"></label>
-        <label>Country<input data-path="personal.country"></label>
-        <label>LinkedIn URL<input type="url" data-path="personal.linkedin"></label>
-        <label>GitHub URL<input type="url" data-path="personal.github"></label>
-        <label>Website / portfolio<input type="url" data-path="personal.website"></label>
-        <label>Current title<input data-path="personal.currentTitle"></label>
-        <label>Current company<input data-path="personal.currentCompany"></label>
-        <label>Total years of experience<input type="number" min="0" data-path="personal.yearsExperience"></label>
+      <div class="card form-card">
+        <h2><i data-icon="user"></i>Contact &amp; location</h2>
+        <div class="grid">
+          <label>First name<input data-path="personal.firstName" autocomplete="given-name"></label>
+          <label>Last name<input data-path="personal.lastName" autocomplete="family-name"></label>
+          <label>Email<input type="email" data-path="personal.email" autocomplete="email"></label>
+          <label>Phone<input type="tel" data-path="personal.phone" autocomplete="tel" pattern="[0-9+()\-.\s]{6,}" title="Digits, spaces, + ( ) - ."></label>
+          <label class="wide">Street address<input data-path="personal.address"></label>
+          <label>City<input data-path="personal.city"></label>
+          <label>State / province<input data-path="personal.state"></label>
+          <label>ZIP / postal code<input data-path="personal.zip"></label>
+          <label>Country<input data-path="personal.country"></label>
+        </div>
+      </div>
+      <div class="card form-card">
+        <h2><i data-icon="globe"></i>Links &amp; portfolio</h2>
+        <div class="grid">
+          <label>LinkedIn URL<span class="url-field"><input type="url" data-path="personal.linkedin" placeholder="https://www.linkedin.com/in/…"><button type="button" class="icon-btn" data-url-open title="Open link" aria-label="Open link"><i data-icon="external"></i></button><button type="button" class="icon-btn" data-url-copy title="Copy" aria-label="Copy link"><i data-icon="copy"></i></button></span></label>
+          <label>GitHub URL<span class="url-field"><input type="url" data-path="personal.github" placeholder="https://github.com/…"><button type="button" class="icon-btn" data-url-open title="Open link" aria-label="Open link"><i data-icon="external"></i></button><button type="button" class="icon-btn" data-url-copy title="Copy" aria-label="Copy link"><i data-icon="copy"></i></button></span></label>
+          <label>Website / portfolio<span class="url-field"><input type="url" data-path="personal.website" placeholder="https://…"><button type="button" class="icon-btn" data-url-open title="Open link" aria-label="Open link"><i data-icon="external"></i></button><button type="button" class="icon-btn" data-url-copy title="Copy" aria-label="Copy link"><i data-icon="copy"></i></button></span></label>
+        </div>
+      </div>
+      <div class="card form-card">
+        <h2><i data-icon="briefcase"></i>Current role &amp; experience</h2>
+        <div class="grid">
+          <label>Current title<input data-path="personal.currentTitle"></label>
+          <label>Current company<input data-path="personal.currentCompany"></label>
+          <label>Total years of experience<input type="number" min="0" data-path="personal.yearsExperience"></label>
+        </div>
       </div>
     </section>
 
@@ -64,7 +83,7 @@
         <input id="skillYears" type="number" min="0" step="0.5" placeholder="Years" class="narrow">
         <button class="primary">Add skill</button>
       </form>
-      <div class="row"><button id="detectSkills">🔎 Detect skills from my active resume</button><span id="detectOut" class="hint"></span></div>
+      <div class="row"><button id="detectSkills"><i data-icon="search"></i>Detect skills from my active resume</button><span id="detectOut" class="hint"></span></div>
       <div id="skillYearsNote" class="hint"></div>
       <table class="tbl"><thead><tr><th>Skill</th><th>Level</th><th>Years</th><th></th></tr></thead><tbody id="skillRows"></tbody></table>
     </section>
@@ -123,9 +142,9 @@
         <div id="resumeBullets" class="banner" hidden></div>
         <div class="row">
           <button id="resumeSetActive" class="primary">Use as active resume</button>
-          <button id="resumeExtract" hidden>📄 Read text from PDF</button>
-          <button id="resumeView">👁 View PDF</button>
-          <button id="resumeDownload">⬇ Download PDF</button>
+          <button id="resumeExtract" hidden><i data-icon="file"></i>Read text from PDF</button>
+          <button id="resumeView"><i data-icon="eye"></i>View PDF</button>
+          <button id="resumeDownload"><i data-icon="download"></i>Download PDF</button>
           <button id="resumeDelete" class="danger">Delete</button>
         </div>
       </div>
@@ -184,7 +203,7 @@
       </ul>
       <p class="hint"><b>Anthropic Claude (paid, optional)</b> — for people who prefer Claude. <b>Not free:</b> an API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> is billed per use from credit you add there; a Claude.ai or Claude Code subscription does not cover it. Default model <code>claude-opus-5-5</code> (best rewrites, roughly $0.20 per tailored resume). To spend less, type <code>claude-sonnet-5-5</code> (roughly $0.10) or <code>claude-haiku-5-5</code> (under a cent) as the model.</p>
       <p class="hint">Why not log into free ChatGPT / Claude / Gemini chat websites? Automating those consumer chat apps breaks their terms and stops working whenever their UI changes. Free API keys are the supported, reliable way.</p>
-      <div id="aiLocalOffer" class="banner" hidden>✨ Chrome's built-in AI is ready on this computer: no key needed, and nothing leaves your computer. <button id="aiLocalUse">Use it</button></div>
+      <div id="aiLocalOffer" class="banner" hidden><i data-icon="sparkles"></i> Chrome's built-in AI is ready on this computer: no key needed, and nothing leaves your computer. <button id="aiLocalUse">Use it</button></div>
       <div class="grid">
         <label>Provider<select data-settings="ai.provider" id="aiProvider"></select></label>
         <label>Model (blank = default)<input data-settings="ai.model" id="aiModel"></label>
@@ -198,7 +217,7 @@
       </div>
       <div id="aiLocal" class="card" hidden>
         <b>Chrome built-in AI</b> <span id="aiLocalState" class="hint">Checking…</span>
-        <div class="row"><button id="aiLocalDownload" hidden>⬇ Download the on-device model</button><progress id="aiLocalProgress" max="1" value="0" hidden></progress><span id="aiLocalOut" class="hint"></span></div>
+        <div class="row"><button id="aiLocalDownload" hidden><i data-icon="download"></i>Download the on-device model</button><progress id="aiLocalProgress" max="1" value="0" hidden></progress><span id="aiLocalOut" class="hint"></span></div>
       </div>
       <div class="row"><button id="aiTest" class="primary">Test connection</button><span id="aiTestOut" class="hint"></span></div>
       <div class="grid">
@@ -206,7 +225,7 @@
         <label>Tailoring model (blank = default)<input data-settings="ai.tailorModel" id="aiTailorModel"></label>
       </div>
       <p class="hint">Tailoring needs a capable model. Keep everyday tasks on one provider (e.g. Chrome built-in AI) and tailor with a free <b>Gemini</b>, <b>Groq</b>, <b>NVIDIA NIM</b> or <b>Mistral</b> key, or a paid <b>Claude</b> key: add that key above, choose it here and test it.</p>
-      <p id="aiPaidNote" class="hint warn" hidden>💳 Claude is paid per use: each tailoring run takes a little from your Anthropic API credit.</p>
+      <p id="aiPaidNote" class="hint warn" hidden>Claude is paid per use: each tailoring run takes a little from your Anthropic API credit.</p>
       <div class="row"><button id="aiTailorTest">Test tailoring AI</button><span id="aiTailorOut" class="hint"></span></div>
       <p id="aiAuto" class="hint" hidden></p>
       <div class="card" id="aiCheckBox">
@@ -238,7 +257,7 @@
       <h1>Learned answers</h1>
       <p class="hint">Answers remembered from forms you filled. Reused automatically when the same question appears again. Edit or delete any of them.</p>
       <div id="suggestBox" class="card" hidden>
-        <h3 style="margin-top:0">💡 Suggested profile updates</h3>
+        <h3 style="margin-top:0"><i data-icon="bulb"></i> Suggested profile updates</h3>
         <p class="hint">You typed these into application forms. Save them to your profile and Autofill fills them on every site. EEO answers are never suggested.</p>
         <div id="suggestRows"></div>
         <div class="row"><button id="suggestAll" class="primary" hidden>Save all to profile</button></div>
@@ -304,7 +323,7 @@
         <select id="trkTrack"><option value="">All tracks</option></select>
         <label class="check"><input type="checkbox" id="trkDue"> Follow-ups due only</label>
         <span class="seg" role="group" aria-label="View"><button data-view="board">Board</button><button data-view="table">Table</button></span>
-        <button id="trkExport">⬇ Export CSV</button>
+        <button id="trkExport"><i data-icon="download"></i>Export CSV</button>
       </div>
       <div id="trkView"></div>
       <details class="trk-settings">
@@ -322,14 +341,14 @@
       <h1>Logs &amp; support</h1>
       <p class="hint">Having a problem? Click <b>Report an issue</b>: it creates one file with your description, your setup and the recent logs, ready to send to support. Passwords, API keys, emails, phone numbers and EEO answers are removed automatically.</p>
       <div class="row">
-        <button id="reportOpen" class="primary">🆘 Report an issue</button>
-        <button id="logDownload">⬇ Download logs only</button>
+        <button id="reportOpen" class="primary"><i data-icon="flag"></i>Report an issue</button>
+        <button id="logDownload"><i data-icon="download"></i>Download logs only</button>
         <label>Log level <select data-settings="logLevel"><option>debug</option><option>info</option><option>warn</option><option>error</option></select></label>
       </div>
       <h3>My reports <button id="reportsCheck" class="small">↻ Check status</button></h3>
       <div id="myReports"></div>
       <div class="row"><label class="check"><input type="checkbox" data-settings="support.crashPrompt"> Ask me to report problems that happen in the background (never sent without my click)</label>
-        <button id="simulateError" class="small" title="For testers: creates a harmless test error so you can try the report prompt">🧪 Simulate a problem</button></div>
+        <button id="simulateError" class="small" title="For testers: creates a harmless test error so you can try the report prompt"><i data-icon="flask"></i>Simulate a problem</button></div>
       <h3>Logs</h3>
       <div id="errSummary" class="hint"></div>
       <div class="row">
@@ -350,9 +369,9 @@
         <div id="reportOut" class="hint"></div>
         <div id="ghSimilar" hidden></div>
         <div class="row" style="justify-content:flex-end">
-          <button id="reportCopy">📋 Copy summary</button>
-          <button id="reportDownload">⬇ Download report</button>
-          <button id="reportGitHub" class="primary">🐙 Report on GitHub</button>
+          <button id="reportCopy"><i data-icon="copy"></i>Copy summary</button>
+          <button id="reportDownload"><i data-icon="download"></i>Download report</button>
+          <button id="reportGitHub" class="primary"><i data-icon="send"></i>Report on GitHub</button>
           <button id="reportClose">Close</button>
         </div>
         <p class="hint">GitHub issues are public: only a summary is filled in (report id, version, browser, error codes, your description). No logs, links or personal data. You review it and click Submit on GitHub. No GitHub account? Download the report and email it.</p>
@@ -367,7 +386,7 @@
       <div class="row"><label class="check">Keep applications, job history and logs for <input type="number" min="0" max="3650" class="narrow" data-settings="retentionDays"> days <span class="hint">(default 30). Counted from the day you applied: long enough to avoid applying twice and to re-read the saved job description. Keep it longer if you want the history; 0 = keep everything.</span></label></div>
       <div class="row">
         <label class="check"><input type="checkbox" id="bkKeys"> Include API keys</label>
-        <button id="bkExport" class="primary">⬇ Export backup (.json)</button>
+        <button id="bkExport" class="primary"><i data-icon="download"></i>Export backup (.json)</button>
         <label class="filebtn">⬆ Import backup<input type="file" id="bkImport" accept=".json" hidden></label>
         <button id="bkWipe" class="danger">Delete all my data</button>
       </div>
@@ -378,6 +397,7 @@
 <div id="toast"></div>
 
 <script src="../lib/core.js"></script>
+<script src="../lib/icons.js"></script>
 <script src="../lib/logger.js"></script>
 <script src="../lib/errors.js"></script>
 <script src="../lib/storage.js"></script>

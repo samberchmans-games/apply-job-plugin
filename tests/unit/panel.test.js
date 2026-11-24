@@ -85,6 +85,45 @@
       ok(getComputedStyle(shadow().querySelector('.chip')).display !== 'none');
       st.remove();
     });
+    it('new look: fit is a checklist with a status per row', () => {
+      AJP.panel.render({ job: { title: 'Dev', company: 'Acme', location: 'Austin, TX' }, analysis: analysis() }, {});
+      const rows = [...shadow().querySelectorAll('.fit .frow')].map((r) => [r.querySelector('.fl').textContent, r.querySelector('.st').textContent]);
+      eq(rows.map((r) => r[0]), ['Salary', 'Experience', 'Level', 'Location', 'Work type']);
+      eq(rows.find((r) => r[0] === 'Salary')[1], 'Matched');
+      includes(text(), 'Acme · Austin, TX');
+      ok(shadow().querySelector('svg.ic'), 'line icons, not emoji');
+    });
+    it('new look: a gap chip explains itself when clicked, and again hides it', () => {
+      AJP.panel.render({ analysis: { ...analysis(), missing: [{ skill: 'Databricks', weight: 3, importance: 'required', similar: 'Snowflake' }] } }, {});
+      const chip = shadow().querySelector('[data-gap="0"]');
+      const why = shadow().querySelector('.why');
+      ok(why.hidden);
+      chip.click();
+      notOk(why.hidden);
+      includes(why.textContent, 'you have Snowflake, a similar skill');
+      eq(chip.getAttribute('aria-expanded'), 'true');
+      chip.click();
+      ok(why.hidden);
+    });
+    it('new look: Autofill is the one primary action; Mark applied sits with the quieter links', () => {
+      AJP.panel.render({ analysis: analysis(), radar: { watched: false, label: 'Greenhouse' } }, {});
+      eq([...shadow().querySelectorAll('button.b.p')].map((b) => b.dataset.act), ['autofill']);
+      ok(shadow().querySelector('.more [data-act="applied"]'));
+      ok(shadow().querySelector('.more [data-act="watchCompany"]'));
+    });
+    it('new look: the best track says "Best fit" on its tab (no tooltip over the page)', () => {
+      const t = (id, score) => ({ track: { id, name: id }, analysis: { score } });
+      AJP.panel.render({ analysis: analysis(), trackId: 'b', tracks: { bestId: 'b', results: [t('a', 50), t('b', 80)] } }, {});
+      const tabs = shadow().querySelectorAll('.tk');
+      includes(tabs[1].textContent, 'Best fit');
+      notOk(tabs[1].hasAttribute('title'));
+    });
+    it('new look: minimized is a pill with the score and "match", expand and close', () => {
+      AJP.panel.render({ analysis: analysis(), minimized: true }, {});
+      eq(shadow().querySelector('.badge').textContent, '72%');
+      includes(shadow().querySelector('header').textContent, 'match');
+      eq([...shadow().querySelectorAll('header button')].map((b) => b.dataset.act), ['toggle', 'close']);
+    });
     it('remove() takes it off the page', () => {
       AJP.panel.render({ analysis: analysis() }, {});
       AJP.panel.remove();

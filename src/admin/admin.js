@@ -15,7 +15,25 @@
   let settings;
   let selectedResumeId = null;
 
+  // Autosaves show in the top bar ("Saved locally · just now") instead of a toast on every change.
+  let savedAt = 0;
+  function savedLabel() {
+    const el = $('#savedState span');
+    if (!el || !savedAt) return;
+    const min = Math.floor((Date.now() - savedAt) / 60000);
+    el.textContent = `Saved locally · ${min < 1 ? 'just now' : min === 1 ? '1 min ago' : min < 60 ? min + ' min ago' : new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  function markSaved() {
+    savedAt = Date.now();
+    savedLabel();
+    const box = $('#savedState');
+    if (box) (box.classList.remove('pulse'), void box.offsetWidth, box.classList.add('pulse'));
+  }
+  setInterval(savedLabel, 30000);
+  AJP.icon.fill();
+
   function toast(msg, ms = 1600) {
+    if (msg === 'Saved') return markSaved();
     const t = $('#toast');
     t.textContent = msg;
     t.classList.add('show');
@@ -77,6 +95,42 @@
     };
     bind('data-path', () => profile, saveProfile);
     bind('data-settings', () => settings, saveSettings);
+  }
+
+  // Link fields: open / copy buttons; the full link shows on hover (long ones end in "…" while not focused).
+  function initUrlFields() {
+    for (const box of $$('.url-field')) {
+      const input = $('input', box);
+      const sync = () => {
+        input.title = input.value;
+        box.classList.toggle('empty', !AJP.safeUrl(input.value));
+      };
+      sync();
+      input.addEventListener('input', sync);
+      // Gentle fix-up: "linkedin.com/in/x" becomes "https://linkedin.com/in/x" when you leave the field.
+      input.addEventListener('blur', () => {
+        const v = input.value.trim();
+        if (v && !/^[a-z]+:/i.test(v) && /^[\w-]+(\.[\w-]+)+(\/|$)/.test(v)) {
+          input.value = 'https://' + v;
+          input.dispatchEvent(new Event('input'));
+        }
+      });
+      $('[data-url-open]', box).addEventListener('click', (e) => {
+        e.preventDefault();
+        const u = AJP.safeUrl(input.value);
+        if (u) window.open(u, '_blank', 'noopener');
+      });
+      $('[data-url-copy]', box).addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!input.value) return;
+        try {
+          await navigator.clipboard.writeText(input.value);
+          toast('Link copied');
+        } catch (_) {
+          input.select();
+        }
+      });
+    }
   }
 
   // ---- Skills ----------------------------------------------------------------------------
@@ -811,7 +865,7 @@
           .map((r) => `<tr><td>${esc(r.title || r.reportId)}</td><td>${new Date(r.createdAt).toLocaleDateString()}</td><td class="st-${esc(r.status || '')}">${
             T[r.status] || T['not-submitted']}${r.number ? ` <a href="${esc(AJP.safeUrl(r.url))}" target="_blank" rel="noopener">#${r.number}</a>` : ''}${r.version ? ' in ' + esc(r.version) : ''}${r.checkFailed ? ' · couldn\'t check' : ''}</td></tr>`)
           .join('')}</tbody></table>`
-      : '<p class="hint">No reports yet. Use 🆘 Report an issue → 🐙 Report on GitHub.</p>';
+      : '<p class="hint">No reports yet. Use Report an issue → Report on GitHub.</p>';
     if (reports.some((r) => r.status === 'fixed' && r.seen === false)) AJP.send('reports.seen');
   }
   AJP.renderReports = renderReports;
@@ -1008,6 +1062,7 @@
     $('#ver').textContent = 'v' + AJP.VERSION;
     initAI();
     bindFields();
+    initUrlFields();
     initSkills();
     initChips();
     initCards();

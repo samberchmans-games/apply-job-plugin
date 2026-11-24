@@ -8,13 +8,14 @@
 <body>
   <header><img src="../../icons/icon-48.png" alt=""><b>Apply Job Assistant</b></header>
   <div id="status" class="status"></div>
-  <button id="analyze" class="primary">🔍 Analyze this job page</button>
-  <button id="autofill">⚡ Autofill application form</button>
-  <button id="admin">⚙ Open Admin (profile, resumes, logs)</button>
+  <button id="analyze" class="primary"><i data-icon="search"></i>Analyze this job page</button>
+  <button id="autofill"><i data-icon="zap"></i>Autofill application form</button>
+  <button id="admin"><i data-icon="settings"></i>Open Admin (profile, resumes, logs)</button>
   <div id="radar" class="radar" hidden></div>
   <div id="err" class="err" hidden></div>
   <footer>All data stays on this computer. <span id="ver"></span> · <a href="#" id="report">Report a problem</a></footer>
   <script src="../lib/core.js"></script>
+  <script src="../lib/icons.js"></script>
   <script src="../lib/logger.js"></script>
   <script src="../lib/errors.js"></script>
   <script src="../lib/storage.js"></script>

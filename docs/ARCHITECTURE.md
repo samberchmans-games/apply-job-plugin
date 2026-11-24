@@ -58,6 +58,7 @@ src/
     pdf.js                    PDF → text via Mozilla pdf.js (loaded on demand): lines, bullets → "- ", paragraphs
     experience.js             years of experience (asked vs. yours, per skill) and seniority level → fit rows
     field-rules.js            form question → profile value rules (shared by Autofill and profile suggestions)
+    icons.js                  one line-icon set (inline SVG, currentColor) for Admin, popup and panel; no emoji in the chrome
     profile-suggest.js        learned answers → suggested profile updates
     pdf-writer.js             resume text → ATS-readable PDF (Helvetica, WinAnsi, Letter); the one file format we upload
   vendor/pdfjs/               pdf.js 4.10.38 legacy build (Apache-2.0), integrity-verified; see its README
@@ -435,8 +436,14 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 ### 8.6 Panel (`panel.js`)
 - A custom element with an **open Shadow DOM**, so page CSS can't affect it.
 - All page-derived text is escaped, so job pages can't inject HTML.
-- It's draggable and can be minimized.
-- It's a pure view: `content.js` owns the state and passes callbacks via `data-act` attributes.
+- It's draggable and can be minimized to a pill (score dot, "96% match", expand / close) with a frosted border that reads on light and dark sites.
+- It's a pure view: `content.js` owns the state and passes callbacks via `data-act` attributes. The one exception is local: a gap chip toggles its own explanation (`.why`) without a callback.
+- **Layout (UI review, B61):** summary first (title, company · place, skills count, match ring); track tabs say **Best fit** on the tab (no tooltip over the page); Matching / Gaps chips; **Fit** as a checklist (label · value · status: Matched / Check / Not stated…); actions by weight: **Autofill form** (only primary), Tailor resume + AI deep analysis, then Mark applied / Watch this company as quiet links.
+
+### 8.6b Look (Admin page, popup, panel)
+- One token set per surface: cool-gray canvas `#f8fafc`, white cards with `#e2e8f0` borders, a single indigo accent (`#4f46e5`; `#818cf8` in dark mode). Green / amber / red only carry meaning (match band, warning, error).
+- Admin sidebar in three groups (Candidate data · Automation · Activity & system) with `icons.js` icons; a sticky top bar holds the privacy note and the save indicator ("Saved locally · just now", replacing the "Saved" toast).
+- Profile in three cards (Contact & location · Links & portfolio · Current role & experience); link fields have Open / Copy buttons, end in "…" when long (full link on hover) and get `https://` added when you type "github.com/…"; the phone field accepts digits, spaces and `+ ( ) - .`.
 
 ### 8.7 Resume enhancement v2 (`resume-engine.js`, `background.js`, `enhance-view.js`)
 **Principle:** the AI *suggests*, the code *decides*. The AI never writes the final resume. Code assembles it from the original text plus edits that passed validation, and the user approves each one.
@@ -568,7 +575,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1481 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1489 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

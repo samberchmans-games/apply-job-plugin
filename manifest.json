@@ -108,6 +108,7 @@
         "src/content/entries.js",
         "src/content/apply-detector.js",
         "src/lib/radar-detect.js",
+        "src/lib/icons.js",
         "src/content/panel.js",
         "src/content/content.js"
       ],

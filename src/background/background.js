@@ -22,7 +22,7 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
   const CONTENT_FILES = [
     'src/lib/core.js', 'src/lib/logger.js', 'src/lib/errors.js', 'src/lib/storage.js', 'src/lib/skills-dictionary.js',
     'src/lib/matcher.js', 'src/lib/experience.js', 'src/lib/resume-facts.js', 'src/lib/tracker.js', 'src/lib/tracks.js', 'src/lib/pdf-writer.js', 'src/content/jd-extractor.js', 'src/lib/field-rules.js', 'src/content/form-filler.js', 'src/content/workday.js', 'src/content/ats.js', 'src/content/entries.js',
-    'src/content/apply-detector.js', 'src/lib/radar-detect.js', 'src/content/panel.js', 'src/content/content.js',
+    'src/content/apply-detector.js', 'src/lib/radar-detect.js', 'src/lib/icons.js', 'src/content/panel.js', 'src/content/content.js',
   ];
 
   // ---- Logging: background is the single writer of the `logs` key ---------

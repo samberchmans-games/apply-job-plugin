@@ -6,6 +6,8 @@
   AJP.captureErrors('popup', { notify: (d) => showErr({ error: d.message, hint: d.hint, code: d.code }) });
   const $ = (id) => document.getElementById(id);
   $('ver').textContent = 'v' + AJP.VERSION;
+  AJP.icon.fill();
+  const ic = (n) => AJP.icon(n, { size: 14 });
 
   async function activeTabId() {
     const [tab] = await AJP.api.tabs.query({ active: true, currentWindow: true });
@@ -43,9 +45,9 @@
     const ai = settings.ai.provider === 'none' ? 'AI off (offline matching)' : settings.ai.provider === 'chrome' ? 'AI: Chrome built-in (on this computer)' : 'AI: ' + settings.ai.provider;
     $('status').innerHTML =
       `${profile.skills.length} skills · ${resumes.items.length} resume(s) · ${ai}` +
-      (warn.length ? `<br><span class="warn">⚠ ${warn.join(' · ')}</span>` : '') +
-      (due.length ? `<br><a href="#" id="due" class="warn">🔔 ${due.length} follow-up${due.length > 1 ? 's' : ''} due</a>` : '') +
-      (sug ? `<br><a href="#" id="sug">💡 ${sug} profile suggestion${sug > 1 ? 's' : ''} from your answers</a>` : '');
+      (warn.length ? `<br><span class="warn">${ic('alert')} ${warn.join(' · ')}</span>` : '') +
+      (due.length ? `<br><a href="#" id="due" class="warn">${ic('bell')} ${due.length} follow-up${due.length > 1 ? 's' : ''} due</a>` : '') +
+      (sug ? `<br><a href="#" id="sug">${ic('bulb')} ${sug} profile suggestion${sug > 1 ? 's' : ''} from your answers</a>` : '');
     const sugLink = $('sug');
     if (sugLink) sugLink.onclick = (e) => {
       e.preventDefault();
@@ -69,13 +71,13 @@
       AJP.send('openAdmin', { hash: 'radar' }).then(() => window.close());
     };
     if (!st.companies) {
-      box.innerHTML = '<a href="#" id="radarAll">🛰 Job Radar: watch companies for new jobs that fit you →</a>';
+      box.innerHTML = `<a href="#" id="radarAll">${ic('radar')} Job Radar: watch companies for new jobs that fit you →</a>`;
     } else {
       const r = await AJP.send('radar.jobs', { status: 'new', limit: 5, eligible: true });
       const jobs = r && r.ok !== false ? r.jobs : [];
       const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       box.innerHTML =
-        `<b>🛰 ${st.newCount ? `${st.newCount} new job match${st.newCount === 1 ? '' : 'es'}` : 'Job Radar: no new matches'}</b>` +
+        `<b>${ic('radar')} ${st.newCount ? `${st.newCount} new job match${st.newCount === 1 ? '' : 'es'}` : 'Job Radar: no new matches'}</b>` +
         (jobs.length ? `<ul>${jobs.map((j) => `<li><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener" data-url="${esc(j.url)}">${esc(j.title)}</a> <span class="muted">${esc(j.companyName)} · ${j.score == null ? 'title only' : j.score + '%'}${j.postedAt && Date.now() - Date.parse(j.postedAt) < 86400000 ? ' · <b>today</b>' : ''}</span></li>`).join('')}</ul>` : '') +
         '<a href="#" id="radarAll">See all in Job Radar →</a>';
       box.querySelectorAll('a[data-url]').forEach((a) => (a.onclick = (e) => {

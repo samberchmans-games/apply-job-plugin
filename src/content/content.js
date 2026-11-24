@@ -336,7 +336,7 @@
       if (!r.ok) {
         tr.fail(r);
         btn.disabled = false;
-        btn.textContent = '✨ Draft answer with AI';
+        btn.textContent = 'Draft answer with AI';
         return fail(r);
       }
       await AJP.send('fillQuestion', { ajpId, text: r.text }, tr);
@@ -576,7 +576,7 @@
           state.autofill = null;
           state.minimized = false;
           log.info('Workday page changed', { step });
-          say(`New Workday page: <b>${AJP.panel.esc(step)}</b>. <a data-act="autofill">⚡ Autofill this page</a> <span class="muted">(you still review and click Save and Continue yourself)</span>`);
+          say(`New Workday page: <b>${AJP.panel.esc(step)}</b>. <a data-act="autofill">Autofill this page</a> <span class="muted">(you still review and click Save and Continue yourself)</span>`);
         }
       }
       // A held application: follow the steps (sign up → log in → form) as the page changes; drop it after an hour idle.
