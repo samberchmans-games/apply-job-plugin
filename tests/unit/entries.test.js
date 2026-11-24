@@ -173,7 +173,7 @@
       eq(rs(blocks('employment-form')[1], 'start-date-month-'), 'January');
       eq(blocks('employment-form')[1].querySelector('input[id^="start-date-year-"]').value, '2015');
       ok(blocks('employment-form')[0].querySelector('input[type=checkbox]').checked, 'current role');
-      eq(blocks('education--form').map((b) => rs(b, 'school--')), ['University of Texas at Austin', 'University of Washington']);
+      eq(blocks('education--form').map((b) => rs(b, 'school--')), ['University of Texas - Austin', 'University of Washington']);
     });
     it('Country next to Phone is picked from your profile', async () => {
       AtsMock.mount(sandbox(), 'greenhouse-remix');
@@ -192,18 +192,27 @@
       eq($$('.employment-form').map((b) => b.querySelector('input[id^="company-name-"]').value), ['Globex', 'Initech']);
       eq($$('.employment-form').map((b) => b.querySelector('input[id^="title-"]').value), ['Staff Engineer', 'Software Engineer']);
       eq(rs($$('.employment-form')[0], 'start-date-month-'), 'February');
-      eq(rs($$('.education--form')[0], 'school--'), 'University of Texas at Austin');
+      eq(rs($$('.education--form')[0], 'school--'), 'University of Texas - Austin');
       ok(r.notes.some((n) => /taken from your resume "Tailored for Globex": 2 jobs, 1 school/.test(n)), JSON.stringify(r.notes));
     });
-    it('a school, degree or field not in the site\'s list: "Other" is picked, not left empty', async () => {
-      AtsMock.mount(sandbox(), 'greenhouse-remix');
+    const eduOnly = (edu) => {
       const p = profile();
       p.autoApply.experience = [];
-      p.autoApply.education = [{ school: 'Example University', degree: 'B.Tech', field: 'Electronics and Communication Engineering', endYear: '2011' }];
-      const r = await AJP.filler.fill({ profile: p, answers: {}, resume: null, root: sandbox() });
+      p.autoApply.education = [edu];
+      return p;
+    };
+    it('lists that load from the server: degree "B.Tech" → Bachelor\'s, a long field → its short name, a school by its own name', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      await AJP.filler.fill({ profile: eduOnly({ school: 'Example University', degree: 'B.Tech', field: 'Electronics and Communication Engineering', endYear: '2011' }), answers: {}, resume: null, root: sandbox() });
       const edu = $$('.education--form')[0];
-      eq([rs(edu, 'school--'), rs(edu, 'degree--'), rs(edu, 'discipline--')], ['Other', "Bachelor's Degree", 'Other']);
-      ok(r.notes.some((n) => /not in this site's list.*Other/i.test(n)), JSON.stringify(r.notes));
+      eq([rs(edu, 'school--'), rs(edu, 'degree--'), rs(edu, 'discipline--')], ['Example Institute of Technology and Sciences', "Bachelor's Degree", 'Electronics']);
+    });
+    it('a school that is not in the list: Greenhouse\'s "0 - Other", and the panel says so', async () => {
+      AtsMock.mount(sandbox(), 'greenhouse-remix');
+      const r = await AJP.filler.fill({ profile: eduOnly({ school: 'Nowhere Academy', degree: 'M.S.', field: 'Data Science' }), answers: {}, resume: null, root: sandbox() });
+      const edu = $$('.education--form')[0];
+      eq([rs(edu, 'school--'), rs(edu, 'degree--'), rs(edu, 'discipline--')], ['0 - Other', "Master's Degree", 'Data Science']);
+      ok(r.notes.some((n) => /not in this site's list.*School "Nowhere Academy"/i.test(n)), JSON.stringify(r.notes));
     });
     it('no jobs saved in Auto-apply details: says so instead of leaving the section silently', async () => {
       AtsMock.mount(sandbox(), 'greenhouse-remix');

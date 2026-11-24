@@ -27,9 +27,9 @@
   const searchCities = (q) => (q.trim().length < 2 ? [] : CITIES.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase())));
 
   // ---- React-Select emulation (Greenhouse job boards) --------------------------------------------------
-  function reactSelect(id, label, options, { search = null } = {}) {
+  function reactSelect(id, label, options, { search = null, remote = false } = {}) {
     return `<div class="field"><label id="${id}-label" for="${id}">${esc(label)}</label>
-      <div class="select__container" data-rs="${id}" data-options='${esc(JSON.stringify(options))}' ${search ? `data-search="${search}"` : ''}>
+      <div class="select__container" data-rs="${id}" data-options='${esc(JSON.stringify(options))}' ${search ? `data-search="${search}"` : ''} ${remote ? 'data-remote="1"' : ''}>
         <div class="select__control" style="border:1px solid #999;padding:4px;min-height:24px">
           <div class="select__value-container"><div class="select__placeholder">Select...</div>
             <input id="${id}" role="combobox" type="text" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-labelledby="${id}-label" aria-controls="${id}-listbox" style="width:180px;border:0"></div>
@@ -40,6 +40,9 @@
     const id = c.getAttribute('data-rs');
     const opts = JSON.parse(c.getAttribute('data-options'));
     const search = c.getAttribute('data-search');
+    // data-remote: the list comes from a server, like Greenhouse's /education/{schools,degrees,disciplines}?term=
+    // (a moment to arrive, "Loading..." meanwhile, a search term matches anywhere in a name).
+    const remote = c.getAttribute('data-remote');
     let timer = 0;
     const close = () => {
       const m = c.querySelector('.select__menu');
@@ -70,6 +73,10 @@
       if (search) {
         clearTimeout(timer);
         timer = setTimeout(() => render(searchCities(input.value)), 60); // async search, like Google Places
+      } else if (remote) {
+        clearTimeout(timer);
+        render(['Loading...']);
+        timer = setTimeout(() => render(opts.filter((o) => !q || o.toLowerCase().includes(q))), 300);
       } else render(opts.filter((o) => !q || o.toLowerCase().includes(q)));
     };
     input.addEventListener('mousedown', open);
@@ -121,8 +128,12 @@
       <div class="date-row">${reactSelect(`start-date-month-${i}`, 'Start date month', MONTHS)}${text(`start-date-year-${i}`, 'Start date year')}</div>
       <div class="date-row">${reactSelect(`end-date-month-${i}`, 'End date month', MONTHS)}${text(`end-date-year-${i}`, 'End date year')}
       <div class="checkbox"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}" value="1"><label for="current-role-${i}_1">Current role</label></div></div></div>`;
+  // Option names as Greenhouse's education lists return them (Nov 2026).
+  const GH_SCHOOLS = ['0 - Other', 'Example Institute of Technology and Sciences', 'University of Texas - Arlington', 'University of Texas - Austin', 'University of Texas - Dallas', 'University of Washington'];
+  const GH_DEGREES = ["Associate's Degree", "Bachelor's Degree", 'Doctor of Medicine (M.D.)', 'Doctor of Philosophy (Ph.D.)', "Engineer's Degree", 'High School', 'Juris Doctor (J.D.)', 'Master of Business Administration (M.B.A.)', "Master's Degree", 'Other'];
+  const GH_FIELDS = ['Accounting', 'Computer Science', 'Data Science', 'Electronics', 'Engineering', 'Other'];
   const ghEduRemix = (i, head) => `<div class="education--form">${head ? '<hr><div class="education--header"><p class="body body--medium">Education</p></div>' : '<hr>'}
-      ${reactSelect(`school--${i}`, 'School', SCHOOLS)}${reactSelect(`degree--${i}`, 'Degree', DEGREES)}${reactSelect(`discipline--${i}`, 'Discipline', FIELDS)}</div>`;
+      ${reactSelect(`school--${i}`, 'School', GH_SCHOOLS, { remote: true })}${reactSelect(`degree--${i}`, 'Degree', GH_DEGREES, { remote: true })}${reactSelect(`discipline--${i}`, 'Discipline', GH_FIELDS, { remote: true })}</div>`;
   const srExp = (i) => `<div class="entry" style="border:1px solid #ddd;padding:6px;margin:6px 0">
       ${text(`sr-title-${i}`, 'Title')}${text(`sr-company-${i}`, 'Company')}${text(`sr-location-${i}`, 'Office location')}
       <div class="field"><label for="sr-desc-${i}">Description</label><textarea id="sr-desc-${i}" rows="2"></textarea></div>

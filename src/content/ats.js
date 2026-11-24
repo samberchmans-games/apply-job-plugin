@@ -83,7 +83,7 @@
     placeholder: '.select__placeholder, [class*="placeholder"]',
     proxy: '.select2-container, .select2, .chosen-container, .iCIMS_Dropdown, [class*="dropdown-toggle"], [data-proxy-for]',
   };
-  const CONFIG = { optionWaitMs: 1500, searchWaitMs: 4000, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
+  const CONFIG = { optionWaitMs: 1500, searchWaitMs: 2500, listWaitMs: 2500, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function waitFor(fn, ms) {
@@ -157,11 +157,22 @@
     }
     return Math.max(...candidatesFor(value, key).map((c) => AJP.filler.optionScore(text, c)));
   }
+  // A school's own words ("Karunya", "Texas Austin"), not "University of … Institute of Technology".
+  const GENERIC_WORDS = /^(university|college|institute|school|academy|the|and|of|at|in|for|technology|technological|science|sciences|engineering|state|national|international|campus)$/;
+  const distinctWords = (v) => AJP.norm(v).split(/\W+/).filter((w) => w.length > 3 && !GENERIC_WORDS.test(w));
   function best(options, value, key) {
     let pick = null;
     let top = 0;
+    const own = key === 'school' ? distinctWords(value) : [];
     for (const o of options) {
-      const s = scoreOption(clean(o.textContent), value, key);
+      const text = clean(o.textContent);
+      let s = scoreOption(text, value, key);
+      // "Example University" vs "Example Institute of Technology and Sciences": the school's own name decides.
+      if (own.length) {
+        const t = AJP.norm(text);
+        const found = own.filter((w) => t.includes(w)).length;
+        s += found === own.length ? 3 : found ? 1 : 0;
+      }
       if (s > top) (top = s), (pick = o);
     }
     return top >= 3 ? pick : null;
@@ -194,21 +205,31 @@
     realClick(input);
     press(input, 'ArrowDown');
     const isLocation = key === 'location' || key === 'city';
+    // School, degree and field lists often come from the site's server (Greenhouse: /education/…?term=).
+    const remote = OTHER_OK.has(key);
     let opt = null;
     if (!isLocation) {
       // Short lists open with every option: pick without typing (typing can filter away "I don't wish to answer").
-      await waitFor(() => optionsFor(input).length, CONFIG.firstLookMs);
+      await waitFor(() => optionsFor(input).length, remote ? CONFIG.listWaitMs : CONFIG.firstLookMs);
       opt = best(optionsFor(input), value, key);
     }
-    if (!opt) {
-      type(input, isLocation ? String(value).split(',')[0].trim() : String(value).split(/[,(]/)[0].trim());
-      opt = await waitFor(() => best(optionsFor(input), value, key), key === 'school' ? CONFIG.searchWaitMs : CONFIG.optionWaitMs);
+    // Then search: the value as written, its usual names ("B.Tech" → "Bachelor's Degree"), then its own words
+    // ("Electronics and Communication Engineering" → "Electronics"). A server search matches whole phrases only.
+    const v = String(value);
+    const terms = isLocation
+      ? [v.split(',')[0].trim()]
+      : [...new Set([v.split(/[,(]/)[0].trim(), ...(remote ? [...candidatesFor(v, key).slice(1), ...distinctWords(v).slice(0, 2), AJP.norm(v).split(/\W+/)[0]] : [])])].filter((t) => t && t.length >= 2);
+    for (const term of terms) {
+      if (opt) break;
+      type(input, term);
+      opt = await waitFor(() => best(optionsFor(input), value, key), remote ? CONFIG.searchWaitMs : CONFIG.optionWaitMs);
     }
-    // School, degree and field lists rarely have every name: "Other" is the honest answer there.
+    // School, degree and field lists rarely have every name: "Other" is the honest answer there
+    // (Greenhouse names it "0 - Other" in its school list).
     let other = false;
-    if (!opt && OTHER_OK.has(key)) {
+    if (!opt && remote) {
       type(input, 'Other');
-      opt = await waitFor(() => optionsFor(input).find((o) => /^other\b/i.test(clean(o.textContent))), CONFIG.optionWaitMs);
+      opt = await waitFor(() => optionsFor(input).find((o) => /^(\d+\s*[-–]\s*)?other\b/i.test(clean(o.textContent))), CONFIG.searchWaitMs);
       other = !!opt;
     }
     if (!opt) {
