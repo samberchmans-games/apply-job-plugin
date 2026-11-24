@@ -323,7 +323,7 @@ Every route ends with the same check: fetch the board once, show the company nam
 | `radarWatchlist` | `[{ key, board, company, companyName, site?, region?, wd?, domain?, paused, addedAt, lastScanAt, lastError?, failuresInRow, openJobs }]` | expect < 300 | yes |
 | `radarJobs` | `[job]` (§7.1) | 500 newest; dismissed pruned after 30 days | yes |
 | `radarSeen` | `{ [key]: firstSeenISODate }` | pruned after 60 days | yes |
-| `radarFiltered` | `[job + { reason, detail, filteredAt }]`; description kept only for the newest 500 | 5000 newest, 60 days | **no** (internal) |
+| `radarFiltered` | `[job + { reason, detail, filteredAt }]`; description (first 6,000 characters) kept only for the newest 200 | 5000 newest, 60 days | **no** (internal) |
 | `radarScanState` | `{ lockedAt?, queue[], position, lastSummary }` | small | **no** (internal, like `logs`) |
 
 Writes go through the background with `AJP.serial()`, like every other key.

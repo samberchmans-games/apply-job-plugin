@@ -75,6 +75,10 @@
       eq(out.map((j) => [j.key, j.reason]), [['a', 'skills']]);
     });
     it('old records expire', () => eq(C.mergeFiltered([rec('old', now - 61 * 86400000), rec('ok', now)], [], now).map((j) => j.key), ['ok']));
+    it('a kept description is trimmed: the list is rewritten after every company', () => {
+      const f = C.toFiltered({ key: 'k', title: 'T', description: 'x'.repeat(20000), descriptionLevel: 'full' }, 'skills', '', now, true);
+      eq(f.description.length, C.LIMITS.filteredTextChars);
+    });
     it('a title-stage record does not keep the description', () => {
       const f = C.toFiltered({ key: 'k', title: 'T', description: 'long', descriptionLevel: 'full' }, 'title', '', now);
       eq([f.description, f.descriptionLevel, f.reason], [undefined, 'title', 'title']);

@@ -92,18 +92,20 @@
     return providerError(AJP.err(key, { status: status || 200, body: body.slice(0, 600), host }));
   }
   const quirksOf = async (provider, model) => (((await AJP.store.get('modelHealth'))[provider] || {}).quirks || {})[model] || {};
-  async function rememberQuirk(provider, model, quirk) {
+  async function rememberQuirk(provider, model, quirk, value = true) {
     await AJP.store.update('modelHealth', (all) => {
       const h = (all[provider] = all[provider] || {});
-      h.quirks = { ...(h.quirks || {}), [model]: { ...((h.quirks || {})[model] || {}), [quirk]: true } };
+      h.quirks = { ...(h.quirks || {}), [model]: { ...((h.quirks || {})[model] || {}), [quirk]: value } };
     });
-    AJP.logger('ai').info('Model does not take this setting; remembered', { provider, model, quirk });
+    AJP.logger('ai').info(value === true ? 'Model does not take this setting; remembered' : 'Model limit learned; remembered', { provider, model, quirk, value });
   }
+  // Groq: "Request too large … tokens per minute (TPM): Limit 6000" → that model's real per-minute budget.
+  const minuteLimit = (x) => Number((/tokens per minute[\s\S]*?Limit[:\s]+(\d+)/i.exec(String((x.details && x.details.body) || '')) || [])[1]) || null;
+  const MIN_OUTPUT = 1000;
   // Free-tier pace: a provider with a per-minute token budget is not sent more than it allows; tailoring waits instead.
   const spent = new Map();
   // need = this prompt + its output allowance; what is counted afterwards is what was really used.
-  async function pace(provider, model, input, need, patient) {
-    const tpm = W().PROFILES[provider].tpm;
+  async function pace(provider, model, input, need, patient, tpm) {
     if (!tpm || !CONFIG.pacing) return null;
     const key = `${provider}:${model}`;
     const budget = tpm * 0.9;
@@ -128,12 +130,18 @@
     let enlarged = false;
     let paced = null;
     for (let round = 0; round < 5; round++) {
+      // A free per-minute budget counts the prompt and the output allowance: ask for less output so one request fits.
+      const tpm = quirks.tpm || prof.tpm;
+      const input = Math.ceil((system.length + prompt.length) / 4);
+      if (tpm) {
+        const room = Math.floor(tpm * 0.95) - input;
+        if (room < (quirks.maxOutput || prof.maxOutput)) quirks.maxOutput = Math.max(MIN_OUTPUT, room);
+      }
       const req = wire.build({ provider, key: cfg.keys && cfg.keys[provider], model, system, prompt, json, baseUrl: cfg.ollamaUrl, quirks });
       const sink = wire.reader(provider);
       const total = cfg.timeoutMs;
       const started = Date.now();
-      const input = Math.ceil((system.length + prompt.length) / 4);
-      if (round === 0) paced = await pace(provider, model, input, input + (quirks.maxOutput || prof.maxOutput || 0), cfg.patient);
+      if (round === 0) paced = await pace(provider, model, input, input + (quirks.maxOutput || prof.maxOutput || 0), cfg.patient, tpm);
       let delivery;
       try {
         delivery = await AJP.httpStream(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body) }, sink, {
@@ -152,6 +160,13 @@
         });
       } catch (e) {
         const x = AJP.toAppError(e);
+        const limit = wire.isTooLarge(x) ? minuteLimit(x) : null;
+        if (limit && quirks.tpm !== limit) {
+          quirks.tpm = limit;
+          delete quirks.maxOutput;
+          await rememberQuirk(provider, model, 'tpm', limit);
+          continue;
+        }
         const fix = wire.fixFor(x);
         if (fix && !quirks[fix]) {
           quirks[fix] = true;
@@ -464,7 +479,8 @@
     if (x.code === 'AJP-AI-TIME') return 'slow';
     if (x.code === 'AJP-AI-429' && UPSTREAM_BUSY.test(body)) return 'busy';
     if (x.code === 'AJP-AI-5XX') return 'busy'; // "model is overloaded" / server error on this model: another model, not the same one again
-    if (x.code === 'AJP-AI-CUT' || x.code === 'AJP-AI-FMT') return 'weak'; // this model couldn't give a complete, readable answer
+    if (x.code === 'AJP-AI-CUT' || x.code === 'AJP-AI-FMT') return 'weak';
+    if (x.code === 'AJP-AI-BIG') return 'big'; // too large for this model's limit: another model may take it (nothing wrong with this one) // this model couldn't give a complete, readable answer
     return null;
   }
   function candidates(provider, pinned, cfg, health) {
@@ -633,7 +649,7 @@
           const why = PREFER[provider] && !exactModel ? switchReason(x, provider) : null;
           if (!why || switches >= CONFIG.maxSwitches || (why === 'slow' && slowSwitched)) throw e;
           tried.add(model);
-          await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x, provider) : undefined);
+          if (why !== 'big') await setAside(provider, model, why, why === 'quota' ? quotaCooldown(x, provider) : undefined);
           if (why !== 'gone' && performance.now() - t0 > CONFIG.chainMs) {
             path.push({ model, why });
             throw e; // the provider is having a bad moment: tell the user now instead of trying more models
@@ -653,7 +669,7 @@
           if (!next) throw e;
           switches++;
           if (why === 'slow') slowSwitched = true;
-          tr.log.info(`ai.${task} model "${model}" ${({ gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota', weak: 'gave an incomplete answer' })[why]}; trying "${next}"`, { provider, from: model, to: next, why });
+          tr.log.info(`ai.${task} model "${model}" ${({ gone: 'not offered any more', slow: 'too slow', busy: 'busy', quota: 'out of free quota', weak: 'gave an incomplete answer', big: 'request too large for it' })[why]}; trying "${next}"`, { provider, from: model, to: next, why });
           model = next;
         }
       }

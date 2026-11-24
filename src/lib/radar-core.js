@@ -9,7 +9,7 @@
   AJP.radar = AJP.radar || {};
   if (AJP.radar.core) return;
 
-  const LIMITS = { description: 12000, title: 200, location: 120, locations: 10, jobs: 500, seenDays: 60, dismissedDays: 30, filtered: 5000, filteredDays: 60, filteredText: 500 };
+  const LIMITS = { description: 12000, title: 200, location: 120, locations: 10, jobs: 500, seenDays: 60, dismissedDays: 30, filtered: 5000, filteredDays: 60, filteredText: 200, filteredTextChars: 6000 };
   const DAY = 86400000;
 
   // ---- HTML / XML text -----------------------------------------------------------------------------
@@ -372,7 +372,8 @@
   }
   function toFiltered(job, reason, detail, now = Date.now(), keepText = false) {
     const { description, raw, ...rest } = job;
-    return { ...rest, ...(keepText && description ? { description } : { descriptionLevel: 'title' }), reason, detail: detail || '', filteredAt: new Date(now).toISOString() };
+    // Rewritten after every company a scan checks: a trimmed description is enough to re-score it later.
+    return { ...rest, ...(keepText && description ? { description: description.slice(0, LIMITS.filteredTextChars) } : { descriptionLevel: 'title' }), reason, detail: detail || '', filteredAt: new Date(now).toISOString() };
   }
   // Newest first, one record per job. Older records lose their description first, so storage stays small.
   function mergeFiltered(list = [], add = [], now = Date.now()) {

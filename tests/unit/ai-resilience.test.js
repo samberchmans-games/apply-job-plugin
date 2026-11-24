@@ -162,4 +162,41 @@
       eq(chats, 1);
     });
   }, { env: 'browser' });
+  describe('ai resilience › per-minute token limits (Groq free: 8K tokens a minute)', () => {
+    beforeEach(async () => {
+      await before();
+      await setup('groq');
+      await health('groq', ['model-a', 'model-b']);
+    });
+    afterEach(after);
+    const bodies = [];
+    const tooBig = (limit) => json({ error: { message: `Request too large for model \`model-a\` on tokens per minute (TPM): Limit ${limit}, Requested 9500, please reduce your message size and try again.`, type: 'tokens', code: 'rate_limit_exceeded' } }, 413);
+    const spy = (...replies) => {
+      bodies.length = 0;
+      let i = 0;
+      globalThis.fetch = async (url, opts) => {
+        bodies.push(JSON.parse(opts.body));
+        const r = replies[Math.min(i++, replies.length - 1)];
+        return typeof r === 'function' ? r() : r;
+      };
+    };
+    const longPrompt = 'x'.repeat(24000); // about 6,000 tokens
+    it('a long request asks for less output, so it fits the minute', async () => {
+      spy(said('ok'));
+      await ask({ prompt: longPrompt });
+      ok(bodies[0].max_tokens + 6000 <= 8000, `max_tokens ${bodies[0].max_tokens}`);
+    });
+    it('"too large for the minute": learns the real limit and asks again on the same model', async () => {
+      spy(tooBig(6000), said('ok'));
+      eq(await ask({ prompt: 'x'.repeat(18000) }), 'ok');
+      eq(bodies.map((b) => b.model), ['model-a', 'model-a']);
+      ok(bodies[1].max_tokens < bodies[0].max_tokens);
+      eq((await AJP.store.get('modelHealth')).groq.quirks['model-a'].tpm, 6000);
+    });
+    it('still too large for this model: the next model answers', async () => {
+      spy(tooBig(2000), tooBig(2000), said('ok'));
+      eq(await ask({ prompt: longPrompt }), 'ok');
+      eq(bodies[bodies.length - 1].model, 'model-b');
+    });
+  }, { env: 'browser' });
 })();
