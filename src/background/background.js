@@ -1133,7 +1133,15 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     async autofillTab({ tabId, trackId, resumeId }, sender, { tid }) {
       const id = tabId || (sender.tab && sender.tab.id);
       if (!id) throw AJP.err('NO_TAB');
-      await ensureInjected(id);
+      // Asked by our own scripts in that tab (the panel): they are already there. Re-injecting needs broader access
+      // than running on a job site, which the browser may refuse; that must not block filling the frames we're in.
+      const fromItsPage = !tabId && !!sender.tab;
+      try {
+        await ensureInjected(id);
+      } catch (e) {
+        if (!fromItsPage || AJP.toAppError(e).code !== 'AJP-PAGE-ACCESS') throw e;
+        log.info('Autofill: scripts already in the page; extra injection not allowed here, filling the frames we run in');
+      }
       await api.tabs.sendMessage(id, { type: 'doAutofill', tid, trackId, resumeId }); // all frames: trace id, track, resume to attach
       return {};
     },
