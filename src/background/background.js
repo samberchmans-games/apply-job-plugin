@@ -913,8 +913,11 @@ if (typeof importScripts === 'function' && !(globalThis.AJP && globalThis.AJP.ai
     async 'radar.watch.remove'({ key } = {}) {
       await serialRadar(async () => {
         await AJP.store.update('radarWatchlist', (l) => l.filter((w) => w.key !== key));
-        await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && `${j.board}:${j.company}` === key.split(':').slice(0, 2).join(':'))));
-        await AJP.store.update('radarFiltered', (l) => l.filter((j) => `${j.board}:${j.company}` !== key.split(':').slice(0, 2).join(':')));
+        // One watched career site: a Workday company can have several ("workday:acme:External"), keep the others.
+        const [board, company, site] = key.split(':');
+        const fromIt = (j) => j.board === board && j.company === company && (!site || !j.site || j.site === site);
+        await AJP.store.update('radarJobs', (l) => l.filter((j) => !(j.status === 'new' && fromIt(j))));
+        await AJP.store.update('radarFiltered', (l) => l.filter((j) => !fromIt(j)));
       });
       refreshBadgeSoon();
       return {};

@@ -182,7 +182,10 @@
     const byKey = new Map();
     for (const p of partials) {
       const j = C.normalize({ ...p, foundAt }, e);
-      if (j.title && !byKey.has(j.key)) byKey.set(j.key, { j, p });
+      if (!j.title) continue;
+      const had = byKey.get(j.key);
+      if (!had) byKey.set(j.key, { j, p });
+      else had.j.locations = [...new Set([...had.j.locations, ...j.locations])]; // the same job on another list page
     }
     const listedKeys = [...byKey.keys()];
     const fresh = [...byKey.values()].filter(({ j }) => !seen[j.key]);
@@ -253,7 +256,7 @@
             : { lastError: null, failuresInRow: 0, openJobs: result.total }),
         } : w))
       );
-      await AJP.store.update('radarScanState', (st) => void (st.done = [...new Set([...(st.done || []), result.key])]));
+      await AJP.store.update('radarScanState', (st) => void Object.assign(st, { done: [...new Set([...(st.done || []), result.key])], lockedAt: Date.now() })); // + heartbeat
     });
   }
 
@@ -289,6 +292,7 @@
     if (!got) throw AJP.err('RADAR_BUSY');
     cancelRequested = false;
     active = true;
+    const awake = AJP.keepWorkerAwake ? AJP.keepWorkerAwake() : () => {}; // waits (Retry-After) must not let Chrome idle the worker
     const summary = { companies: 0, requests: 0, listed: 0, new: 0, matches: [], errors: [], ms: 0, resumed: false };
     try {
       const [settings, watchlist, profile, resumes, state] = await Promise.all(['radarSettings', 'radarWatchlist', 'profile', 'resumes', 'radarScanState'].map((k) => AJP.store.get(k)));
@@ -363,13 +367,12 @@
           summary.companies++;
           if (entry.directory) dirDone++;
           await saveCompany(result, now);
-          await serial(() => AJP.store.update('radarScanState', (s) => void (s.lockedAt = Date.now()))); // heartbeat
         }
       };
       await Promise.all(Array.from({ length: Math.min(CONFIG.concurrency, queue.length) }, worker));
-      if (!stopped && !cancelRequested) {
+      if (!stopped && !cancelRequested && Date.now() - t0 < CONFIG.maxScanMs) {
         try {
-          summary.backfilled = await backfill({ fetchImpl, counter, now });
+          summary.backfilled = await backfill({ fetchImpl, counter, now, deadline: t0 + CONFIG.maxScanMs });
         } catch (e) {
           log.warn('Description backfill failed', { error: e.message });
         }
@@ -382,7 +385,7 @@
       if (slice.length) {
         await AJP.store.update('radarScanState', (s) => {
           s.dirAt = now;
-          s.dirCursor = ((s.dirCursor || 0) + (summary.timeUp || cancelRequested ? dirDone : slice.length)) % Math.max(1, (AJP.radar.directory || []).length);
+          s.dirCursor = (s.dirCursor || 0) + dirDone; // directorySlice takes it modulo the companies it can scan
           const f = { ...(s.dirFail || {}) };
           for (const [k, bad] of Object.entries(dirOutcome)) bad ? (f[k] = (f[k] || 0) + 1) : delete f[k];
           s.dirFail = f;
@@ -403,19 +406,21 @@
       return summary;
     } finally {
       active = false;
+      awake();
       await serial(() => AJP.store.update('radarScanState', (s) => void Object.assign(s, { lockedAt: null, lastSummary: { ...summary, matches: summary.matches.length, at: new Date(now).toISOString() } })));
     }
   }
 
   // Title-only jobs already listed (their company had more matches than the detail budget, or a detail call failed):
   // fetch their descriptions now, a few per scan, and score them like the job page.
-  async function backfill({ fetchImpl, counter, now }) {
+  async function backfill({ fetchImpl, counter, now, deadline = Infinity }) {
     const C = AJP.radar.core;
     const [profile, resumes, list, settings] = await Promise.all([AJP.store.get('profile'), AJP.store.get('resumes'), AJP.store.get('radarJobs'), AJP.store.get('radarSettings')]);
     const moved = [];
     const todo = list.filter((j) => j.status === 'new' && j.descriptionLevel === 'title' && AJP.radar.boards.get(j.board) && AJP.radar.boards.get(j.board).detailRequest).slice(0, CONFIG.backfillPerScan);
     const done = {};
     for (const j of todo) {
+      if (Date.now() > deadline) break; // Chrome ends a background task after ~5 min
       const adapter = AJP.radar.boards.get(j.board);
       const entry = { board: j.board, company: j.company, companyName: j.companyName, ...(j.entry || {}) };
       const id = j.key.split(':').slice(2).join(':');

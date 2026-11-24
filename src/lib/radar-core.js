@@ -156,7 +156,8 @@
       remote: ['remote', 'hybrid', 'onsite'].includes(p.remote) ? p.remote : remoteFrom(p.raw) || (locations.some((l) => /\bremote\b/i.test(l)) ? 'remote' : null),
       employmentType: p.employmentType ? clean(p.employmentType, 40) : null,
       department: p.department ? clean(p.department, 80) : null,
-      url: String(p.url || ''),
+      url: AJP.safeUrl(p.url),
+      ...(entry.site ? { site: entry.site } : {}), // Workday: which of the company's career sites
       postedAt: date ? date.iso : null,
       postedAtExact: date ? p.postedAtExact !== false && date.exact !== false : false,
       salary: p.salary && (p.salary.min || p.salary.max) ? { min: p.salary.min || null, max: p.salary.max || null, currency: p.salary.currency || 'USD', period: p.salary.period || 'year', source: p.salary.source || 'field' } : salaryFromText(description),

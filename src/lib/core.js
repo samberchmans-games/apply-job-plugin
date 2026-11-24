@@ -23,7 +23,20 @@
   AJP.normKey = (s) =>
     AJP.norm(s).replace(/[*:?()]/g, ' ').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 160);
 
-  AJP.clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
+  // structuredClone copies stored data (resumes carry PDFs as long base64 strings) much faster than JSON round trips.
+  AJP.clone = (v) => {
+    if (v == null) return v;
+    if (typeof structuredClone === 'function') {
+      try {
+        return structuredClone(v);
+      } catch (_) {
+        /* something structuredClone can't copy: the JSON way below */
+      }
+    }
+    return JSON.parse(JSON.stringify(v));
+  };
+  // Links from job feeds and sites: only http(s). A "javascript:" or "data:" URL never becomes a link.
+  AJP.safeUrl = (u) => (/^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '');
 
   AJP.isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 

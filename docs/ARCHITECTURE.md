@@ -114,7 +114,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 **Company career sites:** opening a Job Radar job on a company's own domain requests that one origin inside the click; the content scripts are then registered for that site's first path section only (`radarSites`, internal). Removing the access in the browser removes the site.
 
-**Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama) and `api.github.com` (read-only public issue search for problem-report status; no token). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
+**Permissions:** `storage`, `unlimitedStorage`, `activeTab`, `scripting`, `contextMenus`, `alarms`, `notifications`. Host permissions cover only the AI endpoints (Gemini, Groq, OpenRouter, local Ollama) and `api.github.com` (read-only public issue search for problem-report status; no token). Content scripts are declared for LinkedIn, Indeed, Greenhouse, Lever, Workday (`myworkdayjobs`/`myworkdaysite`), Glassdoor, ZipRecruiter, Ashby, SmartRecruiters, iCIMS and Workable. Any other site works only when the user clicks the toolbar icon or uses the context menu.
 
 ## 5. Data model (`storage.local`)
 
@@ -149,7 +149,7 @@ docs/                         this file, PLAN.md, TEST-SCENARIOS.md, SUPPORT.md
 
 **Cache correctness.** `storage.js` versions every key. A read that started before a write never caches the stale value. This was a real race, found by the test suite.
 
-**Backup.** `exportAll` / `importAll` cover `profile`, `settings`, `resumes`, `answers`, `applications`, `enhancements`, `evaluations` and `reports`. `logs`, `tabJobs` and `promptState` are internal and are never imported.
+**Backup.** `exportAll` / `importAll` cover every key except the internal ones (`logs`, `tabJobs`, `promptState`, `aiCalls`, `aiChecks`, `modelHealth`, `radarScanState`, `radarFiltered`, `radarSites`): profile, settings, resumes, answers, applications, enhancements, evaluations, reports, suggestions and the Job Radar watchlist, jobs, seen list and settings. API keys are left out unless you ask for them; restoring a backup without keys keeps the keys you have.
 
 ## 6. Messages
 
@@ -487,7 +487,7 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Trace (`tid`) | One id per user action. `AJP.startTrace(name)` creates it; `AJP.send(type, payload, trace)` carries it as `_tid`; the background router and `ai.complete` reuse it. The result is a single id across page → background → AI → page. |
 | Timing | `trace.end()` logs `ms`. Above `slowMs` it logs a `… slow` warning instead. |
 | Flight recorder | The last 60 entries below the log level are held in memory and written only if an error follows (`pre: true`) |
-| Errors | `errors.js`: 23 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
+| Errors | `errors.js`: 38 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
 | Redaction | By **key** (`apiKey`, `token`, `password`, `email`, `phone`, `eeo`, `race`, `veteran`, `disability`, `gender`, `dataUrl`, …) and by **value pattern** (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, Bearer tokens, `?key=`, phone numbers, SSNs). Applied to messages, data and error stacks. |
 | Transport | Contexts batch entries (700 ms; 50 ms after an error) → `log` message → the background writes the ring buffer (3,000 entries) |
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
@@ -568,7 +568,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1459 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1469 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -610,7 +610,7 @@ One source tree, one source `manifest.json` (with both `service_worker` and `scr
 | Support a new job site's description | `jd-extractor.js` `SITES` | Add `{name, host, jd[], title[], company[]}`; add a test in `jd-extractor.test.js`; add the host to `manifest.json` content-script matches and to `tracker.js` `JOB_HOSTS` |
 | Recognize a site's job ids | `tracker.js` `jobKey` | Add a branch; add "same job, different URLs" tests |
 | Fill a new kind of field | `form-filler.js` `RULES` | Add `{key, re, v}` in priority order; add label→key cases in `form-filler.test.js` |
-| Add an AI provider | `ai.js` `PROVIDERS` + `CALLERS` | Add the endpoint to `host_permissions`; add request-format tests in `ai.test.js` |
+| Add an AI provider | `ai.js` `PROVIDERS` + `PREFER`, and its request / reply format in `ai-wire.js` `PROFILES` | Add the endpoint to `host_permissions`; add request-format tests in `ai.test.js` |
 | Add an error | `errors.js` `ERRORS` | `[code, message, hint]`; throw with `AJP.err(KEY, details)`; add it to the table in `SUPPORT.md` |
 | Add a message type | `background.js` `handlers` | Handlers receive `(msg, sender, {tid, log})`; list it in §6 |
 | Add a stored key | `storage.js` `DEFAULTS` | Add a default; mark it `INTERNAL` if it must not be exported |

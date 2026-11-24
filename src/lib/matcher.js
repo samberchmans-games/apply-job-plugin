@@ -75,7 +75,20 @@
 
   // Find dictionary skills (+ optional extra custom skill names) in text.
   // Returns Map<canonicalName, occurrences>.
+  // A resume is scanned for every job (and every career track): remember the last few long texts.
+  const scans = new Map();
   function findSkills(text, extra = []) {
+    if (text && text.length >= 500) {
+      const key = `${extra.join('|')}\u0001${text}`;
+      if (scans.has(key)) return new Map(scans.get(key));
+      const found = scanSkills(text, extra);
+      scans.set(key, found);
+      if (scans.size > 24) scans.delete(scans.keys().next().value);
+      return new Map(found);
+    }
+    return scanSkills(text, extra);
+  }
+  function scanSkills(text, extra = []) {
     compile();
     const found = new Map();
     if (!text) return found;
@@ -413,7 +426,8 @@
     let got = 0;
     let total = 0;
     let similarCount = 0;
-    const has = (name) => [...mine.keys()].find((k) => AJP.norm(k) === AJP.norm(name));
+    const mineByNorm = new Map([...mine.keys()].map((k) => [AJP.norm(k), k]));
+    const has = (name) => mineByNorm.get(AJP.norm(name));
     for (const [name, info] of jd) {
       // Mentioned many times => slightly more important.
       const weight = info.weight + Math.min(info.count - 1, 2) * 0.25;

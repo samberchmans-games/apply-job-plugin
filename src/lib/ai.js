@@ -129,6 +129,7 @@
     const quirks = { ...(await quirksOf(provider, model)) };
     let enlarged = false;
     let paced = null;
+    let spent = 0; // tokens sent in earlier rounds of this call (a retry after a 400 or a cut-off answer)
     for (let round = 0; round < 5; round++) {
       // A free per-minute budget counts the prompt and the output allowance: ask for less output so one request fits.
       const tpm = quirks.tpm || prof.tpm;
@@ -161,6 +162,7 @@
       } catch (e) {
         const x = AJP.toAppError(e);
         const limit = wire.isTooLarge(x) ? minuteLimit(x) : null;
+        spent += input;
         if (limit && quirks.tpm !== limit) {
           quirks.tpm = limit;
           delete quirks.maxOutput;
@@ -176,7 +178,7 @@
         throw providerError(x);
       }
       const r = sink.result();
-      if (paced) paced.n = input + Math.ceil(r.text.length / 4);
+      if (paced) paced.n = spent + input + Math.ceil(r.text.length / 4);
       if (r.error) throw replyError(r.error, new URL(req.url).hostname);
       if (r.finish === 'refused') throw AJP.err('AI_REFUSED', { provider, category: r.category || null });
       if (r.finish === 'error') throw AJP.err('AI_SERVER', { provider, status: 200 });
@@ -196,6 +198,7 @@
         const slowThinker = !r.text.trim() && Date.now() - started > CONFIG.cutRetryMs;
         if (!enlarged && !slowThinker && prof.maxOutputCap && now < prof.maxOutputCap) {
           enlarged = true;
+          spent += input + Math.ceil(r.text.length / 4);
           quirks.maxOutput = Math.min(now * 2, prof.maxOutputCap);
           AJP.logger('ai').info('Answer was cut off; asking again with more room', { provider, model, maxOutput: quirks.maxOutput, thinking: r.thinking });
           continue;
@@ -252,7 +255,15 @@
     const longTotal = blocks.reduce((n, b) => n + (b.length > LONG ? b.length : 0), 0);
     const excess = text.length - maxChars + blocks.filter((b) => b.length > LONG).length * 16;
     if (!longTotal) return text.slice(0, maxChars);
-    return blocks.map((b) => (b.length > LONG ? b.slice(0, Math.max(200, Math.floor(b.length - (excess * b.length) / longTotal))) + '\n…[shortened]' : b)).join('\n\n');
+    // A shortened <resume>…</resume> block keeps its closing tag, so the model still sees where it ends.
+    return blocks
+      .map((b) => {
+        if (b.length <= LONG) return b;
+        const end = b.match(/\n(<\/[\w-]+>)\s*$/);
+        const body = end ? b.slice(0, end.index) : b;
+        return body.slice(0, Math.max(200, Math.floor(b.length - (excess * b.length) / longTotal))) + '\n…[shortened]' + (end ? '\n' + end[1] : '');
+      })
+      .join('\n\n');
   }
 
   function localError(e, reason) {

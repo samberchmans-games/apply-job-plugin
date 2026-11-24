@@ -58,7 +58,7 @@
     // "Experience Summary" is experience, not the summary.
     if (/experience|employment|work history|career history|professional background/.test(n)) return 'experience';
     if (/summary|profile|about|objective/.test(n)) return 'summary';
-    if (/skill|competenc|technolog|tools/.test(n)) return 'skills';
+    if (/skill|competenc|technolog|tools|expertise/.test(n)) return 'skills';
     if (/experience|employment|work history/.test(n)) return 'experience';
     if (/project/.test(n)) return 'projects';
     if (/education/.test(n)) return 'education';
@@ -116,13 +116,15 @@
       const raw = lines[i];
       const t = raw.trim();
       let h = t ? headingOf(raw) : null;
-      // "### Senior Engineer — Acme (2019–Present)" inside Experience is a role line, not a new section.
-      if (h && h.md && !SECTION_WORDS.test(h.name) && (kind === 'experience' || kind === 'projects')) h = null;
+      // "### Senior Engineer — Acme (2019–Present)" inside Experience is a role line, not a new section; a "##" heading
+      // ("## Technical Expertise") is always a section.
+      if (h && h.md && h.level >= 3 && !SECTION_WORDS.test(h.name) && (kind === 'experience' || kind === 'projects')) h = null;
       if (h && !(h.level === 1 && kind === 'header' && !SECTION_WORDS.test(h.name))) {
         section = h.name;
         kind = sectionKind(h.name);
         if ((kind === 'summary' || kind === 'other') && datedSection(lines, i)) kind = 'experience';
         role = '';
+        lastText = ''; // a date line in this section never joins text from the previous one
         if (h.md) mdHeadings = true;
         if (firstSectionLine < 0) firstSectionLine = i;
         blocks.push({ line: i, kind: 'heading', section, text: raw, editable: false });
@@ -430,20 +432,20 @@
     const doc = parse(originalText);
     const out = doc.lines.slice();
     const drop = new Set();
+    // No summary yet: insert it first and start again, so no other edit is applied twice (an "Additional skills" line
+    // added twice) or loses the wrapped lines it replaces.
+    const newSummary = !doc.summary.length && edits.find((e) => e.target === 'summary');
+    if (newSummary) {
+      const at = doc.style.firstSectionLine >= 0 ? doc.style.firstSectionLine : out.length;
+      out.splice(at, 0, doc.style.mdHeadings ? '## Summary' : 'SUMMARY', String(newSummary.after).trim(), '');
+      return assemble(out.join('\n'), edits.filter((x) => x !== newSummary));
+    }
     for (const e of edits) {
       if (e.target === 'summary') {
         const text = String(e.after).trim();
-        if (doc.summary.length) {
-          const first = doc.summary[0];
-          out[first.line] = (first.prefix || '') + text;
-          for (const b of doc.summary.slice(1)) drop.add(b.line);
-        } else {
-          // No summary yet: insert one before the first section.
-          const at = doc.style.firstSectionLine >= 0 ? doc.style.firstSectionLine : out.length;
-          const heading = doc.style.mdHeadings ? '## Summary' : 'SUMMARY';
-          out.splice(at, 0, heading, text, '');
-          return assemble(out.join('\n'), edits.filter((x) => x !== e)); // re-parse with new line numbers
-        }
+        const first = doc.summary[0];
+        out[first.line] = (first.prefix || '') + text;
+        for (const b of doc.summary.slice(1)) drop.add(b.line);
       } else if (e.target === 'skills') {
         const order = (Array.isArray(e.after) ? e.after : String(e.after).split(/\s*[,;|•]\s*/)).map((s) => String(s).trim()).filter(Boolean);
         const rank = (item) => {

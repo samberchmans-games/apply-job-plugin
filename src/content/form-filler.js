@@ -281,6 +281,19 @@
           const rule = rulefor(el, q);
           let value = rule ? rule.v(profile) : '';
           let how = 'profile';
+          // Checkboxes are learned one by one ("Question — Option": Yes / No): tick the ones you ticked before.
+          // (Before the whole-question lookup, which would fuzzily match one of these option answers.)
+          if (!value && type === 'checkbox') {
+            const ticks = group.filter((cb) => {
+              const l = findLearned(answers, `${q} — ${optionLabel(cb)}`);
+              return l && /^yes$/i.test(String(l.value).trim());
+            });
+            if (ticks.length) {
+              ticks.forEach((cb) => (cb.click(), mark(cb, 'learned')));
+              report.learned.push(q);
+              continue;
+            }
+          }
           if (!value) {
             const l = findLearned(answers, q);
             if (l) (value = l.value), (how = 'learned');

@@ -77,7 +77,7 @@
     $('#trackCompare').innerHTML = list.length < 2 || !recent.length
       ? '<p class="hint">Add at least two tracks and open a few job posts to compare them here.</p>'
       : `<table class="tbl"><thead><tr><th>Job</th>${list.map((t) => `<th>${esc(t.name)}</th>`).join('')}<th>Seen</th></tr></thead><tbody>${recent
-          .map((e) => `<tr><td><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title || e.url)}</a>${e.company ? ' · ' + esc(e.company) : ''}</td>${list
+          .map((e) => `<tr><td><a href="${esc(AJP.safeUrl(e.url))}" target="_blank" rel="noopener">${esc(e.title || e.url)}</a>${e.company ? ' · ' + esc(e.company) : ''}</td>${list
             .map((t) => {
               const v = e.scores ? e.scores[t.id] : null;
               return `<td class="${e.bestTrackId === t.id ? 'best' : ''}">${v == null ? '—' : v + '%'}${e.bestTrackId === t.id ? ' ★' : ''}</td>`;

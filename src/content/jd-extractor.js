@@ -61,7 +61,7 @@
       const jp = items.find((x) => x && [].concat(x['@type']).includes('JobPosting'));
       if (!jp || !jp.description) continue;
       const loc = [].concat(jp.jobLocation || [])[0];
-      const addr = loc && loc.address;
+      const addr = loc && (Array.isArray(loc.address) ? loc.address[0] : loc.address); // some sites give a list
       return {
         source: 'jsonld',
         title: jp.title || '',
@@ -85,6 +85,9 @@
     let best = null;
     let bestScore = 0;
     for (const el of D.querySelectorAll('main, article, section, div')) {
+      // textContent first: it doesn't make the browser lay out the page (offsetParent / innerText do).
+      const len = (el.textContent || '').length;
+      if (len < 400 || len > 60000) continue;
       if (el.offsetParent === null && el !== document.body) continue;
       const t = el.innerText || '';
       if (t.length < 400 || t.length > 25000) continue;

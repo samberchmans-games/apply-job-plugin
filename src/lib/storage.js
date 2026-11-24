@@ -156,19 +156,19 @@
     return r[key];
   }
   const blankKeys = (keys) => Object.fromEntries(Object.keys(keys || {}).map((k) => [k, '']));
+  // API keys still in shared storage (saved by an older version, or put back by a restore) move to the database
+  // whenever they are seen: checked on every read, not "once", so the order of reads and writes never matters.
   async function readKeys() {
-    let keys = await dbGet(KEYS_SLOT);
-    if (keys === undefined && !moved.has(KEYS_SLOT)) {
-      moved.add(KEYS_SLOT);
-      const s = (await area().get('settings')).settings;
-      const old = s && s.ai && s.ai.keys;
-      if (old && Object.values(old).some(Boolean)) {
-        keys = old;
-        await dbPut(KEYS_SLOT, keys);
-        await area().set({ settings: { ...s, ai: { ...s.ai, keys: blankKeys(old) } } });
-      }
+    let keys = (await dbGet(KEYS_SLOT)) || {};
+    const s = (await area().get('settings')).settings;
+    const old = s && s.ai && s.ai.keys;
+    if (old && Object.values(old).some(Boolean)) {
+      const kept = Object.fromEntries(Object.entries(keys).filter(([, v]) => v)); // a key already moved wins
+      keys = { ...old, ...kept };
+      await dbPut(KEYS_SLOT, keys);
+      await area().set({ settings: { ...s, ai: { ...s.ai, keys: blankKeys(old) } } });
     }
-    return keys || {};
+    return keys;
   }
 
   // ---- Change notices (both places, every extension context) ----------------------------------------------
@@ -330,6 +330,12 @@
       if (!backup || backup.app !== 'apply-job-plugin' || !backup.data) throw AJP.err('BACKUP_INVALID');
       const toSet = {};
       for (const k of this.KEYS) if (k in backup.data && !INTERNAL.has(k)) toSet[k] = backup.data[k];
+      // Backups leave API keys out by default: restoring one keeps the keys already saved here.
+      const keys = toSet.settings && toSet.settings.ai && toSet.settings.ai.keys;
+      if (keys && !Object.values(keys).some(Boolean)) {
+        const now = await this.get('settings');
+        toSet.settings = { ...toSet.settings, ai: { ...toSet.settings.ai, keys: { ...now.ai.keys } } };
+      }
       cache.clear();
       for (const k of Object.keys(toSet)) bump(k);
       for (const [k, v] of Object.entries(toSet)) if (useDb && (DB_KEYS.has(k) || k === 'settings')) await this.set(k, v);

@@ -309,11 +309,16 @@
       const key = AJP.tracker.jobKey(jobMeta().url);
       const tailored = resumes.items.find((x) => x.enhancementId && x.job && x.job.url && AJP.tracker.jobKey(x.job.url) === key);
       const r = await AJP.send('autofillTab', { tid: tr.id, ...trackRef(), resumeId: tailored ? tailored.id : undefined }, tr);
-      state.busy = '';
       if (!r.ok) {
+        state.busy = '';
         tr.fail(r);
         return fail(r);
       }
+      // The frames fill after this answer: stay busy (no second fill on a double click) until the first report.
+      clearTimeout(state.busyTimer);
+      state.busyTimer = setTimeout(() => {
+        if (state.busy === 'autofill') (state.busy = ''), render();
+      }, 30000);
       tr.end();
       state.autofillUsed = true;
       if (AJP.workday && AJP.workday.applies()) state.wdStep = AJP.workday.currentStep();
@@ -449,6 +454,7 @@
         log.error('Autofill crashed', { code: x.code, error: x.message, stack: String(e && e.stack).split('\n').slice(0, 5).join('\n'), host: location.hostname }, { code: x.code, tid: msg.tid });
       });
     } else if (msg.type === 'autofillReport' && isTop) {
+      if (state.busy === 'autofill') (state.busy = ''), clearTimeout(state.busyTimer);
       const r = msg.report;
       const cur = state.autofill || { filled: [], learned: [], unknown: [], questions: [], skipped: [] };
       for (const k of ['filled', 'learned', 'unknown', 'questions', 'skipped']) cur[k] = cur[k].concat(r[k] || []);

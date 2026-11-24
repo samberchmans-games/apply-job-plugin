@@ -202,7 +202,14 @@
       clearTimeout(st.t);
       st.t = setTimeout(() => {
         const pos = e.target.selectionStart;
+        // Re-drawing must not move you or untick "Make it my active resume".
+        const top = dlg.scrollTop;
+        const act = dlg.querySelector('#enhActive');
+        const keepAct = act ? act.checked : null;
         render();
+        dlg.scrollTop = top;
+        const act2 = dlg.querySelector('#enhActive');
+        if (act2 && keepAct != null) act2.checked = keepAct;
         const ta = dlg.querySelector(`[data-after="${id}"]`);
         if (ta) {
           ta.focus();

@@ -362,6 +362,7 @@
   }
 
   AJP.httpStream = httpStream;
+  AJP.keepWorkerAwake = keepWorkerAwake;
   AJP.isTransient = isTransient;
   AJP.retry = retry;
   AJP.http = http;

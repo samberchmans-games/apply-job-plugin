@@ -462,18 +462,24 @@
       savers[k](id, v);
     };
     // A PDF made from the text is kept in sync with it (a PDF the user uploaded is never replaced).
+    // The resumes typed in (captured when typing, not when the timer fires: you may have opened another one since).
+    const regenIds = new Set();
     const regenPdf = AJP.debounce(AJP.guard('admin.regeneratePdf', async () => {
-      const id = selectedResumeId;
+      const ids = [...regenIds];
+      regenIds.clear();
       const all = await AJP.store.get('resumes');
-      const r = all.items.find((x) => x.id === id);
-      if (!r || !(r.text || '').trim() || (r.file && !r.file.generated)) return;
-      const { file, replaced } = AJP.pdfWriter.fileFor(r, { company: r.job && r.job.company });
-      await updateResumes((x) => void x.items.forEach((it) => it.id === id && (it.file = file)));
-      if (replaced) toast(`PDF updated — ${replaced} character(s) can't be shown in the PDF and appear as "?"`);
+      for (const id of ids) {
+        const r = all.items.find((x) => x.id === id);
+        if (!r || !(r.text || '').trim() || (r.file && !r.file.generated)) continue;
+        const { file, replaced } = AJP.pdfWriter.fileFor(r, { company: r.job && r.job.company });
+        await updateResumes((x) => void x.items.forEach((it) => it.id === id && (it.file = file)));
+        if (replaced) toast(`PDF updated — ${replaced} character(s) can't be shown in the PDF and appear as "?"`);
+      }
       renderResumes();
     }, { mod: 'admin', onError: (d) => toast(`${d.message} (${d.code})`) }), 1200);
     $('#resumeText').addEventListener('input', (e) => {
       saveField('text', e.target.value);
+      regenIds.add(selectedResumeId);
       regenPdf();
     });
     // Skills from the text: after a paste, and when the user leaves the box (not on every keystroke).
@@ -803,7 +809,7 @@
     $('#myReports').innerHTML = reports.length
       ? `<table class="tbl"><thead><tr><th>Report</th><th>Opened</th><th>Status</th></tr></thead><tbody>${reports
           .map((r) => `<tr><td>${esc(r.title || r.reportId)}</td><td>${new Date(r.createdAt).toLocaleDateString()}</td><td class="st-${esc(r.status || '')}">${
-            T[r.status] || T['not-submitted']}${r.number ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">#${r.number}</a>` : ''}${r.version ? ' in ' + esc(r.version) : ''}${r.checkFailed ? ' · couldn\'t check' : ''}</td></tr>`)
+            T[r.status] || T['not-submitted']}${r.number ? ` <a href="${esc(AJP.safeUrl(r.url))}" target="_blank" rel="noopener">#${r.number}</a>` : ''}${r.version ? ' in ' + esc(r.version) : ''}${r.checkFailed ? ' · couldn\'t check' : ''}</td></tr>`)
           .join('')}</tbody></table>`
       : '<p class="hint">No reports yet. Use 🆘 Report an issue → 🐙 Report on GitHub.</p>';
     if (reports.some((r) => r.status === 'fixed' && r.seen === false)) AJP.send('reports.seen');
@@ -891,7 +897,7 @@
         if (sim.ok && sim.items && sim.items.length) {
           $('#ghSimilar').hidden = false;
           $('#ghSimilar').innerHTML = `<b>Similar open reports for ${esc(codes[0])}</b> — same problem? Add a 👍 or a comment there instead:<ul>${sim.items
-            .map((i) => `<li><a href="${esc(i.url)}" target="_blank" rel="noopener">#${i.number} ${esc(i.title)}</a></li>`)
+            .map((i) => `<li><a href="${esc(AJP.safeUrl(i.url))}" target="_blank" rel="noopener">#${i.number} ${esc(i.title)}</a></li>`)
             .join('')}</ul>Different problem? Click <b>Report on GitHub</b> again to open a new report.`;
           return;
         }
@@ -987,7 +993,7 @@
     if (changes.reports && on === 'logs') renderReports();
     if (changes.aiCalls && on === 'ai') (renderAiCalls(), renderAutoModels());
     else if (changes.modelHealth && on === 'ai') renderAutoModels();
-    if (changes.answers && on === 'answers' && !document.activeElement.matches('#answerRows textarea')) renderAnswers();
+    if (changes.answers && on === 'answers' && !(document.activeElement && document.activeElement.matches('#answerRows textarea'))) renderAnswers();
     if (changes.applications && on === 'applications') renderApps();
     if (changes.radarJobs || changes.radarFiltered || changes.radarWatchlist || changes.radarScanState) AJP.radarView.refresh(on === 'radar');
     if (changes.profile && on === 'prefs') renderPrefsTracksNote();

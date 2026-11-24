@@ -137,7 +137,7 @@
     d.innerHTML = `
       <h2 style="margin-top:0">${esc(a.title || 'Job')}</h2>
       <p class="hint">${a.trackName ? '🧭 ' + esc(a.trackName) + ' · ' : ''}${esc(a.company || '')}${a.location ? ' · ' + esc(a.location) : ''}${sal ? ' · ' + sal : ''}${a.score == null ? '' : ' · match ' + a.score + '%'}
-        ${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">Open job ↗</a>` : ''}</p>
+        ${a.url ? ` · <a href="${esc(AJP.safeUrl(a.url))}" target="_blank" rel="noopener">Open job ↗</a>` : ''}</p>
       <div class="grid">
         <label>Status<select data-f="status">${T.STATUSES.map((s) => `<option value="${s}" ${s === a.status ? 'selected' : ''}>${LABEL[s]}</option>`).join('')}</select></label>
         <label>Recruiter / contact<input data-f="recruiter" value="${esc(a.recruiter || '')}"></label>

@@ -131,7 +131,7 @@
     ].filter(Boolean).join(' ');
     return `<div class="radar-job ${el.status === 'blocked' ? 'blocked' : ''}" data-key="${esc(j.key)}" data-keys="${esc((j.keys || [j.key]).join(' '))}">
       <span class="pill ${j.score != null && j.score >= thr ? 'good' : ''}" title="${j.score == null ? 'No job description to score: open it to judge' : `Best fit: ${esc(track ? track.name : 'your profile')}`}">${j.score == null ? '–' : j.score + '%'}</span>
-      <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
+      <div class="radar-main"><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> ${tags}
         <div class="hint">${meta}</div>${el.status === 'blocked' ? `<div class="hint warn">⚠ ${esc(el.reasons.join('; '))}</div>` : ''}</div>
       <div class="radar-act">${j.status !== 'saved' ? '<button data-act="saved">Save to Applications</button>' : '<span class="hint">Saved</span>'}${j.status !== 'dismissed' ? '<button data-act="dismissed">Dismiss</button>' : '<button data-act="new">Restore</button>'}<button data-act="hide" title="Never show jobs from ${esc(j.companyName)} again">Hide company</button></div>
     </div>`;
@@ -142,7 +142,7 @@
     const meta = [esc(j.companyName), esc((j.locations || []).slice(0, 4).join(' · ')), REMOTE[j.remote] || '', money(j.salary), j.postedAt ? `posted ${ago(j.postedAt)}` : ''].filter(Boolean).join(' · ');
     return `<div class="radar-job" data-fkey="${esc(j.key)}">
       <span class="pill">${j.score == null ? '–' : j.score + '%'}</span>
-      <div class="radar-main"><a href="${esc(j.url)}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> <span class="pill warn">${esc(label)}</span>
+      <div class="radar-main"><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener"><b>${esc(j.title)}</b></a> <span class="pill warn">${esc(label)}</span>
         <div class="hint">${meta}</div>${j.detail ? `<div class="hint warn">${esc(j.detail)}</div>` : ''}</div>
       <div class="radar-act"><button data-restore>Move to Matched</button></div>
     </div>`;
