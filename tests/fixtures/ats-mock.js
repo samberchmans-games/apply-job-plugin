@@ -239,7 +239,7 @@
         ${dd('PersonProfileFields.AddressState', 'PersonProfileFields.AddressState', 'State/Province', ['California', 'New York', 'Texas', 'Washington'])}
         ${t('AddressZip', 'Zip/Postal Code')}
         ${dd('PersonProfileFields.AddressCountry', 'PersonProfileFields.AddressCountry', 'Country', ['Canada', 'India', 'United Kingdom', 'United States'])}
-        ${dd('rcf3048', 'rcf3048', 'Are you at least 18 years of age?', ['Yes', 'No'])}
+        ${dd('rcf3048', 'rcf3048', 'Which of the following best describes how you use AI tools today?', ['Daily', 'Weekly', 'Rarely'])}
         <input type="submit" value="Submit"></form></div></div>`;
     },
 
@@ -254,6 +254,20 @@
       <fieldset class="phone-input"><legend class="visually-hidden">Phone</legend><div class="phone-input__country">${reactSelect('country', 'Country', ['Canada +1', 'India +91', 'United Kingdom +44', 'United States +1'], { live: true })}</div>${text('phone', 'Phone', 'tel')}</fieldset>
       <div class="employment--container" data-make="job">${ghJobRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
       <div class="education--container" data-make="edu">${ghEduRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
+      <button type="submit">Submit application</button></form></div>`,
+
+    // Screening questions as on a live Greenhouse job board (Coinbase, Nov 2026): React-Select dropdowns.
+    'greenhouse-questions': () => `<div id="grnhse_app" data-ats="greenhouse"><h1>Apply for this job</h1><form id="application-form">
+      ${text('first_name', 'First Name')}
+      ${reactSelect('question_1', 'Are you at least 18 years of age?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_2', 'Have you previously been employed by Coinbase in any capacity?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_3', 'Have you ever worked for any of the following companies: Coinbase, Globex or Bison Trails?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_4', 'How did you hear about this job?', ['LinkedIn', 'Company Website', 'Online Job Board (Indeed, Glassdoor)', 'Referral', 'Other'], { live: true })}
+      ${reactSelect('question_5', 'Please confirm receipt of the above linked Global Data Privacy Notice and US Arbitration Agreement.', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_6', 'Are you a current government official or were you a government official in the last five years (e.g., employee of a government agency or a government owned/controlled company, holder of public office or a civil service position)?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_7', 'Are you a close relative of a government official (i.e., child/step-child, spouse/partner, parent/guardian, aunt/uncle, first cousin, in-law)?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_8', 'To your knowledge, do you or a close relative currently hold a role, have a significant financial interest in, or maintain a close personal relationship with a senior leader at a company connected to Coinbase that could create an actual or perceived conflict of interest?', ['Yes', 'No'], { live: true })}
+      ${reactSelect('question_9', 'To your knowledge, were you referred to this position by a senior leader or decision-maker at a current or prospective institutional client, business partner, or vendor of Coinbase?', ['Yes', 'No'], { live: true })}
       <button type="submit">Submit application</button></form></div>`,
 
     smartrecruiters: () => `<div class="sr-application" data-ats="smartrecruiters"><form>
@@ -376,7 +390,7 @@
   function mount(container, site) {
     uid++;
     container.innerHTML = PAGES[site]();
-    if (site === 'greenhouse' || site === 'greenhouse-entries' || site === 'greenhouse-remix') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
+    if (site === 'greenhouse' || site === 'greenhouse-entries' || site === 'greenhouse-remix' || site === 'greenhouse-questions') container.querySelectorAll('[data-rs]').forEach(wireReactSelect);
     if (site === 'greenhouse-entries' || site === 'greenhouse-remix' || site === 'smartrecruiters') wireEntries(container);
     if (site === 'greenhouse-classic') wireSelect2(container);
     if (site === 'lever') wireLever(container);

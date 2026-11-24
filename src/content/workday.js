@@ -80,6 +80,8 @@
     if (/country/i.test(key) && COUNTRY_ALIASES[v.toLowerCase()]) out.push(COUNTRY_ALIASES[v.toLowerCase()]);
     if (/degree/i.test(key)) for (const [re, name] of DEGREE_ALIASES) if (re.test(v)) out.push(name);
     if (/decline|prefer not|not wish/i.test(v)) out.push('I do not wish to answer', 'I do not wish to self-identify');
+    // "How did you hear about this job?": your answer, then the usual names for an online job post, "Other" last.
+    if (key === 'heardFrom') out.push('Job board', 'Job posting', 'Online job posting', 'Job site', 'Online', 'Internet', 'Company website', 'Careers page', 'Website', 'LinkedIn', 'Other');
     // Veteran status is worded many ways: "I am not a protected veteran" ↔ "I am not a veteran" ↔ "No".
     if (/veteran/i.test(key) || /veteran/i.test(v)) {
       if (/\bnot\b/i.test(v)) out.push('I am not a veteran', 'I am not a protected veteran', 'Not a veteran', 'No');
@@ -281,13 +283,14 @@
       const label = labelOf(wrap);
       const key = fieldKey(wrap);
       const rule = AJP.filler.ruleFor(label);
-      let value = rule ? rule.v(profile) : '';
+      let value = rule ? rule.v(profile, { label }) : '';
       let how = 'profile';
       if (!value && /skills/i.test(label)) value = ''; // skills prompts: many values — left for the user
       if (!value) {
         const l = AJP.filler.findLearned(answers, label);
         if (l) (value = l.value), (how = 'learned');
       }
+      if (!value && rule && rule.dflt) value = rule.dflt;
       if (!value) {
         report.unknown.push(label);
         continue;

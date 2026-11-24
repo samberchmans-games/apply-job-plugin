@@ -57,7 +57,10 @@ src/
     docx.js                   .docx → text with zero dependencies (DecompressionStream)
     pdf.js                    PDF → text via Mozilla pdf.js (loaded on demand): lines, bullets → "- ", paragraphs
     experience.js             years of experience (asked vs. yours, per skill) and seniority level → fit rows
-    field-rules.js            form question → profile value rules (shared by Autofill and profile suggestions)
+    field-rules.js            form question → profile value rules (shared by Autofill and profile suggestions); screening
+                              questions (18+, previously employed by the named companies → your work history, how you
+                              heard, government official / relative, conflict of interest). Answer order: Admin value →
+                              learned answer → the rule's `dflt`. Legal acknowledgements are never answered
     icons.js                  one line-icon set (inline SVG, currentColor) for Admin, popup and panel; no emoji in the chrome
     profile-suggest.js        learned answers → suggested profile updates
     pdf-writer.js             resume text → ATS-readable PDF (Helvetica, WinAnsi, Letter); the one file format we upload
@@ -575,7 +578,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1489 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1495 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)

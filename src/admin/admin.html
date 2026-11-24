@@ -162,6 +162,16 @@
         <label>Earliest start date<input data-path="autoApply.earliestStart" placeholder="Immediately / 2026-12-01"></label>
       </div>
 
+      <h3>Screening questions</h3>
+      <p class="hint">Filled when an application asks them. Left on "Usual", a question gets what you answered on a form before, else the usual answer shown. "Have you previously been employed by …?" is answered from the companies in your resume: Yes only if one of the named companies is there.</p>
+      <div class="grid">
+        <label>At least 18 years old?<select data-path="autoApply.over18"><option value="">Usual (Yes)</option><option>Yes</option><option>No</option></select></label>
+        <label>Government official (now or in the last 5 years)?<select data-path="autoApply.govOfficial"><option value="">Usual (No)</option><option>Yes</option><option>No</option></select></label>
+        <label>Close relative of a government official?<select data-path="autoApply.govRelative"><option value="">Usual (No)</option><option>Yes</option><option>No</option></select></label>
+        <label>Conflict of interest, or referred by a client's or partner's senior leader?<select data-path="autoApply.conflict"><option value="">Usual (No)</option><option>Yes</option><option>No</option></select></label>
+        <label>How did you hear about the job?<input data-path="autoApply.heardFrom" placeholder="Usual: Job board"></label>
+      </div>
+
       <h3>Work history and education</h3>
       <p class="hint">Autofill reads these from the resume it sends: the one tailored for that job, else your base resume. Nothing to type here.</p>
       <div id="resumeFacts" class="card"></div>

@@ -12,10 +12,44 @@
   const yn = (v) => (v === true || /^y/i.test(v) ? 'Yes' : v === false || /^n/i.test(v) ? 'No' : '');
   const first = (arr) => (arr && arr[0]) || {};
 
+  /*
+   * "Have you previously been employed by Coinbase?" / "…worked for any of the following: Coinbase, Base or Bison
+   * Trails?": every company the question names is checked against your work history (the resume being sent, then
+   * your profile). One of them there → Yes; none → No. No work history known, or no company named → no answer.
+   */
+  const SUFFIX = /\b(inc|llc|ltd|limited|corp|corporation|co|company|plc|gmbh|ag|sa|pvt|private|technologies|group|holdings)\b\.?/gi;
+  const orgKey = (s) => AJP.norm(String(s || '').replace(SUFFIX, ' ')).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  function namedCompanies(label) {
+    const m = String(label || '').match(/\b(?:employed\s+(?:by|at|with)|worked\s+(?:for|at)|work(?:ing)?\s+for|been an? (?:employee|contractor|intern|consultant)\s+(?:of|at|for|with))\s+(.+?)(?=\s+(?:or any of its|or its|in any capacity|as an?|before|previously|in the past|at any time|during)\b|[?(]|\.\s|$)/i);
+    if (!m) return [];
+    let list = m[1];
+    if (list.includes(':')) list = list.slice(list.indexOf(':') + 1);
+    return list
+      .split(/\s*(?:,|;|\/|\bor\b|\band\b)\s*/i)
+      .map((x) => x.replace(/^(?:any of )?(?:the following(?: companies)?|its (?:affiliates?|subsidiaries))\s*/i, '').trim())
+      // "a startup", "any company in fintech": no company named, so no answer.
+      .filter((x) => x.length > 1 && !/^(a|an|any|another|some|other)\b/i.test(x) && !/^(us|we|this company|the company|our company|any (?:of )?(?:its )?(?:affiliates?|subsidiar(?:y|ies))|affiliates?|subsidiar(?:y|ies))$/i.test(x));
+  }
+  function previouslyEmployed(p, ctx) {
+    const names = namedCompanies(ctx && ctx.label).map(orgKey).filter((x) => x.length > 1);
+    const mine = [...((p.autoApply && p.autoApply.experience) || []).map((e) => e.company), p.personal && p.personal.currentCompany].map(orgKey).filter((x) => x.length > 1);
+    if (!names.length || !mine.length) return '';
+    const has = (a, b) => ` ${a} `.includes(` ${b} `);
+    return names.some((n) => mine.some((h) => has(h, n) || has(n, h))) ? 'Yes' : 'No';
+  }
+
   // Order matters: more specific patterns first.
   const RULES = [
     // Question-style rules first: a long question can mention "country", "state" or "phone" (e.g. "authorized to work
     // in the country…?") and must not be answered with an address field. Then short field rules, most specific first.
+    // Screening questions (Admin → Auto-apply details → Screening questions); v(profile, { label }).
+    // `dflt`: the answer when Admin has none AND you never answered it on a form (your own answers come first).
+    { key: 'previouslyEmployed', re: /\b(previously|ever|formerly|in the past|before)\b[^?]{0,60}\b(employed (by|at|with)|worked (for|at)|work for|been an? (employee|contractor|intern) (of|at|for|with))|\bformer (employee|intern|contractor) of\b/i, v: previouslyEmployed },
+    { key: 'over18', re: /\b(at least|over|older than)\s+(the age of\s+)?18\b|\b18 (years|yrs)( of age| old)|\b18 or older\b|\bage of (18|majority)\b|\blegal (working )?age\b/i, v: (p) => yn(p.autoApply.over18), dflt: 'Yes' },
+    { key: 'govRelative', re: /(relative|family member|spouse|partner|related to)[^?]{0,80}government|government[^?]{0,80}(relative|family member)/i, v: (p) => yn(p.autoApply.govRelative), dflt: 'No' },
+    { key: 'govOfficial', re: /government official|public official|politically exposed|government[- ](agency|employee|owned)|public office|civil service/i, v: (p) => yn(p.autoApply.govOfficial), dflt: 'No' },
+    { key: 'conflict', re: /conflict of interest|significant financial interest|close personal relationship|referred[^?]{0,80}(senior leader|decision[- ]maker|executive|business partner|client|vendor)/i, v: (p) => yn(p.autoApply.conflict), dflt: 'No' },
+    { key: 'heardFrom', re: /how did you (hear|learn|find out) about|where did you (hear|find|see|learn) about|how did you find (this|the|our) (job|role|position|opening)|referral source|source of (your )?application/i, v: (p) => p.autoApply.heardFrom, dflt: 'Job board' },
     { key: 'years', re: /years of (professional |relevant |total )?experience|how many years/i, v: (p) => p.personal.yearsExperience },
     { key: 'salary', re: /salary|compensation|pay expectation|desired pay|expected pay/i, v: (p) => p.salary.min ? `${p.salary.min}${p.salary.max ? ' - ' + p.salary.max : ''}` : '' },
     { key: 'sponsorship', re: /sponsor/i, v: (p) => yn(p.autoApply.requireSponsorship) },
@@ -58,5 +92,5 @@
   const ruleByKey = (key) => RULES.find((r) => r.key === key);
 
   AJP.FIELD_RULES = RULES;
-  AJP.fieldRules = { RULES, ruleFor, ruleByKey, yn };
+  AJP.fieldRules = { RULES, ruleFor, ruleByKey, yn, namedCompanies, previouslyEmployed };
 })();

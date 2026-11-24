@@ -8,7 +8,7 @@
   describe('autofill › label → profile field rules', () => {
     const key = (label) => (F.ruleFor(label) || {}).key || null;
     it('a question about an "institutional client" is not the school field (Coinbase report)', () => {
-      eq(key('To your knowledge, were you referred to this position by a senior leader or decision-maker at a current or prospective institutional client, business partner, or vendor of Coinbase?'), null);
+      eq(key('To your knowledge, were you referred to this position by a senior leader or decision-maker at a current or prospective institutional client, business partner, or vendor of Coinbase?'), 'conflict', 'a screening question (B62), not the school field');
       eq(key('School'), 'school');
       eq(key('Name of the institution you attended'), 'school');
     });
@@ -45,7 +45,7 @@
     });
     it('"United States" does not trigger the state rule', () => eq(key('Do you live in the United States'), null));
     it('unrelated questions have no rule', () => {
-      eq(key('How did you hear about us?'), null);
+      eq(key('Do you enjoy working on weekends?'), null);
       eq(key('Why do you want to work here?'), null);
     });
   });

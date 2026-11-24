@@ -251,7 +251,7 @@
     });
     it('a question it has no answer for is listed', async () => {
       AtsMock.mount(sandbox(), 'icims');
-      includes((await fill()).unknown, 'Are you at least 18 years of age?');
+      includes((await fill()).unknown, 'Which of the following best describes how you use AI tools today?');
     });
     it('the sign-in page → a clear note; the password box is never touched', async () => {
       AtsMock.mount(sandbox(), 'icims-login');

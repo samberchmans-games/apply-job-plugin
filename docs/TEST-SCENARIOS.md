@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1489). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1495). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1489** tests in headless Chrome. This is the full suite: the 722 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1495** tests in headless Chrome. This is the full suite: the 727 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `DB=1 ./tests/run-browser-tests.sh` | The full suite again, with every test page acting as an extension page, so storage goes through the extension database as in the real extension (CI runs both) | |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | Open `tests/test-runner.html` in any browser | The full browser suite, run visually. Works in Chrome, Edge, Firefox and Safari. For Safari, serve it first with `python3 tests/serve.py`. | |
@@ -208,6 +208,7 @@ Use your real resume, with one achievement per line starting with `-` or `•`, 
 | E11 | Click Mark applied | Admin → Applications shows the job with status "applied" and its score |
 | E12 | Change the status in Admin → Applications, or delete the entry | Kept |
 | E13 | An application form inside an iframe (a company site embedding Greenhouse) | Fields inside the iframe are filled |
+| E14 | Autofill a Greenhouse application with screening dropdowns (e.g. Coinbase: 18+, previously employed, how did you hear, government official / relative, conflict of interest, privacy notice) | 18+ → Yes; "previously employed by Coinbase" → No (Yes only if a named company is in your resume); "how did you hear" → the job-board option (or what you answered before, or your Admin answer); government and conflict questions → No; the privacy / arbitration and "AI tools" questions stay empty and are listed as not filled. Change an answer in Admin → Auto-apply details → Screening questions and it is used next time |
 
 ### F. Logging & support
 | ID | Steps | Expected |

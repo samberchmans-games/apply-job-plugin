@@ -139,10 +139,11 @@
   function valueFor({ el, label, profile, answers, site }) {
     const key = el ? ruleKey(el, site) : null;
     const rule = (key && AJP.filler.ruleByKey(key)) || AJP.filler.ruleFor(label);
-    const v = rule ? rule.v(profile) : '';
+    const v = rule ? rule.v(profile, { label }) : '';
     if (v) return { value: String(v), how: 'profile', key: rule.key };
     const l = AJP.filler.findLearned(answers, label);
-    return l ? { value: String(l.value), how: 'learned', key: rule ? rule.key : '' } : null;
+    if (l) return { value: String(l.value), how: 'learned', key: rule ? rule.key : '' };
+    return rule && rule.dflt ? { value: rule.dflt, how: 'profile', key: rule.key } : null;
   }
 
   const candidatesFor = (value, key) => (AJP.workday ? AJP.workday.candidates(value, key) : [value]);
@@ -161,6 +162,13 @@
   const GENERIC_WORDS = /^(university|college|institute|school|academy|the|and|of|at|in|for|technology|technological|science|sciences|engineering|state|national|international|campus)$/;
   const distinctWords = (v) => AJP.norm(v).split(/\W+/).filter((w) => w.length > 3 && !GENERIC_WORDS.test(w));
   function best(options, value, key) {
+    if (ORDERED.has(key)) {
+      for (const c of candidatesFor(value, key)) {
+        const p = best(options, c, '');
+        if (p) return p;
+      }
+      return null;
+    }
     let pick = null;
     let top = 0;
     const own = key === 'school' ? distinctWords(value) : [];
@@ -268,6 +276,7 @@
     return ok ? (other ? 'other' : 'set') : 'nomatch';
   }
   const OTHER_OK = new Set(['school', 'degree', 'major']);
+  const ORDERED = new Set(['heardFrom']); // candidates in order of preference, not the best score among all
 
   // Lever's location box is a plain input with its own results list (not ARIA).
   async function pickLocation(input, value, site) {

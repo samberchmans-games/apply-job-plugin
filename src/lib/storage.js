@@ -51,6 +51,13 @@
         noticePeriod: '',
         earliestStart: '',
         coverLetterTemplate: '',
+        // Screening questions (Admin → Auto-apply details). Blank = what you answered on forms before, else the
+        // usual answer (field-rules.js `dflt`: 18+ Yes, government No, conflict No, heard from a job board).
+        over18: '',
+        govOfficial: '',
+        govRelative: '',
+        conflict: '', // conflict of interest / referred by a client's or partner's senior leader
+        heardFrom: '',
         eeo: { gender: '', race: '', hispanic: '', veteran: '', disability: '', pronouns: '' },
       },
     },

@@ -58,6 +58,11 @@
     relocate: { path: 'willingToRelocate', field: 'Willing to relocate', norm: yesNo },
     sponsorship: { path: 'autoApply.requireSponsorship', field: 'Requires visa sponsorship', norm: yesNo },
     workAuth: { path: 'autoApply.workAuthorized', field: 'Authorized to work', norm: yesNo },
+    over18: { path: 'autoApply.over18', field: 'At least 18 years old', norm: yesNo },
+    govOfficial: { path: 'autoApply.govOfficial', field: 'Government official', norm: yesNo },
+    govRelative: { path: 'autoApply.govRelative', field: 'Relative of a government official', norm: yesNo },
+    conflict: { path: 'autoApply.conflict', field: 'Conflict of interest', norm: yesNo },
+    heardFrom: { path: 'autoApply.heardFrom', field: 'How you heard about the job' },
   };
 
   const get = (o, path) => path.split('.').reduce((x, k) => (x == null ? x : x[k]), o);

@@ -77,10 +77,10 @@
       eq($('[data-automation-id="formField-source"] [data-automation-id="selectedItem"]').title, 'LinkedIn');
       includes(r.learned, 'How Did You Hear About Us?');
     });
-    it('reports questions it could not answer', async () => {
+    it('"previously worked for Acme?" is answered from your work history (Acme Corp is there)', async () => {
       const r = await fill();
-      includes(r.unknown, 'Have you previously worked for Acme?');
-      eq(btnText('previousWorker'), 'Select One');
+      notOk(r.unknown.includes('Have you previously worked for Acme?'));
+      eq(btnText('previousWorker'), 'Yes');
     });
     it('never overwrites a choice the user already made', async () => {
       $('button[data-automation-id="countryDropdown"]').click();

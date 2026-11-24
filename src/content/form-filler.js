@@ -279,7 +279,7 @@
           if (group.some((r) => r.checked)) continue;
           const q = groupQuestion(el);
           const rule = rulefor(el, q);
-          let value = rule ? rule.v(profile) : '';
+          let value = rule ? rule.v(profile, { label: q }) : '';
           let how = 'profile';
           // Checkboxes are learned one by one ("Question — Option": Yes / No): tick the ones you ticked before.
           // (Before the whole-question lookup, which would fuzzily match one of these option answers.)
@@ -298,6 +298,7 @@
             const l = findLearned(answers, q);
             if (l) (value = l.value), (how = 'learned');
           }
+          if (!value && rule && rule.dflt) value = rule.dflt;
           if (value && fillRadioGroup(group, value)) {
             group.forEach((r) => r.checked && mark(r, how));
             report[how === 'learned' ? 'learned' : 'filled'].push(q);
@@ -334,12 +335,13 @@
           continue;
         }
         const rule = rulefor(el, label);
-        let value = rule && (!isLongText || rule.textarea) ? rule.v(profile) : '';
+        let value = rule && (!isLongText || rule.textarea) ? rule.v(profile, { label }) : '';
         let how = 'profile';
         if (!value) {
           const l = findLearned(answers, label);
           if (l) (value = l.value), (how = 'learned');
         }
+        if (!value && rule && rule.dflt && (!isLongText || rule.textarea)) value = rule.dflt;
 
         if (!value && el.dataset.ajpSiteFilled) continue; // keep what the site read from the resume
         if (!value) {
