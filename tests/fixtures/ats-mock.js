@@ -27,13 +27,16 @@
   const searchCities = (q) => (q.trim().length < 2 ? [] : CITIES.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase())));
 
   // ---- React-Select emulation (Greenhouse job boards) --------------------------------------------------
-  function reactSelect(id, label, options, { search = null, remote = false } = {}) {
+  function reactSelect(id, label, options, { search = null, remote = false, live = false } = {}) {
+    const input = `<input id="${id}" role="combobox" type="text" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-labelledby="${id}-label" aria-controls="${id}-listbox" style="width:180px;border:0">`;
+    // live: as on job-boards.greenhouse.io: the input sits in ".select__input-container", and a hidden "required" twin
+    // (aria-hidden, tabindex -1, same label) follows the control.
     return `<div class="field"><label id="${id}-label" for="${id}">${esc(label)}</label>
       <div class="select__container" data-rs="${id}" data-options='${esc(JSON.stringify(options))}' ${search ? `data-search="${search}"` : ''} ${remote ? 'data-remote="1"' : ''}>
         <div class="select__control" style="border:1px solid #999;padding:4px;min-height:24px">
           <div class="select__value-container"><div class="select__placeholder">Select...</div>
-            <input id="${id}" role="combobox" type="text" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-labelledby="${id}-label" aria-controls="${id}-listbox" style="width:180px;border:0"></div>
-        </div><input type="hidden" name="${id}"></div></div>`;
+            ${live ? `<div class="select__input-container">${input}</div>` : input}</div>
+        </div><input type="hidden" name="${id}">${live ? '<input required tabindex="-1" aria-hidden="true" class="requiredInput" value="" style="opacity:0;width:100%;height:20px">' : ''}</div></div>`;
   }
   function wireReactSelect(c) {
     const input = c.querySelector('input[role="combobox"]');
@@ -69,8 +72,12 @@
         if (block && /^school--/.test(id)) {
           block.querySelectorAll('[data-rs]:not([data-rs^="school--"])').forEach((x) => {
             const fresh = x.cloneNode(true);
-            x.replaceWith(fresh);
-            wireReactSelect(fresh);
+            const spot = document.createComment('redraw');
+            x.replaceWith(spot);
+            setTimeout(() => {
+              spot.replaceWith(fresh);
+              wireReactSelect(fresh);
+            }, 150);
           });
         }
       });
@@ -85,7 +92,7 @@
       } else if (remote) {
         clearTimeout(timer);
         render(['Loading...']);
-        timer = setTimeout(() => render(opts.filter((o) => !q || o.toLowerCase().includes(q))), 300);
+        timer = setTimeout(() => render(opts.filter((o) => !q || o.toLowerCase().includes(q))), 300); // [] → "No options"
       } else render(opts.filter((o) => !q || o.toLowerCase().includes(q)));
     };
     input.addEventListener('mousedown', open);
@@ -134,15 +141,15 @@
   // block, months are React-Selects, "Add another" sits outside the blocks.
   const ghJobRemix = (i, head) => `<div class="employment-form">${head ? '<hr><div class="header-row"><p class="body body--medium">Employment</p></div>' : '<hr>'}
       ${text(`company-name-${i}`, 'Company name')}${text(`title-${i}`, 'Title')}
-      <div class="date-row">${reactSelect(`start-date-month-${i}`, 'Start date month', MONTHS)}${text(`start-date-year-${i}`, 'Start date year')}</div>
-      <div class="date-row">${reactSelect(`end-date-month-${i}`, 'End date month', MONTHS)}${text(`end-date-year-${i}`, 'End date year')}
+      <div class="date-row">${reactSelect(`start-date-month-${i}`, 'Start date month', MONTHS, { live: true })}${text(`start-date-year-${i}`, 'Start date year')}</div>
+      <div class="date-row">${reactSelect(`end-date-month-${i}`, 'End date month', MONTHS, { live: true })}${text(`end-date-year-${i}`, 'End date year')}
       <div class="checkbox"><input type="checkbox" id="current-role-${i}_1" name="current-role-${i}" value="1"><label for="current-role-${i}_1">Current role</label></div></div></div>`;
   // Option names as Greenhouse's education lists return them (Nov 2026).
   const GH_SCHOOLS = ['0 - Other', 'Example Institute of Technology and Sciences', 'University of Texas - Arlington', 'University of Texas - Austin', 'University of Texas - Dallas', 'University of Washington'];
   const GH_DEGREES = ["Associate's Degree", "Bachelor's Degree", 'Doctor of Medicine (M.D.)', 'Doctor of Philosophy (Ph.D.)', "Engineer's Degree", 'High School', 'Juris Doctor (J.D.)', 'Master of Business Administration (M.B.A.)', "Master's Degree", 'Other'];
   const GH_FIELDS = ['Accounting', 'Computer Science', 'Data Science', 'Electronics', 'Engineering', 'Other'];
   const ghEduRemix = (i, head) => `<div class="education--form">${head ? '<hr><div class="education--header"><p class="body body--medium">Education</p></div>' : '<hr>'}
-      ${reactSelect(`school--${i}`, 'School', GH_SCHOOLS, { remote: true })}${reactSelect(`degree--${i}`, 'Degree', GH_DEGREES, { remote: true })}${reactSelect(`discipline--${i}`, 'Discipline', GH_FIELDS, { remote: true })}</div>`;
+      ${reactSelect(`school--${i}`, 'School', GH_SCHOOLS, { remote: true, live: true })}${reactSelect(`degree--${i}`, 'Degree', GH_DEGREES, { remote: true, live: true })}${reactSelect(`discipline--${i}`, 'Discipline', GH_FIELDS, { remote: true, live: true })}</div>`;
   const srExp = (i) => `<div class="entry" style="border:1px solid #ddd;padding:6px;margin:6px 0">
       ${text(`sr-title-${i}`, 'Title')}${text(`sr-company-${i}`, 'Company')}${text(`sr-location-${i}`, 'Office location')}
       <div class="field"><label for="sr-desc-${i}">Description</label><textarea id="sr-desc-${i}" rows="2"></textarea></div>
@@ -244,7 +251,7 @@
 
     'greenhouse-remix': () => `<div id="grnhse_app" data-ats="greenhouse"><h1>Apply for this job</h1><form id="application-form">
       ${text('first_name', 'First Name')}${text('last_name', 'Last Name')}${text('email', 'Email', 'email')}
-      <fieldset class="phone-input"><legend class="visually-hidden">Phone</legend><div class="phone-input__country">${reactSelect('country', 'Country', ['Canada +1', 'India +91', 'United Kingdom +44', 'United States +1'])}</div>${text('phone', 'Phone', 'tel')}</fieldset>
+      <fieldset class="phone-input"><legend class="visually-hidden">Phone</legend><div class="phone-input__country">${reactSelect('country', 'Country', ['Canada +1', 'India +91', 'United Kingdom +44', 'United States +1'], { live: true })}</div>${text('phone', 'Phone', 'tel')}</fieldset>
       <div class="employment--container" data-make="job">${ghJobRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
       <div class="education--container" data-make="edu">${ghEduRemix(0, true)}<button type="button" class="add-another-button">Add another</button></div>
       <button type="submit">Submit application</button></form></div>`,

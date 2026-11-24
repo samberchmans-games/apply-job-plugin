@@ -209,6 +209,8 @@
   // ---- Main --------------------------------------------------------------------------
   function visible(el) {
     if (el.type === 'file') return true; // file inputs are often visually hidden behind a button
+    // React-Select's hidden "required" twin (aria-hidden, tabindex -1) only exists for the browser's own form check.
+    if (el.getAttribute('aria-hidden') === 'true' && el.tabIndex < 0) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
   }

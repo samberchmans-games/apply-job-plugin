@@ -21,7 +21,7 @@
   const AJP = globalThis.AJP;
   if (AJP.entries) return;
   const log = AJP.logger('entries');
-  const CONFIG = { addWaitMs: 1500, maxEntries: 5 };
+  const CONFIG = { addWaitMs: 1500, maxEntries: 5, redrawWaitMs: 3000 };
 
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').replace(/[*✱]/g, '').trim();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,6 +35,7 @@
     }
   }
   const shown = (el) => {
+    if (el.getAttribute('aria-hidden') === 'true' && el.tabIndex < 0) return false; // React-Select's hidden "required" twin
     const r = el.getBoundingClientRect();
     return (r.width > 0 && r.height > 0) || el.type === 'file';
   };
@@ -195,13 +196,17 @@
     for (let el of fields) {
       // Sites redraw a block when one field changes (Greenhouse: picking a school redraws Degree and Discipline):
       // find the field again by its id instead of filling a box that is no longer on the page.
-      if (!el.isConnected && el.id) el = el.ownerDocument.getElementById(el.id) || el;
+      if (!el.isConnected && el.id) {
+        const id = el.id;
+        el = (await waitFor(() => document.getElementById(id), CONFIG.redrawWaitMs)) || el;
+      }
       if (!el.isConnected) continue;
       const label = labelOf(el);
       const rule = rules.find((r) => r.re.test(label) && (!r.check || el.type === 'checkbox'));
       if (!rule) continue;
       try {
         const r = await setField(el, label, rule, rule.v(item));
+        log.debug('Entry field', { name, label, id: el.id || null, result: r });
         if (r === 'set') {
           AJP.filler.mark(el, 'profile');
           report.filled.push(`${name}: ${label}`);

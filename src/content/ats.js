@@ -83,7 +83,7 @@
     placeholder: '.select__placeholder, [class*="placeholder"]',
     proxy: '.select2-container, .select2, .chosen-container, .iCIMS_Dropdown, [class*="dropdown-toggle"], [data-proxy-for]',
   };
-  const CONFIG = { optionWaitMs: 1500, searchWaitMs: 2500, listWaitMs: 2500, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
+  const CONFIG = { optionWaitMs: 1500, remoteWaitMs: 8000, typingMs: 700, firstLookMs: 250, parseWaitMs: 1500, settleMs: 400 };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function waitFor(fn, ms) {
@@ -180,7 +180,7 @@
 
   // ---- Comboboxes (React-Select & friends) ---------------------------------------------------------
   function comboRoot(input) {
-    const r = input.closest('.select__control, [class*="select__control"], [class*="-control"], [class*="combobox" i], [class*="select" i]');
+    const r = input.closest('.select__control, [class*="select__control"]') || input.closest('[class*="-control"], [class*="combobox" i], [class*="select" i]:not([class*="input-container"]):not([class*="select__input"])');
     // Never a big wrapper holding other dropdowns (its "selected value" would belong to another field).
     return r && r.querySelectorAll(SEL.combobox).length === 1 ? r : input.parentElement;
   }
@@ -199,6 +199,27 @@
     return lists.flatMap((l) => [...l.querySelectorAll(SEL.option)]).filter((o) => shown(o) && !/no options|loading/i.test(o.textContent));
   }
 
+  // What the open menu says right now: options, still loading, or "No options" (React-Select's notices).
+  function menuSays(input) {
+    if (optionsFor(input).length) return 'options';
+    const id = input.getAttribute('aria-controls') || input.getAttribute('aria-owns');
+    const box = id && document.getElementById(id);
+    const text = (box ? [box] : [...document.querySelectorAll(SEL.listbox)].filter(shown)).map((l) => l.textContent).join(' ');
+    if (/loading|searching/i.test(text)) return 'loading';
+    if (/no options|no results|nothing found|not found|no matches/i.test(text)) return 'empty';
+    return 'none';
+  }
+  // A list from the site's server: wait until it has answered (a match, or "No options" for this search), however
+  // long the server takes, up to remoteWaitMs. Not a fixed guess of how fast it is.
+  async function answered(input, pick, since) {
+    let found = null;
+    await waitFor(() => {
+      found = pick();
+      return !!found || (Date.now() - since > CONFIG.typingMs && menuSays(input) === 'empty');
+    }, CONFIG.remoteWaitMs);
+    return found;
+  }
+
   async function pickCombo(input, value, key) {
     if (comboHasValue(input)) return 'kept';
     input.focus();
@@ -210,7 +231,9 @@
     let opt = null;
     if (!isLocation) {
       // Short lists open with every option: pick without typing (typing can filter away "I don't wish to answer").
-      await waitFor(() => optionsFor(input).length, remote ? CONFIG.listWaitMs : CONFIG.firstLookMs);
+      // A server list (Greenhouse degrees: 10 options) arrives a moment after the menu opens.
+      if (remote) await waitFor(() => ['options', 'empty'].includes(menuSays(input)), CONFIG.remoteWaitMs);
+      else await waitFor(() => optionsFor(input).length, CONFIG.firstLookMs);
       opt = best(optionsFor(input), value, key);
     }
     // Then search: the value as written, its usual names ("B.Tech" → "Bachelor's Degree"), then its own words
@@ -222,14 +245,15 @@
     for (const term of terms) {
       if (opt) break;
       type(input, term);
-      opt = await waitFor(() => best(optionsFor(input), value, key), remote ? CONFIG.searchWaitMs : CONFIG.optionWaitMs);
+      opt = remote ? await answered(input, () => best(optionsFor(input), value, key), Date.now()) : await waitFor(() => best(optionsFor(input), value, key), CONFIG.optionWaitMs);
     }
     // School, degree and field lists rarely have every name: "Other" is the honest answer there
     // (Greenhouse names it "0 - Other" in its school list).
     let other = false;
     if (!opt && remote) {
+      const isOther = () => optionsFor(input).find((o) => /^(\d+\s*[-–]\s*)?other\b/i.test(clean(o.textContent)));
       type(input, 'Other');
-      opt = await waitFor(() => optionsFor(input).find((o) => /^(\d+\s*[-–]\s*)?other\b/i.test(clean(o.textContent))), CONFIG.searchWaitMs);
+      opt = await answered(input, isOther, Date.now());
       other = !!opt;
     }
     if (!opt) {
