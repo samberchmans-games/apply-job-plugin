@@ -30,6 +30,7 @@
     directoryMinPerScan: 30,
     directoryFailSkip: 3, // a directory company failing 3 scans in a row is skipped until the next refresh
     bytesPerScan: 50 * 1024 * 1024, // download budget per scan (directory slice stops when it is used)
+    saveEvery: 10, // companies whose jobs, filtered jobs and seen keys are saved together (each save rewrites the lists)
   };
   const serial = AJP.serial();
   // Stop: the running scan finishes the request in flight, then ends (its queue is dropped, nothing resumes).
@@ -239,17 +240,41 @@
   }
 
   // ---- Saving -----------------------------------------------------------------------------------------
-  async function saveCompany(result, now) {
+  /*
+   * Saving. The big lists (listed jobs with descriptions, up to 5,000 filtered, tens of thousands of seen keys) are
+   * rewritten whole on every save, so they are saved for several companies at once (CONFIG.saveEvery), and once more
+   * before the description backfill and when the scan ends or stops. A company counts as done only once its jobs are
+   * saved: if Chrome stops the worker in between, those companies are simply scanned again. The company's own row
+   * and the scan's heartbeat are saved at once (small).
+   */
+  const newBuffer = () => ({ jobs: [], filtered: [], seen: [], done: [], companies: 0 });
+  async function flushSaved(buf, now) {
+    if (!buf.companies) return;
+    const { jobs, filtered, seen, done } = buf;
+    Object.assign(buf, newBuffer());
     await serial(async () => {
       const C = AJP.radar.core;
-      if (result.jobs.length) {
+      if (jobs.length) {
         await AJP.store.update('radarJobs', (list) => {
           const have = new Set(list.map((j) => j.key));
-          return [...result.jobs.filter((j) => !have.has(j.key)), ...list];
+          const add = [];
+          for (const j of jobs) if (!have.has(j.key)) (have.add(j.key), add.push(j));
+          return [...add, ...list];
         });
       }
-      if ((result.filtered || []).length) await AJP.store.update('radarFiltered', (list) => C.mergeFiltered(list, result.filtered, now));
-      if (result.listedKeys.length) await AJP.store.update('radarSeen', (seen) => C.markSeen(seen, result.listedKeys, now));
+      if (filtered.length) await AJP.store.update('radarFiltered', (list) => C.mergeFiltered(list, filtered, now));
+      if (seen.length) await AJP.store.update('radarSeen', (s) => C.markSeen(s, seen, now));
+      await AJP.store.update('radarScanState', (st) => void (st.done = [...new Set([...(st.done || []), ...done])]));
+    });
+  }
+  async function saveCompany(result, now, buf) {
+    // Newest company first, as when each company was saved on its own.
+    buf.jobs.unshift(...result.jobs);
+    buf.filtered.unshift(...(result.filtered || []));
+    buf.seen.push(...result.listedKeys);
+    buf.done.push(result.key);
+    buf.companies++;
+    await serial(async () => {
       await AJP.store.update('radarWatchlist', (list) =>
         list.map((w) => (w.key === result.key ? {
           ...w,
@@ -261,8 +286,9 @@
             : { lastError: null, failuresInRow: 0, openJobs: result.total }),
         } : w))
       );
-      await AJP.store.update('radarScanState', (st) => void Object.assign(st, { done: [...new Set([...(st.done || []), result.key])], lockedAt: Date.now() })); // + heartbeat
+      await AJP.store.update('radarScanState', (st) => void (st.lockedAt = Date.now())); // heartbeat
     });
+    if (buf.companies >= CONFIG.saveEvery) await flushSaved(buf, now);
   }
 
   /*
@@ -298,6 +324,7 @@
     cancelRequested = false;
     active = true;
     const awake = AJP.keepWorkerAwake ? AJP.keepWorkerAwake() : () => {}; // waits (Retry-After) must not let Chrome idle the worker
+    const saved = newBuffer(); // results not saved yet (see flushSaved)
     const summary = { companies: 0, requests: 0, listed: 0, new: 0, matches: [], errors: [], ms: 0, resumed: false };
     try {
       const [settings, watchlist, profile, resumes, state] = await Promise.all(['radarSettings', 'radarWatchlist', 'profile', 'resumes', 'radarScanState'].map((k) => AJP.store.get(k)));
@@ -361,7 +388,7 @@
             if (entry.directory) {
               dirOutcome[key] = 1; // directory failures are quiet: counted, then skipped after a few
               summary.directoryErrors = (summary.directoryErrors || 0) + 1;
-              await saveCompany(result, now);
+              await saveCompany(result, now, saved);
               summary.companies++;
               dirDone++;
               continue;
@@ -371,10 +398,11 @@
           }
           summary.companies++;
           if (entry.directory) dirDone++;
-          await saveCompany(result, now);
+          await saveCompany(result, now, saved);
         }
       };
       await Promise.all(Array.from({ length: Math.min(CONFIG.concurrency, queue.length) }, worker));
+      await flushSaved(saved, now); // before the backfill and the clean-up read them
       if (!stopped && !cancelRequested && Date.now() - t0 < CONFIG.maxScanMs) {
         try {
           summary.backfilled = await backfill({ fetchImpl, counter, now, deadline: t0 + CONFIG.maxScanMs });
@@ -410,6 +438,7 @@
       log.info('Radar scan done', { companies: summary.companies, requests: summary.requests, listed: summary.listed, new: summary.new, matches: summary.matches.length, errors: summary.errors.length, ms: summary.ms, resumed: summary.resumed });
       return summary;
     } finally {
+      await flushSaved(saved, now).catch((e) => log.warn('Radar results could not be saved', { error: e.message }));
       active = false;
       awake();
       await serial(() => AJP.store.update('radarScanState', (s) => void Object.assign(s, { lockedAt: null, lastSummary: { ...summary, matches: summary.matches.length, at: new Date(now).toISOString() } })));

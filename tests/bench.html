@@ -1,0 +1,76 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script src="../tests/mocks/browser-mock.js"></script>
+<script src="../src/lib/core.js"></script><script src="../src/lib/logger.js"></script><script src="../src/lib/errors.js"></script>
+<script src="../src/lib/storage.js"></script><script src="../src/lib/skills-dictionary.js"></script><script src="../src/lib/matcher.js"></script>
+<script src="../src/lib/experience.js"></script><script src="../src/lib/tracks.js"></script><script src="../src/lib/radar-core.js"></script>
+<script src="../src/lib/radar-detect.js"></script><script src="../src/lib/radar-boards.js"></script><script src="../src/lib/radar-scan.js"></script>
+<script src="../src/lib/tracker.js"></script><script src="../tests/fixtures/radar/relevance.js"></script>
+</head><body><pre id="out">running</pre>
+<script>
+/* tests/bench.html — run with tests/run-bench.sh. Benchmark (made-up data): Job Radar scan saving, matching with 3 tracks, log writes. Database on. */
+(async () => {
+  const out = [];
+  const t = async (name, fn, runs = 3) => {
+    const ms = [];
+    for (let i = 0; i < runs; i++) { const a = performance.now(); await fn(i); ms.push(performance.now() - a); }
+    ms.sort((x, y) => x - y);
+    out.push(`${name}: ${ms[Math.floor(ms.length / 2)].toFixed(1)} ms (median of ${runs})`);
+  };
+  AJP.store._useDb(true);
+  const SKILLS = ['Python', 'SQL', 'AWS', 'Snowflake', 'Spark', 'Airflow', 'Kafka', 'dbt', 'Terraform', 'Docker'].map((name) => ({ name }));
+  const profile = () => {
+    const p = AJP.clone(AJP.store.DEFAULTS.profile);
+    Object.assign(p, { skills: SKILLS, workTypes: { remote: true, hybrid: true, onsite: true } });
+    p.personal.yearsExperience = '12';
+    p.tracks = [{ id: 'a', name: 'DE', targetTitles: ['Senior Data Engineer'] }, { id: 'b', name: 'DA', targetTitles: ['Data Architect'] }, { id: 'c', name: 'AE', targetTitles: ['Analytics Engineer'] }];
+    return p;
+  };
+  const resumeText = 'Senior Data Engineer, Acme (2019 - Present)\n' + '- Built Python and Spark pipelines on AWS with Airflow, Kafka and Snowflake; dbt models.\n'.repeat(30);
+  const jd = 'About the role\nWe build data platforms.\nRequirements\n' + ['10+ years of experience with Python and SQL', 'Spark, Kafka, Airflow in production', 'AWS (S3, Glue, EMR) and Terraform', 'Data modeling and dbt', 'Strong communication'].map((l) => '- ' + l).join('\n') + '\nNice to have\n- Databricks, Flink is a plus\n- Kubernetes and Docker\n' + 'Our team ships reliable pipelines for analytics and machine learning use cases across the company. '.repeat(40);
+
+  // 1) Matching: score one job description for 3 career tracks (job page panel; Job Radar does this per job).
+  const P = profile();
+  const R = { activeId: 'r', items: [{ id: 'r', name: 'Main', text: resumeText }] };
+  AJP.tracks.analyzeAll({ jdText: jd, jobTitle: 'Senior Data Engineer', profile: P, resumes: R });
+  await t('match: 1 job, 3 tracks (x200)', () => { for (let i = 0; i < 200; i++) AJP.tracks.analyzeAll({ jdText: jd + i, jobTitle: 'Senior Data Engineer', profile: P, resumes: R }); }, 3);
+
+  // 2) Job Radar scan: 60 companies, 40 jobs each (mostly other roles), on top of 5,000 filtered and 20,000 seen jobs.
+  const reset = async () => {
+    await browser.__reset(); await AJP.store.wipe();
+    await AJP.store.set('profile', profile());
+    await AJP.store.set('resumes', R);
+    const old = new Date(Date.now() - 86400000).toISOString();
+    await AJP.store.set('radarFiltered', Array.from({ length: 5000 }, (_, i) => ({ key: 'x:' + i, title: 'Office Manager ' + i, reason: 'title', filteredAt: old, locations: [], description: i < 200 ? 'text '.repeat(200) : undefined })));
+    await AJP.store.set('radarSeen', Object.fromEntries(Array.from({ length: 20000 }, (_, i) => ['s:' + i, '2026-11-01'])));
+    await AJP.store.set('radarWatchlist', Array.from({ length: 60 }, (_, c) => ({ key: 'greenhouse:co' + c, board: 'greenhouse', company: 'co' + c, companyName: 'Co ' + c })));
+    await AJP.store.update('radarSettings', (s) => void Object.assign(s, { directory: false }));
+  };
+  const titles = (c) => Array.from({ length: 40 }, (_, i) => (i % 10 === 0 ? 'Senior Data Engineer' : ['Account Executive', 'Office Manager', 'Recruiter', 'Product Designer', 'Sales Engineer'][i % 5] + ' ' + c + '-' + i));
+  const fetchImpl = async (url) => {
+    const m = String(url).match(/boards\/(co\d+)\/jobs(\/(\d+))?/);
+    const body = m && m[2] ? { content: '&lt;p&gt;' + jd + '&lt;/p&gt;' } : m ? { jobs: titles(m[1]).map((title, i) => ({ id: i + 1, title, location: { name: 'Remote' }, absolute_url: `https://boards.greenhouse.io/${m[1]}/jobs/${i + 1}`, content: '&lt;p&gt;' + jd + '&lt;/p&gt;', updated_at: '2026-11-20T00:00:00Z' })) } : {};
+    return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(body) };
+  };
+  Object.assign(AJP.radar.scan.CONFIG, { hostGapMs: 0, requestsPerScan: 5000, maxScanMs: 10 * 60 * 1000 });
+  let summary;
+  // Where the scan's time goes: store.update per key (summed over the last run).
+  const per = {};
+  const upd = AJP.store.update.bind(AJP.store);
+  AJP.store.update = async (k, fn) => { const a = performance.now(); try { return await upd(k, fn); } finally { per[k] = (per[k] || 0) + performance.now() - a; } };
+  await t('radar: scan 60 companies (5,000 filtered, 20,000 seen)', async () => { await reset(); summary = await AJP.radar.scan.run({ fetchImpl, force: true }); }, 3);
+  out.push('  last scan, time in store.update: ' + Object.entries(per).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(v / 3).toFixed(0)}`).join(', ') + ' ms');
+  AJP.store.update = upd;
+  out.push(`  scan result: ${summary.companies} companies, ${(await AJP.store.get('radarJobs')).length} listed, ${(await AJP.store.get('radarFiltered')).length} filtered`);
+
+  // 3) Logs: 200 flushes of 10 lines into a 3,000-line log (the background's serialLogs pattern).
+  await AJP.store.set('logs', Array.from({ length: 3000 }, (_, i) => ({ t: Date.now(), lvl: 'info', msg: 'line ' + i, mod: 'bench' })));
+  await t('logs: 200 flushes into 3,000 lines', async () => { for (let i = 0; i < 200; i++) { const cur = await AJP.store.get('logs'); const next = cur.concat(Array.from({ length: 10 }, (_, k) => ({ t: Date.now(), lvl: 'info', msg: 'new ' + k, mod: 'bench' }))); await AJP.store.set('logs', next.slice(-3000)); } }, 1);
+
+  // 4) Reads: 500 reads of radarWatchlist + radarJobs (pages and the background read these often).
+  await t('reads: 500 × radarJobs + radarWatchlist', async () => { for (let i = 0; i < 500; i++) { await AJP.store.get('radarJobs'); await AJP.store.get('radarWatchlist'); } }, 3);
+  const jobsNow = await AJP.store.get('radarJobs');
+  await t('copy in memory: 500 × radarJobs (structuredClone)', () => { for (let i = 0; i < 500; i++) structuredClone(jobsNow); }, 3);
+  document.getElementById('out').textContent = out.join('\n');
+  fetch('/__results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: out }) });
+})().catch((e) => fetch('/__results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: ['ERROR ' + e.stack] }) }));
+</script></body></html>
