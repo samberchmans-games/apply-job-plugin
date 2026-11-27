@@ -159,9 +159,9 @@
   // whose lines mention the skill, or a skill that implies it). Only EMPTY fields are filled; anything the user set
   // stays. Estimated values are marked until the user edits them.
   const levelFor = (y) => (y >= 6 ? 'expert' : y >= 3 ? 'advanced' : y >= 1 ? 'intermediate' : 'beginner');
-  function estimateSkills(text) {
+  function estimateSkills(text, me = null) {
     if (!AJP.experience || !(text || '').trim()) return 0;
-    const me = AJP.experience.candidate(profile, text);
+    me = me || AJP.experience.candidate(profile, text);
     let n = 0;
     for (const sk of profile.skills) {
       const y = me.skillYears(sk.name);
@@ -192,8 +192,9 @@
       if (note) note.textContent = '';
       return;
     }
-    const jobs = AJP.experience ? AJP.experience.candidate(profile, r.text).roles.length : 0;
-    const n = estimateSkills(r.text);
+    const me = AJP.experience ? AJP.experience.candidate(profile, r.text) : null;
+    const jobs = me ? me.roles.length : 0;
+    const n = estimateSkills(r.text, me);
     if (n) {
       renderSkills();
       await AJP.store.set('profile', profile);

@@ -110,10 +110,10 @@
   }
   async function ensureEntries(sec, kind, need) {
     let guard = 0;
-    while (entryBlocks(sec, kind).length < need && guard++ < CONFIG.maxEntries) {
+    let before;
+    while ((before = entryBlocks(sec, kind).length) < need && guard++ < CONFIG.maxEntries) {
       const add = addButton(sec, kind);
       if (!add) break;
-      const before = entryBlocks(sec, kind).length;
       add.click();
       if (!(await waitFor(() => entryBlocks(sec, kind).length > before, CONFIG.addWaitMs))) break;
     }

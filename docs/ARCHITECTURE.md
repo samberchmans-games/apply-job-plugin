@@ -580,7 +580,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1512 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1514 tests; results POSTed to serve.py
   run-bench.sh            performance benchmark (bench.html, made-up data, database on): Job Radar scan, matching with
                           3 tracks, log saves, repeated reads; median ms per measure, to compare before / after a change
                           (BY_SUITE=--by-suite prints counts per suite)

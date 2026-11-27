@@ -2,7 +2,7 @@
 
 There are two layers of tests:
 
-1. **Automated tests** (1512). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
+1. **Automated tests** (1514). Run them before every merge into `develop`. **CI** (GitHub Actions) runs all of them on every push and pull request.
 2. **Manual scenarios** (below). Run these in real browsers on real job sites before a release.
 
 ## 1. Automated tests
@@ -12,7 +12,7 @@ There are two layers of tests:
 | `python3 tools/package.py --check` | Builds and verifies the four store packages (references, no test/doc files, per-store manifest rules) | ~2 s |
 | `sh tests/check.sh` | Static checks: manifest valid, every referenced file exists, every script parses, no debug code, the docs' error-code counts and SUPPORT.md match `errors.js` | ~2 s |
 | `./tests/run-tests.sh` | The **557** tests that need no browser: helpers, matcher, log redaction, AI output parsing, autofill rules. Uses Node, or macOS JavaScriptCore if Node isn't installed. | ~1 s |
-| `./tests/run-browser-tests.sh` | All **1512** tests in headless Chrome. This is the full suite: the 732 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
+| `./tests/run-browser-tests.sh` | All **1514** tests in headless Chrome. This is the full suite: the 734 above plus real forms, page reading, storage, background and end-to-end flows. | ~5 s |
 | `DB=1 ./tests/run-browser-tests.sh` | The full suite again, with every test page acting as an extension page, so storage goes through the extension database as in the real extension (CI runs both) | |
 | `./tests/run-browser-tests.sh autofill` | The same, but only tests whose name contains "autofill" | |
 | `./tests/run-bench.sh` | Performance benchmark with made-up data (not pass / fail): Job Radar scan, matching, log saves, reads. Compare before and after a change | ~1 min |

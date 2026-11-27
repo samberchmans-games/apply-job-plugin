@@ -50,6 +50,31 @@
     });
   });
 
+  describe('perf › small cleanups keep the same answers (B68)', () => {
+    it('learned answers: a close question still matches; a new answers list sees its new answers', () => {
+      const answers = { [AJP.normKey('Are you willing to work night shifts?')]: { label: 'Are you willing to work night shifts?', value: 'No' } };
+      eq(AJP.filler.findLearned(answers, 'Are you willing to work the night shifts').value, 'No');
+      eq(AJP.filler.findLearned(answers, 'Do you have a car for commuting'), null);
+      const more = { ...answers, [AJP.normKey('Do you have a car for commuting?')]: { label: 'Do you have a car for commuting?', value: 'Yes' } };
+      eq(AJP.filler.findLearned(more, 'Do you have a car for commuting').value, 'Yes');
+    });
+    it('Applications stats: weekly counts are unchanged', () => {
+      const now = Date.parse('2026-11-27T12:00:00Z');
+      const day = 86400000;
+      const apps = [1, 2, 8, 9, 10, 30].map((d, i) => ({ id: 'a' + i, status: 'applied', appliedAt: new Date(now - d * day).toISOString() }));
+      const s = AJP.tracker.stats(apps, now, 8);
+      // The old way: every application's date read again for each week.
+      const old = [];
+      for (let w = 7; w >= 0; w--) {
+        const end = now - w * 7 * day;
+        old.push(apps.filter((a) => Date.parse(a.appliedAt) > end - 7 * day && Date.parse(a.appliedAt) <= end).length);
+      }
+      eq(s.perWeek.map((w) => w.count), old);
+      eq(old, [0, 0, 0, 1, 0, 0, 3, 2]);
+      eq(s.thisWeek, 2);
+    });
+  });
+
   describe('perf › Job Radar saves companies in batches', () => {
     const N = 23;
     const res = (body) => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(body) });

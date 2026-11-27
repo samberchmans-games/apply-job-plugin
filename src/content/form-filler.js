@@ -204,6 +204,12 @@
     return new Set(AJP.normKey(s).split(' ').filter((w) => w.length > 2));
   }
 
+  const answerWords = new WeakMap(); // answers object → [[key, words, answer]]
+  function wordsOf(answers) {
+    let list = answerWords.get(answers);
+    if (!list) answerWords.set(answers, (list = Object.entries(answers).map(([k, v]) => [k, tokens(k), v])));
+    return list;
+  }
   function findLearned(answers, label) {
     const key = AJP.normKey(label);
     if (answers[key]) return answers[key];
@@ -211,8 +217,7 @@
     if (a.size < 2) return null;
     let best = null;
     let bestJ = 0;
-    for (const [k, v] of Object.entries(answers)) {
-      const b = tokens(k);
+    for (const [, b, v] of wordsOf(answers)) {
       const inter = [...a].filter((w) => b.has(w)).length;
       const j = inter / (a.size + b.size - inter);
       if (j > bestJ) {

@@ -184,16 +184,11 @@
     const byStatus = Object.fromEntries(STATUSES.map((s) => [s, 0]));
     for (const a of apps) if (a.status in byStatus) byStatus[a.status]++;
     const perWeek = [];
+    const times = submitted.map((a) => Date.parse(a.appliedAt || a.date));
     for (let w = weeks - 1; w >= 0; w--) {
       const end = now - w * 7 * DAY;
       const start = end - 7 * DAY;
-      perWeek.push({
-        weekStart: new Date(start).toISOString().slice(0, 10),
-        count: submitted.filter((a) => {
-          const t = Date.parse(a.appliedAt || a.date);
-          return t > start && t <= end;
-        }).length,
-      });
+      perWeek.push({ weekStart: new Date(start).toISOString().slice(0, 10), count: times.filter((t) => t > start && t <= end).length });
     }
     return {
       total: apps.length,

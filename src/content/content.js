@@ -568,6 +568,7 @@
     setTimeout(auto, 1200);
     // SPA navigation (LinkedIn, Workday): re-run when the URL changes.
     setInterval(() => {
+      if (document.hidden) return; // a background tab: checked again as soon as you come back to it
       // Workday: a multi-page application in one URL. After Autofill was used, offer it again on each new page.
       if (state.autofillUsed && AJP.workday && AJP.workday.applies()) {
         const step = AJP.workday.currentStep();
