@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 | Issue reporting to GitHub (option A) | ✅ complete (issue form, auto-acknowledgement, extension side) |
 | Multiple career tracks | ✅ |
 | Tester material | ✅ Tester Guide (8 sessions, 75 checks) + 7 walkthrough videos, updated every step |
-| Tests | ✅ 1504 automated + 177 manual scenarios · ✅ CI on every push |
+| Tests | ✅ 1505 automated + 177 manual scenarios · ✅ CI on every push |
 
 **Code size:** about 13,100 lines of JavaScript in 43 files (plus HTML/CSS), plus 57 test files. No dependencies, no build step.
 
@@ -148,7 +148,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending · ❌ decided not to do
 ## 9. Quality
 | Item | Status | Notes |
 |---|---|---|
-| Automated tests: 1504 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1504) · `./tests/run-tests.sh` (the 727 that need no browser) |
+| Automated tests: 1505 across 40+ areas, incl. end-to-end, Admin UI and convention checks | ✅ | `./tests/run-browser-tests.sh` (all 1505) · `./tests/run-tests.sh` (the 727 that need no browser) |
 | Tester Guide (shareable doc, 8 sessions, 72 checks) + walkthrough videos (`video/build.py`) | ✅ | Updated with every feature step |
 | Sample job + application test page | ✅ | `tests/fixtures/sample-job.html` |
 | Autofill, page reading, storage, AI, logging, background tests | ✅ | `tests/unit/` |
@@ -291,6 +291,7 @@ Users report problems as GitHub issues. The extension pre-fills the form, and th
 | 2026-11-24 | `e6444d4` | B61 new look (UI review): line icons, grouped sidebar, cards, one accent, save indicator, link fields, panel summary / fit checklist / gap reasons / action order, minimized pill; 1489 tests |
 | 2026-11-24 | `1ceda6d` | Fixed B62: screening questions on the Coinbase form (18+, previously employed, how you heard, government, conflict of interest), Admin → Screening questions; 1495 tests |
 | 2026-11-24 | `9e147fc` | B63: Race radio lists filled; Job Radar Applied button, Applied list, auto-move when you apply elsewhere, similar-job flag; 1504 tests |
+| 2026-11-27 | (pending) | Fixed B64: popup Job Radar links open only http(s); 1505 tests |
 | 2026-11-21 | `6fadcbd` | Fixed B46 from the first real tailored resume: two false skill gaps, edits may not remove a tool from a line, wrapped-line tails joined in the PDF, the panel compares with your original resume scored now and explains an unchanged score; 1359 tests |
 | 2026-11-21 | `0851375` | Fixed B45 from the first real AI check: quality gate on the full-size step, small models last, no long retry for slow thinking models, Groq JSON failures retried, account ids masked, providers checked side by side; 1349 tests |
 | 2026-11-21 | `e4f673d` (`feature/ai-rebuild`) | **Cloud AI path rebuilt**: streaming for every provider, per-provider profiles, careful reply reading (cut off, thinking, refusals, errors in 200), learned model quirks, free-tier pace, real error reasons, **Check my AI setup** with real calls and a sample resume, tailoring only on verified models; fixed B43, B44; 1344 tests |

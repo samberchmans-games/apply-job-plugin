@@ -78,11 +78,13 @@
       const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       box.innerHTML =
         `<b>${ic('radar')} ${st.newCount ? `${st.newCount} new job match${st.newCount === 1 ? '' : 'es'}` : 'Job Radar: no new matches'}</b>` +
-        (jobs.length ? `<ul>${jobs.map((j) => `<li><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener" data-url="${esc(j.url)}">${esc(j.title)}</a> <span class="muted">${esc(j.companyName)} · ${j.score == null ? 'title only' : j.score + '%'}${j.postedAt && Date.now() - Date.parse(j.postedAt) < 86400000 ? ' · <b>today</b>' : ''}</span></li>`).join('')}</ul>` : '') +
+        (jobs.length ? `<ul>${jobs.map((j) => `<li><a href="${esc(AJP.safeUrl(j.url))}" target="_blank" rel="noopener" data-url="${esc(AJP.safeUrl(j.url))}">${esc(j.title)}</a> <span class="muted">${esc(j.companyName)} · ${j.score == null ? 'title only' : j.score + '%'}${j.postedAt && Date.now() - Date.parse(j.postedAt) < 86400000 ? ' · <b>today</b>' : ''}</span></li>`).join('')}</ul>` : '') +
         '<a href="#" id="radarAll">See all in Job Radar →</a>';
       box.querySelectorAll('a[data-url]').forEach((a) => (a.onclick = (e) => {
         e.preventDefault();
-        AJP.api.tabs.create({ url: a.dataset.url }).then(() => window.close());
+        // Only http(s) links open (a job saved by an older version could hold any link).
+        const url = AJP.safeUrl(a.dataset.url);
+        if (url) AJP.api.tabs.create({ url }).then(() => window.close());
       }));
     }
     box.hidden = false;

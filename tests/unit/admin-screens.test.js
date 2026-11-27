@@ -735,6 +735,16 @@
       $('#radar').querySelector('li a').click();
       await waitFor(() => w.browser.__created.some((t) => t.url === 'https://boards.greenhouse.io/acme/jobs/6'), { msg: 'job opened' });
     });
+    it('a job saved with a non-http(s) link (older version) opens nothing (B64)', async () => {
+      const bad = { ...job(7, 90), url: 'javascript:alert(1)' };
+      await load('popup.html', { radarJobs: [bad], radarWatchlist: [{ key: 'greenhouse:acme', board: 'greenhouse', company: 'acme', companyName: 'Acme Corp' }] }, { background: true });
+      await waitFor(() => $('#radar li a'), { msg: 'listed' });
+      const a = $('#radar li a');
+      eq([a.getAttribute('href'), a.dataset.url], ['', '']);
+      a.click();
+      await new Promise((r) => setTimeout(r, 150));
+      eq(w.browser.__created.length, 0);
+    });
   }, { env: 'browser' });
 
   describe('admin screens › tracks and defaults', () => {

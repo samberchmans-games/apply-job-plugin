@@ -23,11 +23,12 @@
       eq(await AJP.store.get('radarJobs'), [{ key: 'a' }]);
       eq(await raw('radarJobs'), undefined);
     });
+    // aiCalls, not logs: the background writes its own log lines at any moment during the test run.
     it('data saved before the update moves over once', async () => {
-      await mock.storage.local.set({ logs: [{ msg: 'old' }] });
-      eq((await AJP.store.get('logs')).map((l) => l.msg), ['old']);
-      eq(await raw('logs'), undefined);
-      eq((await AJP.store.get('logs')).length, 1);
+      await mock.storage.local.set({ aiCalls: [{ task: 'old' }] });
+      eq((await AJP.store.get('aiCalls')).map((l) => l.task), ['old']);
+      eq(await raw('aiCalls'), undefined);
+      eq((await AJP.store.get('aiCalls')).length, 1);
     });
     it('API keys never sit in shared storage; the extension still sees them', async () => {
       await AJP.store.update('settings', (s) => void (s.ai.keys.groq = 'gsk-secret'));
