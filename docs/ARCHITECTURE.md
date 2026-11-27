@@ -497,7 +497,7 @@ Every call is traced. HTTP status, timeout, network and parse failures map to `A
 | Trace (`tid`) | One id per user action. `AJP.startTrace(name)` creates it; `AJP.send(type, payload, trace)` carries it as `_tid`; the background router and `ai.complete` reuse it. The result is a single id across page → background → AI → page. |
 | Timing | `trace.end()` logs `ms`. Above `slowMs` it logs a `… slow` warning instead. |
 | Flight recorder | The last 60 entries below the log level are held in memory and written only if an error follows (`pre: true`) |
-| Errors | `errors.js`: 38 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
+| Errors | `errors.js`: 49 codes, each with a message and a hint. `AJP.err(key, details)`. `toAppError` normalizes anything thrown, or a failed reply. The UI shows message + hint + `(AJP-…)`. |
 | Redaction | By **key** (`apiKey`, `token`, `password`, `email`, `phone`, `eeo`, `race`, `veteran`, `disability`, `gender`, `dataUrl`, …) and by **value pattern** (emails, Gemini/Groq/OpenRouter/OpenAI-style keys, Bearer tokens, `?key=`, phone numbers, SSNs). Applied to messages, data and error stacks. |
 | Transport | Contexts batch entries (700 ms; 50 ms after an error) → `log` message → the background writes the ring buffer (3,000 entries) |
 | Capture | `AJP.captureErrors` on the Admin page, popup and resume view. Content scripts log only errors from extension files. The background logs `error` and `unhandledrejection`. |
@@ -578,7 +578,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1505 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1507 tests; results POSTed to serve.py
                           (BY_SUITE=--by-suite prints counts per suite)
   serve.py                dev server (no-cache; accepts POST /__results)
   fixtures/sample-job.html  manual test page (JSON-LD job + application form)
@@ -594,7 +594,7 @@ video/                    tester walkthrough videos: parts.py (scenes per part),
 
 ### CI (GitHub Actions)
 `.github/workflows/ci.yml` runs on every push and pull request to `develop` / `main` (and on demand):
-- **checks** — `tests/check.sh`: manifest is valid JSON with an x.y.z version, every file it names (and every `importScripts` / injected file in the background) exists, every script parses (`node --check`), no `debugger` / `console.log` left in `src/`.
+- **checks** — `tests/check.sh`: manifest is valid JSON with an x.y.z version, every file it names (and every `importScripts` / injected file in the background) exists, every script parses (`node --check`), no `debugger` / `console.log` left in `src/`. The docs must agree with the error catalog (`tests/check-error-docs.js`: the "N codes" counts and every code in SUPPORT.md).
 - **cli-tests** — `tests/run-tests.sh` with Node.
 - **browser-tests** — `tests/run-browser-tests.sh` in the runner's Google Chrome (`CHROME_FLAGS=--no-sandbox`), per-suite counts printed.
 Run all three locally before pushing: `sh tests/check.sh && sh tests/run-tests.sh && sh tests/run-browser-tests.sh`.

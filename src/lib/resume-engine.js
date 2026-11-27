@@ -150,12 +150,14 @@
       } else if (b && (kind === 'experience' || kind === 'projects' || kind === 'other')) {
         blocks.push((lastBullet = { id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: b[1] + b[2] + ' ', text: b[3], editable: true }));
         lastBulletRaw = t;
+        lastText = ''; // a date line after bullets starts the next job; it never joins the job header above them
         continue;
       } else if (opts.loose && (kind === 'experience' || kind === 'projects' || kind === 'other') && looksLikeAchievement(t)) {
         // No bullet characters in this resume (e.g. a Word file pasted without its list formatting): a line that
         // reads like an achievement is used as one. The line is rewritten without adding a marker.
         blocks.push((lastBullet = { id: 'b' + ++n, line: i, kind: 'bullet', section, role, prefix: raw.match(/^\s*/)[0], text: t, editable: true, loose: true }));
         lastBulletRaw = t;
+        lastText = '';
         continue;
       } else {
         lastBullet = null;

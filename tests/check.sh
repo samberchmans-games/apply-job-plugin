@@ -34,6 +34,7 @@ if command -v node >/dev/null 2>&1; then
     node --check "$f" 2>/dev/null || { echo "Syntax error: $f"; node --check "$f"; FAIL=1; }
   done
   echo "syntax ok"
+  node tests/check-error-docs.js || FAIL=1
 else
   echo "node not installed: syntax check skipped"
 fi

@@ -18,6 +18,17 @@
       const y = doc.bullets.find((b) => /Built Y/.test(b.text));
       notOk(/Acme/.test(y.role), y.role);
     });
+    it('a date line after a job\'s bullets starts the next job; it does not join the job above (B65)', () => {
+      const doc = E().parse('## Experience\nSenior Engineer | Acme\n- Built X\n2019 - 2021\n- Built Y');
+      const y = doc.bullets.find((b) => /Built Y/.test(b.text));
+      notOk(/Acme/.test(y.role), y.role);
+      const x = doc.bullets.find((b) => /Built X/.test(b.text));
+      ok(/Acme/.test(x.role), x.role);
+    });
+    it('a date line right under a title still joins it', () => {
+      const doc = E().parse('## Experience\nData Engineer, Globex\n2015 - 2019\n- Built Z');
+      ok(/Globex.*2015 - 2019/.test(doc.bullets[0].role), doc.bullets[0].role);
+    });
     it('"## Technical Expertise" after Experience is a section, not a job line', () => {
       const doc = E().parse('## Experience\n### Engineer, Acme (2020 - Present)\n- Built pipelines.\n## Technical Expertise\nPython, SQL, Spark');
       eq(doc.skills.map((b) => b.text), ['Python, SQL, Spark']);
