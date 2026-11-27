@@ -7,6 +7,49 @@
   const AJP = globalThis.AJP;
   const mock = globalThis.browser;
 
+  describe('perf › matching scans blocks, with the same result as line by line (B67)', () => {
+    const M = () => AJP.matcher;
+    const W = { required: 3, neutral: 2, preferred: 1 };
+    // The old way, as the reference: every line on its own.
+    function lineByLine(jdText, custom) {
+      const jd = new Map();
+      for (const sec of M().sectionize(jdText)) {
+        for (const [name, n] of M().findSkills(sec.text, custom)) {
+          const cur = jd.get(name) || { weight: 0, count: 0 };
+          cur.weight = Math.max(cur.weight, W[sec.kind] || W.neutral);
+          cur.count += n;
+          jd.set(name, cur);
+        }
+      }
+      return [...jd].map(([name, i]) => `${name}=${i.weight + Math.min(i.count - 1, 2) * 0.25}`).sort();
+    }
+    const JDS = [
+      'Requirements\n- 5+ years with Python and SQL\n- Machine\nLearning in production\n- C++\nC# and .NET\nNice to have\n- Go is a plus\n- Kubernetes',
+      'About us\nWe use Node.js\nReact and TypeScript.\nWhat you bring\n- AWS (S3, Glue)\n- Terraform\n- Data modeling\nBonus\n- Spark\n- Spark\n- Spark\n- Spark',
+      'Responsibilities\nBuild pipelines with Airflow, dbt and Snowflake.\nQualifications\nPython\nSQL\nKafka is preferred.\nExperience with Machine Learning.\n' + 'We value communication and ownership. '.repeat(30),
+      'Senior Data Engineer\nYou will work with Go, JS and ML teams.\nMust have\n- Java\n- Scala\n- Apache Spark\nPreferred qualifications\n- Flink\n- Databricks\n- Delta Lake',
+      'Plain text with no headings at all. Python, SQL, AWS, GCP and Azure; Docker and Kubernetes; CI/CD; Git.\nMore lines.\nNode.js\n.NET Core\nC++',
+    ];
+    const profile = { skills: [{ name: 'Python' }, { name: 'SQL' }, { name: 'Snowflake' }, { name: 'MyInternalTool' }] };
+    it('same skills, weights and score on varied job descriptions', () => {
+      for (const jdText of JDS) {
+        const a = M().analyze({ jdText, profile });
+        const got = [...a.matched, ...a.missing].map((x) => `${x.skill}=${x.weight}`).sort();
+        eq(got, lineByLine(jdText, ['Python', 'SQL', 'Snowflake', 'MyInternalTool']), jdText.slice(0, 40));
+      }
+    });
+    it('a skill split over two lines is not joined ("Machine" / "Learning")', () => {
+      const a = M().analyze({ jdText: 'Requirements\n- Machine\nLearning teams', profile: { skills: [] } });
+      ok(![...a.matched, ...a.missing].some((x) => x.skill === 'Machine Learning'));
+    });
+    it('a job description scanned for 3 career tracks gives the same result each time (remembered scan)', () => {
+      const jdText = JDS[2];
+      const runs = [1, 2, 3].map(() => M().analyze({ jdText, profile }));
+      eq(runs.map((r) => r.score), [runs[0].score, runs[0].score, runs[0].score]);
+      eq(runs[2].missing.map((x) => x.skill), runs[0].missing.map((x) => x.skill));
+    });
+  });
+
   describe('perf › Job Radar saves companies in batches', () => {
     const N = 23;
     const res = (body) => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(body) });

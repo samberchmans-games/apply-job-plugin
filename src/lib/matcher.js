@@ -75,28 +75,41 @@
 
   // Find dictionary skills (+ optional extra custom skill names) in text.
   // Returns Map<canonicalName, occurrences>.
-  // A resume is scanned for every job (and every career track): remember the last few long texts.
+  // The dictionary scan (~350 patterns) of a longer text is remembered: a resume is scanned for every job and every
+  // career track, and a job description once per career track. Your own extra skill names are scanned each time.
   const scans = new Map();
-  function findSkills(text, extra = []) {
-    if (text && text.length >= 500) {
-      const key = `${extra.join('|')}\u0001${text}`;
-      if (scans.has(key)) return new Map(scans.get(key));
-      const found = scanSkills(text, extra);
-      scans.set(key, found);
-      if (scans.size > 24) scans.delete(scans.keys().next().value);
-      return new Map(found);
+  const REMEMBER_FROM = 200; // characters
+  function dictionaryScan(text) {
+    if (text.length < REMEMBER_FROM) return scanDictionary(text);
+    let found = scans.get(text);
+    if (found) {
+      scans.delete(text); // most recently used last
+      scans.set(text, found);
+    } else {
+      found = scanDictionary(text);
+      scans.set(text, found);
+      if (scans.size > 48) scans.delete(scans.keys().next().value);
     }
-    return scanSkills(text, extra);
+    return new Map(found);
   }
-  function scanSkills(text, extra = []) {
+  function findSkills(text, extra = []) {
     compile();
+    if (!text) return new Map();
+    const found = dictionaryScan(text);
+    for (const [name, n] of scanExtra(text, extra)) found.set(name, n);
+    return found;
+  }
+  function scanDictionary(text) {
     const found = new Map();
-    if (!text) return found;
     for (const { name, res } of compiled) {
       let n = 0;
       for (const re of res) n += count(text, re);
       if (n) found.set(name, n);
     }
+    return found;
+  }
+  function scanExtra(text, extra = []) {
+    const found = new Map();
     for (const s of extra) {
       const raw = String(s).trim();
       // Dictionary skills were already scanned above; only scan the user's custom ones.
@@ -135,6 +148,19 @@
   // "Kafka is a plus", "Go (preferred)", "Terraform preferred." — but not "our preferred vendors".
   const INLINE_PREF = /(\ba plus\b|\b(is|are|strongly) preferred\b|\(preferred\)|\bpreferred[.:;)]?\s*$|nice[\s-]to[\s-]have|\bbonus\b)/i;
   const OTHER_HEAD = /(about (us|the company)|benefits|perks|what we offer|compensation|equal opportunity|eeo|our values|why join)/i;
+
+  // Lines of one kind (required / mentioned / preferred) are scanned together: up to 3 scans per job instead of one
+  // per line. A NUL between lines keeps a skill from matching across two of them (patterns join words only across
+  // spaces and hyphens, and a NUL is neither), so the result is the same as scanning line by line.
+  const LINE_SEP = '\n\u0000\n';
+  function blocksOf(jd) {
+    const by = new Map();
+    for (const s of sectionize(jd)) {
+      if (!by.has(s.kind)) by.set(s.kind, []);
+      by.get(s.kind).push(s.text);
+    }
+    return [...by].map(([kind, lines]) => ({ kind, text: lines.join(LINE_SEP) }));
+  }
 
   function sectionize(jd) {
     const lines = String(jd || '').split(/\r?\n/);
@@ -413,7 +439,7 @@
       cur.count += n;
       jd.set(name, cur);
     };
-    for (const sec of sectionize(jdText)) {
+    for (const sec of blocksOf(jdText)) {
       for (const [name, n] of findSkills(sec.text, customNames)) bump(name, sec.kind, n);
     }
     if (aiSkills) {
@@ -473,5 +499,5 @@
     }
   }
 
-  AJP.matcher = { countriesIn, homeCountries, listedAbroad, statesIn, readLimits, remoteRestriction, analyze, findSkills, canonical, sectionize, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
+  AJP.matcher = { countriesIn, homeCountries, listedAbroad, statesIn, readLimits, remoteRestriction, analyze, findSkills, canonical, sectionize, blocksOf, parseSalary, detectWorkTypes, impliedBy, similarTo, SIMILAR_CREDIT };
 })();

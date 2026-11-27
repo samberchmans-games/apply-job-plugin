@@ -48,6 +48,8 @@ src/
     storage.js                local "database": defaults, cache, versioned reads, backup/restore
     skills-dictionary.js      canonical skills + aliases
     matcher.js                offline match score, gaps, fit checks
+                              (job descriptions scanned in blocks by kind, NUL between lines; dictionary scans of
+                              texts of 200+ characters remembered, 48 entries: one scan serves every career track)
     ai.js                     free AI providers + prompts (background only)
     tracker.js                application tracker logic (job identity, merge rules, reminders, stats, CSV)
     diagnostics.js            "Report an issue" bundle; captureErrors for extension pages
@@ -578,7 +580,7 @@ tests/
                           resume-engine, enhance-flow, tracks, tracks-flow, issue-report, issue-flow, standard
   test-runner.html        loads the REAL extension code + mock + suites; shows results
   run-tests.sh            CLI: 557 tests that need no DOM (Node, or macOS JavaScriptCore)
-  run-browser-tests.sh    headless Chrome, real time: all 1509 tests; results POSTed to serve.py
+  run-browser-tests.sh    headless Chrome, real time: all 1512 tests; results POSTed to serve.py
   run-bench.sh            performance benchmark (bench.html, made-up data, database on): Job Radar scan, matching with
                           3 tracks, log saves, repeated reads; median ms per measure, to compare before / after a change
                           (BY_SUITE=--by-suite prints counts per suite)
